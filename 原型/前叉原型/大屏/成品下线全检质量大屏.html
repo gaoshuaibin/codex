@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>智检光幕 | 成品全检质量驾驶舱 | 工业蓝</title>
+    <!-- ECharts 5 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(ellipse at 20% 30%, #0a1628, #030a14);
+            min-height: 100vh;
+            padding: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Inter', 'Poppins', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+
+        /* 主容器：工业蓝玻璃质感 */
+        .dashboard {
+            max-width: 1920px;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: rgba(8, 20, 38, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(52, 132, 205, 0.45);
+            border-radius: 48px;
+            padding: 24px 32px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(52, 152, 219, 0.25) inset, 0 0 28px rgba(41, 112, 188, 0.15);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            color: #eaf4ff;
+        }
+
+        /* 标题区域：左上角大标题 + 右侧时间 */
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 8px 8px 8px;
+            border-bottom: 1px solid rgba(52, 132, 205, 0.5);
+            position: relative;
+        }
+        .header-bar::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 10%;
+            width: 120px;
+            height: 2px;
+            background: linear-gradient(90deg, #3a8fd4, transparent);
+            border-radius: 2px;
+        }
+        .dashboard-title {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff, #7bc5ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px rgba(59, 143, 212, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .dashboard-title::before {
+            content: "⚙️";
+            font-size: 28px;
+            background: none;
+            -webkit-background-clip: unset;
+            background-clip: unset;
+            color: #5bb4ff;
+            text-shadow: 0 0 6px #3a8fd4;
+        }
+        .datetime {
+            background: rgba(12, 40, 62, 0.75);
+            backdrop-filter: blur(12px);
+            padding: 8px 24px;
+            border-radius: 60px;
+            border: 1px solid rgba(52, 152, 219, 0.6);
+            font-size: 18px;
+            font-weight: 500;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 1px;
+            color: #b8dcff;
+            box-shadow: 0 0 15px rgba(41, 112, 188, 0.3);
+        }
+
+        /* KPI 卡片 */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 22px;
+            margin-bottom: 26px;
+        }
+        .kpi-card {
+            background: rgba(10, 32, 48, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(52, 132, 205, 0.5);
+            border-radius: 32px;
+            padding: 20px 22px;
+            transition: all 0.25s ease;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, #3a8fd4, #2c6ea5);
+            opacity: 0.6;
+        }
+        .kpi-card:hover {
+            border-color: #4a9edd;
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.4);
+            transform: translateY(-2px);
+        }
+        .kpi-label {
+            font-size: 15px;
+            font-weight: 500;
+            color: #b8d8f5;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 1px;
+        }
+        .kpi-value {
+            font-size: 52px;
+            font-weight: 800;
+            background: linear-gradient(125deg, #ffffff, #a8d0ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            line-height: 1;
+            letter-spacing: 2px;
+        }
+        .kpi-unit {
+            font-size: 20px;
+            color: #6ba8d4;
+            margin-left: 5px;
+        }
+        .kpi-trend {
+            font-size: 13px;
+            margin-top: 10px;
+            color: #90bcdb;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 主体网格 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: 24px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* 左侧区域 */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-height: 0;
+            height: 100%;
+        }
+
+        /* 产线双卡 */
+        .line-status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+        .line-card {
+            background: rgba(6, 24, 40, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(52, 132, 205, 0.5);
+            border-radius: 32px;
+            padding: 20px 22px;
+            transition: 0.2s;
+            box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+        }
+        .line-card:hover {
+            border-color: #4a9edd;
+            box-shadow: 0 0 15px rgba(52,132,205,0.3);
+        }
+        .line-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 18px;
+            letter-spacing: 1px;
+        }
+        .line-name {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .order-count-badge {
+            font-size: 14px;
+            font-weight: 500;
+            background: rgba(52, 132, 205, 0.35);
+            padding: 2px 8px;
+            border-radius: 40px;
+            color: #c0e0ff;
+            letter-spacing: 0;
+            backdrop-filter: blur(2px);
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #3a8fd4;
+            box-shadow: 0 0 12px #3a8fd4;
+            animation: pulse-glow 1.5s infinite;
+        }
+        @keyframes pulse-glow {
+            0% { opacity: 0.5; box-shadow: 0 0 0 0 #3a8fd4; }
+            100% { opacity: 1; box-shadow: 0 0 8px 2px #3a8fd4; }
+        }
+        .line-metrics {
+            display: flex;
+            justify-content: space-between;
+            margin: 12px 0;
+            gap: 12px;
+        }
+        .metric-item {
+            text-align: center;
+            flex: 1;
+            background: rgba(0, 35, 55, 0.5);
+            border-radius: 24px;
+            padding: 8px 4px;
+            backdrop-filter: blur(2px);
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #a0c8e8;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .metric-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #e8f3ff;
+            line-height: 1.2;
+        }
+        .line-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .person-info {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            font-size: 14px;
+            background: rgba(0, 45, 65, 0.6);
+            padding: 6px 14px;
+            border-radius: 40px;
+            backdrop-filter: blur(2px);
+        }
+        .person-label {
+            color: #94bbdb;
+        }
+        .person {
+            color: #5db0e0;
+            font-weight: 600;
+        }
+        .defect-highlight {
+            color: #ffbc7a;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(0, 60, 80, 0.5);
+            padding: 4px 12px;
+            border-radius: 40px;
+            backdrop-filter: blur(2px);
+        }
+        .defect-highlight span:first-child {
+            font-size: 13px;
+        }
+
+        /* 实时记录表 */
+        .recent-panel {
+            background: rgba(6, 24, 40, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(52, 132, 205, 0.45);
+            border-radius: 32px;
+            padding: 18px 22px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            flex: 1;
+            overflow: hidden;
+        }
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #b0d4f8;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-left: 4px solid #3a8fd4;
+            padding-left: 12px;
+            flex-shrink: 0;
+        }
+        .table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            border-radius: 20px;
+            scrollbar-width: thin;
+        }
+        .table-wrapper::-webkit-scrollbar {
+            width: 5px;
+        }
+        .table-wrapper::-webkit-scrollbar-track {
+            background: #103a4a;
+            border-radius: 10px;
+        }
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: #2c6ea5;
+            border-radius: 10px;
+        }
+        .record-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+        }
+        .record-table th {
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #b8dafc;
+            padding-bottom: 12px;
+            position: sticky;
+            top: 0;
+            background: rgba(6, 24, 40, 0.95);
+            backdrop-filter: blur(4px);
+            z-index: 2;
+        }
+        .record-table td {
+            padding: 10px 4px 10px 0;
+            border-bottom: 1px solid rgba(52, 132, 205, 0.3);
+            color: #cce6ff;
+        }
+        .badge-defect {
+            background: linear-gradient(135deg, #bc5a0c, #8b3c00);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 40px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .line-tag, .order-badge {
+            background: rgba(52, 132, 205, 0.3);
+            padding: 3px 10px;
+            border-radius: 40px;
+            font-size: 11px;
+            white-space: nowrap;
+            backdrop-filter: blur(2px);
+        }
+        .order-badge {
+            background: #1c5f6e;
+            color: #e2f2ff;
+        }
+        .stat-number {
+            font-weight: 700;
+            color: #f5d98f;
+        }
+
+        /* 右侧面板 */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-height: 0;
+            height: 100%;
+        }
+        .chart-card {
+            background: rgba(6, 24, 40, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(52, 132, 205, 0.5);
+            border-radius: 32px;
+            padding: 18px 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            transition: 0.2s;
+        }
+        .chart-card:first-child { 
+            flex: 1.2; 
+        }
+        .chart-card:last-child { 
+            flex: 1; 
+        }
+        .chart-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #c0ddfc;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 1px;
+            border-left: 3px solid #3a8fd4;
+            padding-left: 12px;
+        }
+        /* TOP5 横向条列表 */
+        .top5-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 18px;
+            flex-shrink: 0;
+        }
+        .top5-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .top5-name {
+            width: 70px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #c8e2ff;
+        }
+        .top5-bar-bg {
+            flex: 1;
+            height: 10px;
+            background: #1b4a60;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 0 4px #00000033;
+        }
+        .top5-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3a8fd4, #5aacf0);
+            border-radius: 12px;
+            width: 0%;
+            box-shadow: 0 0 6px #3a8fd4;
+        }
+        .top5-value {
+            width: 50px;
+            text-align: right;
+            font-weight: 600;
+            color: #fff2cc;
+        }
+        /* 饼图容器 */
+        .pie-container {
+            flex: 1;
+            min-height: 150px;
+            width: 100%;
+        }
+        .trend-container {
+            flex: 1;
+            min-height: 0;
+            width: 100%;
+        }
+
+        /* 告警条工业蓝风格 */
+        .alert-bar {
+            background: linear-gradient(95deg, rgba(0, 60, 90, 0.6), rgba(8, 30, 48, 0.8));
+            border: 1px solid #4a9edd;
+            border-radius: 60px;
+            padding: 12px 28px;
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            backdrop-filter: blur(12px);
+            animation: borderPulseBlue 2s infinite;
+            flex-shrink: 0;
+        }
+        @keyframes borderPulseBlue {
+            0% { border-color: #3a8fd4; box-shadow: 0 0 0 0 #3a8fd455; }
+            70% { border-color: #6bb4f0; box-shadow: 0 0 12px 3px #3a8fd440; }
+            100% { border-color: #3a8fd4; box-shadow: 0 0 0 0 #3a8fd455; }
+        }
+        .alert-icon {
+            font-size: 28px;
+            filter: drop-shadow(0 0 5px #4a9edd);
+        }
+        .alert-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #cceeff;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <!-- 标题栏：左上角大标题 + 右侧实时时钟 -->
+    <div class="header-bar">
+        <div class="dashboard-title">成品下线全检质量大屏</div>
+        <div class="datetime" id="currentTime">--:--:--</div>
+    </div>
+
+    <!-- KPI 卡片区域 - 3个卡片 -->
+    <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-label"><span>📦</span> 今日全检总数</div><div class="kpi-value" id="totalQtyKPI">0</div><div class="kpi-trend">↑ 较昨日 +2.4%</div></div>
+        <div class="kpi-card"><div class="kpi-label"><span>⚠️</span> 今日不良总数</div><div class="kpi-value" id="defectQtyKPI">0</div><div class="kpi-trend">↓ 较昨日 -1.1%</div></div>
+        <div class="kpi-card"><div class="kpi-label"><span>📉</span> 今日不良率</div><div class="kpi-value" id="defectRateKPI">0<span style="font-size:22px;">%</span></div><div class="kpi-trend">🎯 目标 ≤3.0%</div></div>
+    </div>
+
+    <div class="main-grid">
+        <!-- 左侧区域 -->
+        <div class="left-panel">
+            <!-- 产线双卡片: 组装A线 & 组装B线 -->
+            <div class="line-status-grid">
+                <!-- 组装A线卡片 -->
+                <div class="line-card" id="lineCardUp">
+                    <div class="line-header">
+                        <span class="status-dot"></span>
+                        <span class="line-name">
+                            组装A线
+                            <span class="order-count-badge" id="upOrderCount">(0)</span>
+                        </span>
+                    </div>
+                    <div class="line-metrics">
+                        <div class="metric-item">
+                            <div class="metric-label">今日全检数量</div>
+                            <div class="metric-number" id="upTotalQty">0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">今日检验合格率</div>
+                            <div class="metric-number" id="upRate">97.1%</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">今日不良</div>
+                            <div class="metric-number" id="upDefect">32</div>
+                        </div>
+                    </div>
+                    <div class="line-footer">
+                        <div class="person-info">
+                            <span class="person-label">责任人</span>
+                            <span class="person" id="upPerson">黄文欢</span>
+                        </div>
+                        <div class="defect-highlight">
+                            <span>🔍</span> 主要不良: <strong id="upMainDefect">漏焊</strong>
+                        </div>
+                    </div>
+                </div>
+                <!-- 组装B线卡片 -->
+                <div class="line-card" id="lineCardOuter">
+                    <div class="line-header">
+                        <span class="status-dot"></span>
+                        <span class="line-name">
+                            组装B线
+                            <span class="order-count-badge" id="outOrderCount">(0)</span>
+                        </span>
+                    </div>
+                    <div class="line-metrics">
+                        <div class="metric-item">
+                            <div class="metric-label">今日全检数量</div>
+                            <div class="metric-number" id="outTotalQty">0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">今日检验合格率</div>
+                            <div class="metric-number" id="outRate">96.2%</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">今日不良</div>
+                            <div class="metric-number" id="outDefect">66</div>
+                        </div>
+                    </div>
+                    <div class="line-footer">
+                        <div class="person-info">
+                            <span class="person-label">责任人</span>
+                            <span class="person" id="outPerson">李天财</span>
+                        </div>
+                        <div class="defect-highlight">
+                            <span>🔍</span> 主要不良: <strong id="outMainDefect">焊破</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 实时全检记录 -->
+            <div class="recent-panel">
+                <div class="panel-title"><span>📡 成品下线全检明细</span></div>
+                <div class="table-wrapper">
+                    <table class="record-table">
+                        <thead>
+                            <tr><th>时间</th><th>生产订单号</th><th>图号</th><th>图号数量</th><th>不良率</th><th>主要不良项</th><th>产线</th></tr>
+                        </thead>
+                        <tbody id="recentBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧区域：TOP5横向条 + 饼图 -->
+        <div class="right-panel">
+            <div class="chart-card">
+                <div class="chart-title"><span>📊 不良项TOP5 & 光幕分布</span></div>
+                <div class="top5-container" id="top5Container"></div>
+                <div id="pieChart" class="pie-container"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title"><span>📈 近7天不良趋势 · 分线动态</span></div>
+                <div id="trendChart" class="trend-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert-bar" id="alertBar">
+        <span class="alert-icon">🚨</span>
+        <span class="alert-text" id="alertMessage">质量引擎实时监控中...</span>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // 生产质量核心数据 - 产线名称组装A线/组装B线
+        const shockData = {
+            lines: [
+                { line: '组装A线', person: '黄文欢', qty: 17368, defect: 499, rate: 0.02873, mainDefect: '漏焊' },
+                { line: '组装B线', person: '李天财', qty: 64171, defect: 2442, rate: 0.03805, mainDefect: '焊破' }
+            ],
+            defectDetails: {
+                '组装A线': { '漏焊': 191, '焊道不良': 152, '针孔砂眼': 17, '电击伤': 0, '磕碰伤': 20 },
+                '组装B线': { '漏焊': 1464, '焊道不良': 497, '针孔砂眼': 11, '电击伤': 16, '焊破': 240, '磕碰伤': 7, '麻面': 1 }
+            },
+            dailyData: {
+                '组装A线': { dates: ['26', '27', '28', '29', '30', '31', '1'], defects: [265, 70, 12, 45, 41, 76, 76] },
+                '组装B线': { dates: ['26', '27', '28', '29', '30', '31', '1'], defects: [525, 261, 340, 173, 408, 484, 251] }
+            }
+        };
+
+        // 实时记录原始数据
+        const rawRecords = [
+            { time: '15:28', orderNo: 'PO-20260310-01', drawing: 'TH-1001', defects: ['漏焊'], line: '组装A线', drawingQty: 1240, batchDefect: 38 },
+            { time: '15:25', orderNo: 'PO-20260310-02', drawing: 'TH-2002', defects: ['磕碰伤'], line: '组装B线', drawingQty: 860, batchDefect: 19 },
+            { time: '15:22', orderNo: 'PO-20260310-01', drawing: 'TH-1003', defects: ['焊道不良'], line: '组装A线', drawingQty: 530, batchDefect: 12 },
+            { time: '15:18', orderNo: 'PO-20260310-03', drawing: 'TH-3004', defects: ['焊破'], line: '组装B线', drawingQty: 2100, batchDefect: 92 },
+            { time: '15:12', orderNo: 'PO-20260310-01', drawing: 'TH-1002', defects: ['针孔砂眼'], line: '组装A线', drawingQty: 740, batchDefect: 14 },
+            { time: '15:07', orderNo: 'PO-20260310-02', drawing: 'TH-2001', defects: ['漏焊'], line: '组装B线', drawingQty: 1120, batchDefect: 28 },
+            { time: '14:58', orderNo: 'PO-20260310-01', drawing: 'TH-1001', defects: ['漏焊','磕碰伤'], line: '组装A线', drawingQty: 1240, batchDefect: 38 },
+            { time: '14:46', orderNo: 'PO-20260310-03', drawing: 'TH-3001', defects: ['电击伤'], line: '组装B线', drawingQty: 450, batchDefect: 6 },
+            { time: '14:33', orderNo: 'PO-20260310-01', drawing: 'TH-1002', defects: ['焊道不良'], line: '组装A线', drawingQty: 740, batchDefect: 14 },
+            { time: '14:22', orderNo: 'PO-20260310-02', drawing: 'TH-2003', defects: ['焊破'], line: '组装B线', drawingQty: 980, batchDefect: 27 },
+            { time: '14:10', orderNo: 'PO-20260310-03', drawing: 'TH-3002', defects: ['麻面'], line: '组装B线', drawingQty: 320, batchDefect: 4 },
+            { time: '13:58', orderNo: 'PO-20260310-01', drawing: 'TH-1003', defects: ['漏焊'], line: '组装A线', drawingQty: 530, batchDefect: 12 },
+            { time: '13:42', orderNo: 'PO-20260310-01', drawing: 'TH-1001', defects: ['磕碰伤'], line: '组装A线', drawingQty: 1240, batchDefect: 38 },
+            { time: '13:30', orderNo: 'PO-20260310-02', drawing: 'TH-2005', defects: ['焊道不良'], line: '组装B线', drawingQty: 670, batchDefect: 15 },
+            { time: '13:12', orderNo: 'PO-20260310-01', drawing: 'TH-1004', defects: ['针孔砂眼'], line: '组装A线', drawingQty: 290, batchDefect: 5 },
+            { time: '12:55', orderNo: 'PO-20260310-03', drawing: 'TH-3003', defects: ['焊破','漏焊'], line: '组装B线', drawingQty: 1550, batchDefect: 58 },
+            { time: '12:40', orderNo: 'PO-20260310-01', drawing: 'TH-1001', defects: ['漏焊'], line: '组装A线', drawingQty: 1240, batchDefect: 38 },
+            { time: '12:22', orderNo: 'PO-20260310-02', drawing: 'TH-2004', defects: ['电击伤'], line: '组装B线', drawingQty: 510, batchDefect: 9 },
+            { time: '12:05', orderNo: 'PO-20260310-01', drawing: 'TH-1002', defects: ['焊道不良'], line: '组装A线', drawingQty: 740, batchDefect: 14 },
+            { time: '11:48', orderNo: 'PO-20260310-02', drawing: 'TH-2001', defects: ['焊破'], line: '组装B线', drawingQty: 1120, batchDefect: 28 }
+        ];
+
+        // 计算每个产线今日全检数量 & 订单数量
+        const lineStats = {
+            '组装A线': { totalQty: 0, orderSet: new Set() },
+            '组装B线': { totalQty: 0, orderSet: new Set() }
+        };
+        rawRecords.forEach(rec => {
+            const line = rec.line;
+            if (lineStats[line]) {
+                lineStats[line].totalQty += rec.drawingQty;
+                lineStats[line].orderSet.add(rec.orderNo);
+            }
+        });
+
+        document.getElementById('upTotalQty').innerText = lineStats['组装A线'].totalQty.toLocaleString();
+        document.getElementById('outTotalQty').innerText = lineStats['组装B线'].totalQty.toLocaleString();
+        document.getElementById('upOrderCount').innerText = `(${lineStats['组装A线'].orderSet.size})`;
+        document.getElementById('outOrderCount').innerText = `(${lineStats['组装B线'].orderSet.size})`;
+
+        const mockRecords = rawRecords.map(rec => ({
+            ...rec,
+            defectRatePercent: (rec.batchDefect / rec.drawingQty * 100).toFixed(2)
+        }));
+
+        // 全局KPI
+        const totalQty = shockData.lines.reduce((a,b) => a + b.qty, 0);
+        const totalDefect = shockData.lines.reduce((a,b) => a + b.defect, 0);
+        const avgRate = (totalDefect / totalQty * 100).toFixed(2);
+        document.getElementById('totalQtyKPI').innerText = totalQty.toLocaleString();
+        document.getElementById('defectQtyKPI').innerText = totalDefect.toLocaleString();
+        document.getElementById('defectRateKPI').innerHTML = avgRate + '<span style="font-size:22px;">%</span>';
+
+        // 更新产线卡片
+        const upLine = shockData.lines[0];
+        const outLine = shockData.lines[1];
+        document.getElementById('upRate').innerText = (100 - upLine.rate*100).toFixed(1) + '%';
+        document.getElementById('upDefect').innerText = upLine.defect;
+        document.getElementById('upPerson').innerText = upLine.person;
+        document.getElementById('upMainDefect').innerText = upLine.mainDefect;
+        
+        document.getElementById('outRate').innerText = (100 - outLine.rate*100).toFixed(1) + '%';
+        document.getElementById('outDefect').innerText = outLine.defect;
+        document.getElementById('outPerson').innerText = outLine.person;
+        document.getElementById('outMainDefect').innerText = outLine.mainDefect;
+
+        // 实时记录表渲染
+        const tbody = document.getElementById('recentBody');
+        tbody.innerHTML = '';
+        mockRecords.forEach(r => {
+            const row = tbody.insertRow();
+            const mainDef = r.defects.join('/');
+            const shortOrder = r.orderNo.replace('PO-', '');
+            const rateStyle = parseFloat(r.defectRatePercent) > 3.5 ? '#ffa07a' : '#a7f5e0';
+            row.innerHTML = `
+                <td>${r.time}</td>
+                <td><span class="order-badge">${shortOrder}</span></td>
+                <td><strong style="color:#b0d4ff;">${r.drawing}</strong></td>
+                <td class="stat-number">${r.drawingQty.toLocaleString()}</td>
+                <td><span style="color:${rateStyle}; font-weight:500;">${r.defectRatePercent}%</span></td>
+                <td><span class="badge-defect">${mainDef}</span></td>
+                <td><span class="line-tag">${r.line}</span></td>
+            `;
+        });
+
+        // TOP5聚合
+        const allDefects = new Map();
+        Object.values(shockData.defectDetails).forEach(lineMap => {
+            Object.entries(lineMap).forEach(([name, cnt]) => {
+                if (cnt > 0) allDefects.set(name, (allDefects.get(name) || 0) + cnt);
+            });
+        });
+        const sorted = Array.from(allDefects.entries()).sort((a,b) => b[1] - a[1]);
+        const top5 = sorted.slice(0,5);
+        const top5Div = document.getElementById('top5Container');
+        top5Div.innerHTML = '';
+        const maxVal = top5[0]?.[1] || 1;
+        top5.forEach(([name, val]) => {
+            const percent = (val / maxVal * 100).toFixed(1);
+            const item = document.createElement('div');
+            item.className = 'top5-item';
+            item.innerHTML = `
+                <span class="top5-name">${name}</span>
+                <div class="top5-bar-bg"><div class="top5-bar-fill" style="width: ${percent}%;"></div></div>
+                <span class="top5-value">${val}</span>
+            `;
+            top5Div.appendChild(item);
+        });
+
+        // 饼图 —— 优化标签显示，确保“针孔砂眼”、“磕碰伤”等文本完整展示
+        const pieChart = echarts.init(document.getElementById('pieChart'));
+        const pieColors = ['#3a8fd4', '#f97316', '#ef4444', '#8b5cf6', '#10b981', '#f59e0b', '#ec489a'];
+        pieChart.setOption({
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(10,35,55,0.95)', borderColor: '#3a8fd4', textStyle: { color: '#e0f0ff' } },
+            legend: { 
+                show: true, 
+                orient: 'vertical', 
+                left: 'left', 
+                textStyle: { color: '#b8dcff', fontSize: 11 },
+                itemGap: 10,
+                itemWidth: 20,
+                itemHeight: 12
+            },
+            series: [{
+                type: 'pie', 
+                radius: ['45%', '68%'], 
+                center: ['55%', '52%'],
+                avoidLabelOverlap: true,
+                itemStyle: { borderRadius: 10, borderColor: '#0a2640', borderWidth: 2 },
+                // 调整标签到外部，并显示引导线，确保所有文本完整可见
+                label: { 
+                    show: true, 
+                    position: 'outside',
+                    formatter: '{b} : {d}%',   // 显示名称和百分比，不显示数值避免拥挤
+                    color: '#e0f0ff', 
+                    fontSize: 11, 
+                    fontWeight: 500,
+                    lineHeight: 16,
+                    fontFamily: 'system-ui, "Segoe UI"',
+                    textShadowBlur: 1,
+                    textShadowColor: '#0a2640'
+                },
+                labelLine: {
+                    show: true,
+                    length: 12,
+                    length2: 10,
+                    smooth: true,
+                    lineStyle: { color: '#5a9acd', width: 1.2 }
+                },
+                emphasis: { scale: true, label: { show: true, fontWeight: 'bold' } },
+                data: top5.map(([name, value]) => ({ name, value })),
+                color: pieColors.slice(0, top5.length)
+            }]
+        });
+
+        // 近7天不良趋势图 —— 增加节点数字标签
+        const trendChart = echarts.init(document.getElementById('trendChart'));
+        const dates = shockData.dailyData['组装A线'].dates.map(d => `3/${d}`);
+        const aLineDefects = shockData.dailyData['组装A线'].defects;
+        const bLineDefects = shockData.dailyData['组装B线'].defects;
+        
+        trendChart.setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#122e40', borderColor: '#3a8fd4' },
+            legend: { data: ['组装A线不良数', '组装B线不良数'], textStyle: { color: '#b8dcff' }, itemWidth: 25, bottom: 0 },
+            grid: { left: '8%', right: '8%', top: 20, bottom: 28, containLabel: true },
+            xAxis: { type: 'category', data: dates, axisLabel: { color: '#cceeff', fontWeight: 500 }, axisLine: { lineStyle: { color: '#2f6e9e' } } },
+            yAxis: { type: 'value', name: '不良数', nameTextStyle: { color: '#b0d4f0' }, axisLabel: { color: '#cceeff' }, splitLine: { lineStyle: { color: '#1d4a60' } } },
+            series: [
+                { 
+                    name: '组装A线不良数', 
+                    type: 'line', 
+                    data: aLineDefects, 
+                    smooth: true, 
+                    color: '#3a8fd4', 
+                    lineStyle: { width: 3, shadowBlur: 12 }, 
+                    symbol: 'circle', 
+                    symbolSize: 8,
+                    label: {
+                        show: true,
+                        position: 'top',
+                        color: '#b8e2ff',
+                        fontSize: 10,
+                        fontWeight: 'normal',
+                        formatter: (params) => params.value,
+                        offset: [0, -8],
+                        fontFamily: 'monospace',
+                        textShadowBlur: 2,
+                        textShadowColor: '#0a2640'
+                    },
+                    areaStyle: { opacity: 0.1, color: '#3a8fd4' }
+                },
+                { 
+                    name: '组装B线不良数', 
+                    type: 'line', 
+                    data: bLineDefects, 
+                    smooth: true, 
+                    color: '#f97316', 
+                    lineStyle: { width: 3, shadowBlur: 8 }, 
+                    symbol: 'diamond', 
+                    symbolSize: 8,
+                    label: {
+                        show: true,
+                        position: 'top',
+                        color: '#ffd7a0',
+                        fontSize: 10,
+                        fontWeight: 'normal',
+                        formatter: (params) => params.value,
+                        offset: [0, -8],
+                        fontFamily: 'monospace',
+                        textShadowBlur: 2,
+                        textShadowColor: '#0a2640'
+                    },
+                    areaStyle: { opacity: 0.08, color: '#f97316' }
+                }
+            ]
+        });
+
+        // 动态时钟
+        function updateClock() {
+            const now = new Date();
+            const str = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+            document.getElementById('currentTime').innerText = str;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // 报警联动
+        const alertSpan = document.getElementById('alertMessage');
+        if (shockData.lines[1].rate > 0.036) {
+            alertSpan.innerHTML = `⚠️ 组装B线不良率 ${(shockData.lines[1].rate*100).toFixed(2)}% 超阈值 · 建议关注焊破/漏焊工艺`;
+        } else {
+            alertSpan.innerHTML = `✅ 质量指数稳健 · 组装A线合格率 ${(100 - shockData.lines[0].rate*100).toFixed(1)}% | 组装B线合格率 ${(100 - shockData.lines[1].rate*100).toFixed(1)}%`;
+        }
+
+        window.addEventListener('resize', () => {
+            pieChart.resize();
+            trendChart.resize();
+        });
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计划排产 V3</title>
+    <style>
+        * { box-sizing: border-box; font-family: "Microsoft YaHei", Arial, sans-serif; }
+        body { margin: 0; background: #f2f6fb; color: #1a2c3e; }
+        .app { padding: 14px; min-height: 100vh; display: flex; flex-direction: column; gap: 12px; }
+        .page-switch { display: flex; gap: 8px; flex-wrap: wrap; }
+        .page-btn {
+            border: 1px solid #cbdae9; background: #eef3fc; color: #1e4770;
+            border-radius: 18px; padding: 6px 12px; cursor: pointer; font-size: 13px;
+        }
+        .page-btn.active { background: #2d6a9f; color: #fff; }
+        .header {
+            background: #fff; border: 1px solid #cbdae9; border-radius: 8px;
+            padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .title-wrap { display: flex; align-items: center; gap: 10px; }
+        h1 { margin: 0; font-size: 18px; color: #1a4972; }
+        .view-toggle { display: flex; gap: 4px; background: #eef3fc; border-radius: 32px; padding: 2px; }
+        .view-btn { border: none; background: transparent; border-radius: 28px; padding: 4px 10px; cursor: pointer; font-size: 12px; color: #4a627a; }
+        .view-btn.active { background: #2d6a9f; color: white; }
+        .filters { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .line-filter { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #2d5a7e; font-weight: 600; }
+        .date-filter { display: flex; align-items: center; gap: 6px; background: #f8fafd; border: 1px solid #cbdae9; border-radius: 24px; padding: 4px 8px; }
+        select, input[type="date"], input[type="number"] { border: 1px solid #cbdae9; border-radius: 6px; padding: 4px 6px; font-size: 12px; background: #fff; }
+        .btn { border: 1px solid #cbdae9; border-radius: 16px; background: #eef3fc; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+        .table-wrap { background: #fff; border: 1px solid #d7e0ec; border-radius: 8px; overflow: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 1400px; font-size: 12px; }
+        th, td { border: 1px solid #e2e8f0; padding: 6px; white-space: nowrap; text-align: center; }
+        thead th { background: #f7fafd; color: #1e4770; }
+        tbody tr:nth-child(odd) { background: #fbfdff; }
+        .calendar { background: #fff; border: 1px solid #d7e0ec; border-radius: 8px; padding: 10px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); gap: 6px; }
+        .day-head { background: #f7fafd; color: #2d6a9f; border-radius: 6px; padding: 6px; text-align: center; font-size: 12px; font-weight: bold; }
+        .day-cell { min-height: 90px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; background: #fff; font-size: 12px; }
+        .day-cell small { color: #5b6f8c; display: block; margin-top: 3px; }
+        .hidden { display: none; }
+        .op-btn { border: 1px solid #cbdae9; background: #f1f6fd; border-radius: 12px; padding: 2px 6px; font-size: 11px; cursor: pointer; margin: 0 2px; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="page-switch" id="pageSwitch"></div>
+    <div class="header">
+        <div class="title-wrap">
+            <h1 id="pageTitle">集团计划排产</h1>
+            <div class="view-toggle">
+                <button class="view-btn active" data-view="table">表格视图</button>
+                <button class="view-btn" data-view="calendar">日历视图</button>
+            </div>
+        </div>
+        <div class="filters">
+            <div class="line-filter">
+                <span>产线：</span>
+                <select id="lineFilter"></select>
+            </div>
+            <div class="date-filter">
+                <input type="date" id="startDate">
+                <span>至</span>
+                <input type="date" id="endDate">
+                <button class="btn" id="applyFilter">筛选</button>
+            </div>
+        </div>
+    </div>
+    <div class="table-wrap" id="tableContainer">
+        <table>
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+    <div class="calendar hidden" id="calendarContainer">
+        <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+</div>
+
+<script>
+(() => {
+    const pages = {
+        group: {
+            title: "集团计划排产",
+            lines: ["全部产线", "烤漆1线", "烤漆2线", "轮组线", "普车1线", "普车2线", "电助力车组装线", "高端车组装线", "半成品组装线"],
+            readonly: true,
+            columns: ["复选框", "销售订单", "客户", "生产订单", "图号", "数量", "状态", "优先级", "烤漆产线", "烤漆交付日期", "烤漆计划开始时间", "烤漆计划用时", "烤漆计划结束时间", "烤漆实际开始时间", "烤漆实际完工时间", "轮组产线", "轮组交付日期", "轮组计划开始时间", "轮组计划用时", "轮组计划结束时间", "轮组实际开始时间", "轮组实际完工时间", "成品交付日期", "成品产线", "成品计划开始时间", "成品计划用时", "成品计划结束时间", "成品实际开始时间", "成品实际完工时间"]
+        },
+        paint: {
+            title: "烤漆计划排产",
+            lines: ["烤漆1线", "烤漆2线"],
+            readonly: false,
+            columns: ["复选框", "销售订单", "客户", "生产订单", "图号", "数量", "状态", "优先级", "产线", "烤漆交付日期", "烤漆计划开始时间", "烤漆计划用时", "烤漆计划结束时间", "烤漆实际开始时间", "烤漆实际完工时间", "操作"]
+        },
+        wheel: {
+            title: "轮组计划排产",
+            lines: ["轮组线"],
+            readonly: false,
+            columns: ["复选框", "销售订单", "客户", "生产订单", "图号", "数量", "状态", "优先级", "产线", "轮组交付日期", "轮组计划开始时间", "轮组计划用时", "轮组计划结束时间", "轮组实际开始时间", "轮组实际完工时间", "操作"]
+        },
+        final: {
+            title: "成品计划排产",
+            lines: ["普车1线", "普车2线", "电助力车组装线", "高端车组装线", "半成品组装线"],
+            readonly: false,
+            columns: ["复选框", "销售订单", "客户", "生产订单", "图号", "数量", "状态", "优先级", "产线", "成品交付日期", "成品产线", "成品计划开始时间", "成品计划用时", "成品计划结束时间", "成品实际开始时间", "成品实际完工时间", "操作"]
+        }
+    };
+
+    const weekdays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+    let activePage = "group";
+    let activeView = "table";
+
+    function safeDate(v) { return v || ""; }
+    function randomPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function genRows(pageKey) {
+        const cfg = pages[pageKey];
+        const rows = [];
+        for (let i = 1; i <= 12; i++) {
+            const line = randomPick(cfg.lines.filter(x => x !== "全部产线"));
+            rows.push({
+                "复选框": `<input type="checkbox">`,
+                "销售订单": `SO-2604-${1000 + i}`,
+                "客户": randomPick(["信德", "帝欧", "福盛达", "久祺", "森巴克"]),
+                "生产订单": `PO-2604-${5000 + i}`,
+                "图号": randomPick(["FOX-32-100-1A", "EP-XC-120-A", "BST-29-110-1"]),
+                "数量": 120 + i * 5,
+                "状态": randomPick(["创建", "生效", "已排产", "生产中", "已完成"]),
+                "优先级": String((i % 9) + 1),
+                "产线": line,
+                "烤漆产线": randomPick(["烤漆1线", "烤漆2线"]),
+                "轮组产线": "轮组线",
+                "烤漆交付日期": i % 3 === 0 ? "" : `2026-04-${String(i).padStart(2, "0")}`,
+                "烤漆计划开始时间": i % 4 === 0 ? "" : `2026-04-${String(i + 1).padStart(2, "0")}`,
+                "烤漆计划用时": i % 4 === 0 ? "" : "2",
+                "烤漆计划结束时间": i % 4 === 0 ? "" : `2026-04-${String(i + 3).padStart(2, "0")}`,
+                "烤漆实际开始时间": "",
+                "烤漆实际完工时间": "",
+                "轮组交付日期": i % 3 === 0 ? "" : `2026-04-${String(i + 2).padStart(2, "0")}`,
+                "轮组计划开始时间": i % 5 === 0 ? "" : `2026-04-${String(i + 3).padStart(2, "0")}`,
+                "轮组计划用时": i % 5 === 0 ? "" : "2",
+                "轮组计划结束时间": i % 5 === 0 ? "" : `2026-04-${String(i + 5).padStart(2, "0")}`,
+                "轮组实际开始时间": "",
+                "轮组实际完工时间": "",
+                "成品交付日期": i % 2 === 0 ? "" : `2026-04-${String(i + 6).padStart(2, "0")}`,
+                "成品产线": line,
+                "成品计划开始时间": i % 2 === 0 ? "" : `2026-04-${String(i + 4).padStart(2, "0")}`,
+                "成品计划用时": i % 2 === 0 ? "" : "3",
+                "成品计划结束时间": i % 2 === 0 ? "" : `2026-04-${String(i + 7).padStart(2, "0")}`,
+                "成品实际开始时间": "",
+                "成品实际完工时间": "",
+                "操作": cfg.readonly ? "" : `<button class="op-btn">上移</button><button class="op-btn">删除</button><button class="op-btn">下移</button>`
+            });
+        }
+        return rows;
+    }
+
+    const dataMap = {
+        group: genRows("group"),
+        paint: genRows("paint"),
+        wheel: genRows("wheel"),
+        final: genRows("final")
+    };
+
+    function renderPageSwitch() {
+        const wrap = document.getElementById("pageSwitch");
+        wrap.innerHTML = Object.keys(pages).map(key => `<button class="page-btn ${key === activePage ? "active" : ""}" data-page="${key}">${pages[key].title}</button>`).join("");
+        wrap.querySelectorAll(".page-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                activePage = btn.dataset.page;
+                renderAll();
+            });
+        });
+    }
+
+    function renderLineOptions() {
+        const cfg = pages[activePage];
+        const lineFilter = document.getElementById("lineFilter");
+        lineFilter.innerHTML = cfg.lines.map(line => `<option value="${line}">${line}</option>`).join("");
+    }
+
+    function renderTable() {
+        const cfg = pages[activePage];
+        const head = document.getElementById("tableHead");
+        const body = document.getElementById("tableBody");
+        head.innerHTML = `<tr>${cfg.columns.map(col => `<th>${col}</th>`).join("")}</tr>`;
+        body.innerHTML = dataMap[activePage].map(row => `<tr>${
+            cfg.columns.map(col => `<td>${safeDate(row[col])}</td>`).join("")
+        }</tr>`).join("");
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById("calendarGrid");
+        const cells = [];
+        weekdays.forEach(w => cells.push(`<div class="day-head">${w}</div>`));
+        for (let i = 1; i <= 35; i++) {
+            const line = randomPick(pages[activePage].lines.filter(x => x !== "全部产线"));
+            const qty = 200 + (i * 13 % 160);
+            cells.push(`<div class="day-cell"><strong>${i}</strong><small>${line}: ${qty}</small><small>利用率: ${(qty / 4).toFixed(1)}%</small></div>`);
+        }
+        grid.innerHTML = cells.join("");
+    }
+
+    function renderAll() {
+        document.getElementById("pageTitle").textContent = pages[activePage].title;
+        renderPageSwitch();
+        renderLineOptions();
+        renderTable();
+        if (activeView === "calendar") renderCalendar();
+    }
+
+    document.querySelectorAll(".view-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".view-btn").forEach(x => x.classList.remove("active"));
+            btn.classList.add("active");
+            activeView = btn.dataset.view;
+            document.getElementById("tableContainer").classList.toggle("hidden", activeView !== "table");
+            document.getElementById("calendarContainer").classList.toggle("hidden", activeView !== "calendar");
+            if (activeView === "calendar") renderCalendar();
+        });
+    });
+
+    document.getElementById("applyFilter").addEventListener("click", renderAll);
+    renderAll();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>计划排程 · 排序优化 · 优先级区分 · 备货管理</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #f0f4fa;
+            margin: 0;
+            padding: 12px;
+            color: #1a2c3e;
+        }
+        .app {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        .page-header {
+            background: white;
+            border: 1px solid #cbdbe0;
+            padding: 6px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: nowrap;
+            gap: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .header-left h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 650;
+            color: #1a4972;
+            white-space: nowrap;
+        }
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+            background: #eef3fc;
+            border-radius: 32px;
+            padding: 2px;
+        }
+        .view-btn {
+            background: transparent;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 28px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #4a627a;
+            transition: 0.1s;
+            white-space: nowrap;
+        }
+        .view-btn.active {
+            background: #2d6a9f;
+            color: white;
+        }
+        .header-center {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            min-width: 0;
+            gap: 12px;
+        }
+        .sort-toggle {
+            display: flex;
+            gap: 4px;
+            background: #eef3fc;
+            border-radius: 32px;
+            padding: 2px;
+            margin-right: 8px;
+        }
+        .sort-btn {
+            background: transparent;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 28px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #4a627a;
+            transition: 0.1s;
+            white-space: nowrap;
+        }
+        .sort-btn.active {
+            background: #2d6a9f;
+            color: white;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .date-range-picker {
+            background: #f8fafd;
+            border: 1px solid #cbdae9;
+            border-radius: 24px;
+            padding: 2px 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .date-range-picker .view-btns {
+            display: flex;
+            gap: 2px;
+            border-right: 1px solid #d4e0f0;
+            padding-right: 6px;
+            margin-right: 4px;
+        }
+        .date-range-picker .view-btns .picker-btn {
+            background: transparent;
+            border: none;
+            padding: 2px 8px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: #4a627a;
+        }
+        .date-range-picker .view-btns .picker-btn.active {
+            background: #2d6a9f;
+            color: white;
+        }
+        .date-inputs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .date-inputs input {
+            border: 1px solid #cbdae9;
+            border-radius: 14px;
+            padding: 2px 6px;
+            font-size: 0.65rem;
+            font-family: monospace;
+            background: white;
+            width: 95px;
+        }
+        .date-inputs button {
+            background: #eef3fc;
+            border: 1px solid #cbdae9;
+            border-radius: 16px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 0.65rem;
+        }
+        .batch-actions-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .batch-btn {
+            background: #2d6a9f;
+            color: white;
+            border: none;
+            padding: 3px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .batch-btn:hover {
+            background: #1e4f78;
+        }
+        .batch-btn.disabled {
+            background: #b8cae0;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .batch-btn.stock-btn {
+            background: #7b5ea7;
+        }
+        .batch-btn.stock-btn:hover {
+            background: #5e3d8a;
+        }
+        .batch-edit-select {
+            padding: 3px 6px;
+            border: 1px solid #cbdae9;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            background: white;
+        }
+        .selected-count {
+            font-size: 0.7rem;
+            color: #1a4972;
+            background: #e8f0fa;
+            padding: 2px 8px;
+            border-radius: 16px;
+            white-space: nowrap;
+        }
+        .clear-filter {
+            background: #eff3fa;
+            border: 1px solid #b8cae0;
+            padding: 3px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: 500;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+        .clear-filter:hover {
+            background: #e2e9f3;
+        }
+        .action-panel {
+            background: white;
+            border: 1px solid #cbdbe0;
+            padding: 6px 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .capacity-card {
+            background: #eef3fc;
+            border-radius: 24px;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            border: 1px solid #cbdae9;
+            flex-wrap: wrap;
+            flex: 1;
+            min-width: 0;
+        }
+        .capacity-item {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+        .capacity-label {
+            color: #2d5a7e;
+            font-size: 0.7rem;
+        }
+        .capacity-value {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #1a4972;
+        }
+        .capacity-value.stock-highlight {
+            color: #6b3d8c;
+        }
+        .capacity-unit {
+            font-size: 0.55rem;
+            color: #5f7c9c;
+        }
+        .overdue-badge {
+            background: #ffe2db;
+            border-radius: 16px;
+            padding: 1px 8px;
+            color: #bc3f2c;
+            font-weight: 700;
+        }
+        .capacity-divider {
+            color: #cbdae9;
+            font-size: 1rem;
+            margin: 0 4px;
+        }
+        .section-title {
+            font-weight: 700;
+            color: #1a4972;
+            font-size: 0.8rem;
+            margin-right: 8px;
+        }
+        .table-wrapper {
+            background: white;
+            border: 1px solid #d7e0ec;
+            border-radius: 8px;
+            overflow-x: auto;
+            position: relative;
+        }
+        .resizable-table {
+            border-collapse: collapse;
+            font-size: 0.7rem;
+            table-layout: fixed;
+            min-width: 100%;
+            width: auto;
+        }
+        .resizable-table th,
+        .resizable-table td {
+            padding: 4px 5px;
+            border-bottom: 1px solid #e6edf6;
+            border-right: 1px solid #e2e8f0;
+            vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .resizable-table th {
+            background: #f7fafd;
+            font-weight: 650;
+            color: #1e4770;
+            border-bottom: 2px solid #d4e0f0;
+            border-right: 1px solid #d4e0f0;
+            font-size: 0.68rem;
+            position: relative;
+        }
+        .resizable-table td:last-child,
+        .resizable-table th:last-child {
+            border-right: none;
+        }
+        .resize-handle {
+            position: absolute;
+            right: -5px;
+            top: 0;
+            width: 10px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 10;
+        }
+        .resize-handle:hover {
+            background: #2d6a9f;
+            opacity: 0.3;
+        }
+        .filterable-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 2px;
+        }
+        .filter-icon {
+            font-size: 0.5rem;
+            cursor: pointer;
+            color: #2d6a9f;
+            background: #eef3fc;
+            width: 14px;
+            height: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 2px;
+            border: 1px solid #cbdae9;
+            margin-left: 4px;
+        }
+        .inline-filter {
+            margin-top: 2px;
+            width: 100%;
+        }
+        .inline-filter-input,
+        .inline-filter-select {
+            width: 100%;
+            padding: 1px 2px;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            font-size: 0.55rem;
+        }
+        .priority-select,
+        .status-select {
+            padding: 2px 4px;
+            border-radius: 10px;
+            border: 1px solid #cddaea;
+            background: white;
+            font-weight: 500;
+            font-size: 0.65rem;
+            cursor: pointer;
+            width: 100%;
+            min-width: 70px;
+        }
+
+        .priority-urgent {
+            background-color: #ffe2db;
+            color: #bc3f2c;
+            font-weight: 700;
+            border-color: #f4b8ae;
+        }
+        .priority-1,
+        .priority-2,
+        .priority-3 {
+            background-color: #ffe8d6;
+            color: #c25d1a;
+            border-color: #f4c9a5;
+        }
+        .priority-4,
+        .priority-5,
+        .priority-6 {
+            background-color: #fff8d6;
+            color: #8b7500;
+            border-color: #e8dba0;
+        }
+        .priority-7,
+        .priority-8,
+        .priority-9 {
+            background-color: #e2f3e4;
+            color: #1c6e3f;
+            border-color: #b8d9be;
+        }
+
+        .status-生效 {
+            background-color: #e1f7ea;
+            color: #19794d;
+        }
+        .status-创建 {
+            background-color: #e3f0fd;
+            color: #1f6392;
+        }
+        .status-生产中 {
+            background-color: #fff3e0;
+            color: #c97e00;
+        }
+        .status-已完成 {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-关闭 {
+            background-color: #eff2f7;
+            color: #5b6f8c;
+        }
+        .status-备货 {
+            background-color: #f0e8f6;
+            color: #6b3d8c;
+            border-color: #d0bce0;
+            font-weight: 600;
+        }
+
+        /* 备货订单行样式 */
+        tr.stock-row {
+            background-color: #faf7fd;
+            border-left: 3px solid #b08cc6;
+        }
+        tr.stock-row:hover {
+            background-color: #f3ecf9 !important;
+        }
+        tr.stock-row td {
+            border-bottom-color: #e8ddf2;
+        }
+        .stock-tag {
+            display: inline-block;
+            background: #e8d6f5;
+            color: #5e2d7a;
+            font-size: 0.6rem;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+        .customer-input {
+            padding: 2px 3px;
+            border: 1px solid #cbdae9;
+            border-radius: 4px;
+            background: white;
+            font-size: 0.65rem;
+            width: 100%;
+            min-width: 80px;
+            text-align: center;
+        }
+        .date-input,
+        .ws-input {
+            padding: 2px 3px;
+            border: 1px solid #cbdae9;
+            border-radius: 4px;
+            background: white;
+            font-size: 0.65rem;
+            width: 100%;
+        }
+        .ws-input:disabled {
+            background: #f0f3f7;
+            color: #7f8fa0;
+            cursor: not-allowed;
+        }
+        .date-with-arrows {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            background: #f8fafc;
+            border-radius: 4px;
+            padding: 1px 2px;
+            justify-content: space-between;
+        }
+        .date-arrow {
+            cursor: pointer;
+            font-size: 0.65rem;
+            font-weight: bold;
+            background: #eef3fc;
+            border: 1px solid #cbdae9;
+            border-radius: 4px;
+            width: 16px;
+            text-align: center;
+            user-select: none;
+            line-height: 1.1;
+        }
+        .date-arrow:hover {
+            background: #d4e3f5;
+        }
+        .date-display {
+            font-family: monospace;
+            font-size: 0.62rem;
+            text-align: center;
+            background: white;
+            padding: 1px 2px;
+            border-radius: 4px;
+            flex: 1;
+        }
+        .plan-date-static {
+            font-family: monospace;
+            font-size: 0.62rem;
+            background: #f8fafc;
+            padding: 2px 2px;
+            border-radius: 4px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .numeric {
+            text-align: right;
+            font-weight: 500;
+        }
+        .center-text {
+            text-align: center !important;
+        }
+        .drawing-code {
+            font-weight: 600;
+            color: #1a4972;
+        }
+        .checkbox-col {
+            width: 28px;
+            text-align: center;
+        }
+        .checkbox-col input {
+            width: 13px;
+            height: 13px;
+            cursor: pointer;
+        }
+        .action-btn {
+            background: #eef3fc;
+            border: 1px solid #cbdae9;
+            border-radius: 14px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 0.6rem;
+            font-weight: 500;
+            color: #1e4770;
+            transition: 0.1s;
+            white-space: nowrap;
+        }
+        .action-btn:hover {
+            background: #d4e3f5;
+            border-color: #9bb7d4;
+        }
+        .pagination {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 32px;
+            border: 1px solid #d7e0ec;
+        }
+        .pagination button {
+            background: white;
+            border: 1px solid #b8cae0;
+            padding: 2px 8px;
+            cursor: pointer;
+            border-radius: 24px;
+            font-size: 0.65rem;
+        }
+        .page-select {
+            padding: 2px 4px;
+            border-radius: 16px;
+            border: 1px solid #b8cae0;
+            font-size: 0.65rem;
+        }
+        footer {
+            text-align: center;
+            margin: 12px 0 6px;
+            color: #6c7f9c;
+            font-size: 0.6rem;
+        }
+        .calendar-view {
+            background: white;
+            border: 1px solid #d7e0ec;
+            border-radius: 10px;
+            padding: 12px;
+            overflow-x: auto;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .calendar-nav button {
+            background: #eef3fc;
+            border: 1px solid #cbdae9;
+            border-radius: 20px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        .calendar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1a4972;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .month-total {
+            font-size: 0.7rem;
+            background: #eef3fc;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+        .std-capacity-inputs {
+            display: flex;
+            gap: 10px;
+            background: #f0f7ff;
+            padding: 4px 10px;
+            border-radius: 28px;
+            border: 1px solid #cbdae9;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .std-capacity-inputs label {
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: #1e4770;
+        }
+        .std-capacity-inputs input {
+            width: 70px;
+            padding: 2px 6px;
+            border-radius: 16px;
+            border: 1px solid #cbdae9;
+            font-size: 0.65rem;
+            text-align: center;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+        .calendar-weekday {
+            text-align: center;
+            font-weight: 600;
+            color: #2d6a9f;
+            padding: 6px;
+            background: #f7fafd;
+            border-radius: 6px;
+            font-size: 0.7rem;
+        }
+        .calendar-day {
+            min-height: 120px;
+            background: #fefefe;
+            border: 1px solid #e6edf6;
+            border-radius: 8px;
+            padding: 6px;
+        }
+        .calendar-day.today {
+            border: 2px solid #2d6a9f;
+            background: #f0f8ff;
+        }
+        .calendar-day.other-month {
+            background: #fafbfd;
+            color: #9aabbf;
+        }
+        .day-number {
+            font-weight: 700;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+            color: #1a4972;
+        }
+        .subcapacity-detail {
+            font-size: 0.6rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            padding: 4px 3px;
+            margin-top: 3px;
+            border-left: 2px solid #9bb7d4;
+        }
+        .subcapacity-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+            font-size: 0.58rem;
+        }
+        .subcapacity-label {
+            font-weight: 500;
+            color: #3a6d8c;
+        }
+        .subcapacity-value {
+            font-weight: 600;
+            color: #1e3b5c;
+        }
+        .capacity-percent {
+            font-family: monospace;
+            font-size: 0.55rem;
+            background: #eef2f7;
+            border-radius: 10px;
+            padding: 1px 4px;
+            margin-left: 3px;
+        }
+        .capacity-highlight {
+            font-weight: 700;
+            color: #bc3f2c;
+        }
+
+        /* 销售订单内联按钮样式 */
+        .so-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+        .so-btn {
+            background: none;
+            border: 1px solid #cbdae9;
+            border-radius: 3px;
+            font-size: 0.6rem;
+            cursor: pointer;
+            padding: 0px 4px;
+            line-height: 1.2;
+            color: #2d6a9f;
+            background: #f8fafd;
+            white-space: nowrap;
+        }
+        .so-btn:hover {
+            background: #e0ebf5;
+            border-color: #9bb7d4;
+        }
+        .so-btn.stock-add {
+            color: #7b5ea7;
+            border-color: #d0bce0;
+            font-weight: 700;
+        }
+        .so-btn.stock-toggle {
+            color: #2d6a9f;
+        }
+
+        /* 模态框样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(20, 30, 50, 0.55);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .modal-dialog {
+            background: white;
+            border-radius: 14px;
+            padding: 20px 24px;
+            width: 520px;
+            max-width: 95vw;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+            animation: slideUp 0.25s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .modal-dialog h3 {
+            margin: 0 0 16px;
+            color: #5e2d7a;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal-dialog h3 .modal-icon {
+            font-size: 1.3rem;
+        }
+        .form-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            flex: 1;
+            min-width: 100px;
+        }
+        .form-group label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #4a627a;
+            white-space: nowrap;
+        }
+        .form-group select,
+        .form-group input {
+            padding: 5px 8px;
+            border: 1px solid #cbdae9;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            background: white;
+            width: 100%;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: 2px solid #b08cc6;
+            border-color: #7b5ea7;
+        }
+        .mutual-hint {
+            font-size: 0.55rem;
+            color: #8b6b4a;
+            background: #fffdf5;
+            padding: 3px 8px;
+            border-radius: 10px;
+            border: 1px solid #f0e3c0;
+            margin-top: 2px;
+            white-space: nowrap;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .modal-btn {
+            padding: 6px 18px;
+            border-radius: 20px;
+            border: 1px solid #cbdae9;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: 0.12s;
+        }
+        .modal-btn.primary {
+            background: #7b5ea7;
+            color: white;
+            border-color: #5e3d8a;
+        }
+        .modal-btn.primary:hover {
+            background: #5e3d8a;
+        }
+        .modal-btn.cancel {
+            background: white;
+            color: #4a627a;
+        }
+        .modal-btn.cancel:hover {
+            background: #f5f7fa;
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="page-header">
+        <div class="header-left">
+            <h1>计划排程</h1>
+            <div class="view-toggle">
+                <button class="view-btn active" data-view-mode="table">表格视图</button>
+                <button class="view-btn" data-view-mode="calendar">日历视图</button>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="sort-toggle">
+                <button class="sort-btn active" data-sort="delivery">📅 交付时间排序</button>
+                <button class="sort-btn" data-sort="start">🚀 开工日期排序</button>
+            </div>
+            <div class="date-range-picker">
+                <div class="view-btns">
+                    <button class="picker-btn" data-picker-view="day">日</button>
+                    <button class="picker-btn" data-picker-view="week">周</button>
+                    <button class="picker-btn active" data-picker-view="month">月</button>
+                </div>
+                <div class="date-inputs">
+                    <input type="date" id="rangeStartDate" value="2026-02-01">
+                    <span>至</span>
+                    <input type="date" id="rangeEndDate" value="2026-03-31">
+                    <button id="applyDateRange">筛选</button>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="batch-actions-header">
+                <span class="selected-count" id="selectedCount">已选择 0 项</span>
+                <select id="batchStatusSelect" class="batch-edit-select" disabled>
+                    <option value="">批量改状态</option>
+                    <option value="生效">生效</option>
+                    <option value="创建">创建</option>
+                    <option value="生产中">生产中</option>
+                    <option value="已完成">已完成</option>
+                    <option value="关闭">关闭</option>
+                    <option value="备货">备货</option>
+                </select>
+                <button class="batch-btn" id="batchConfirmBtn" disabled>批量确认</button>
+                <button class="batch-btn" id="batchDeleteBtn" disabled>批量删除</button>
+                <button class="clear-filter" id="clearFilterBtn">重置筛选</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-panel">
+        <div class="capacity-card">
+            <span class="section-title">排产总览：</span>
+            <div class="capacity-item"><span class="capacity-label">订单总数</span><span class="capacity-value" id="totalOrderCount">0</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">已排产数量</span><span class="capacity-value" id="totalPlanQtySum">0</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">生产中</span><span class="capacity-value" id="inProductionQty">0</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">已完成</span><span class="capacity-value" id="completedQty">0</span><span class="capacity-unit">个</span></div>
+            <span class="capacity-divider">|</span>
+            <div class="capacity-item"><span class="capacity-label">需投产数量</span><span class="capacity-value" id="needToProduce">0</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">📦 备货数量</span><span class="capacity-value stock-highlight" id="stockQty">0</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">生产总进度</span><span class="capacity-value" id="totalProgress">0</span><span class="capacity-unit">%</span></div>
+            <div class="capacity-item"><span class="capacity-label">开工延期订单</span><span class="capacity-value overdue-badge" id="startOverdueOrderCount">0</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">交付延期订单</span><span class="capacity-value overdue-badge" id="deliveryOverdueOrderCount">0</span><span class="capacity-unit">个</span></div>
+        </div>
+    </div>
+
+    <div id="tableViewContainer">
+        <div class="table-wrapper">
+            <table class="resizable-table" id="orderTable">
+                <thead id="tableHeader"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        <div class="pagination">
+            <button id="prevPage">◀ 上一页</button>
+            <span>第 <select id="pageSelect" class="page-select"></select> 页</span>
+            <span>共 <span id="totalPages">1</span> 页</span>
+            <button id="nextPage">下一页 ▶</button>
+        </div>
+    </div>
+
+    <div id="calendarViewContainer" style="display: none;">
+        <div class="calendar-view">
+            <div class="calendar-header">
+                <div class="calendar-nav">
+                    <button id="calendarPrevMonth">◀ 上月</button>
+                    <div class="calendar-title" id="calendarTitle"><span>2026年02月</span><span class="month-total" id="monthTotalCapacity">总产能: 0</span></div>
+                    <button id="calendarNextMonth">下月 ▶</button>
+                </div>
+                <div class="std-capacity-inputs">
+                    <label>冷锻标准: <input type="number" id="stdMaterial" value="2800" step="100"></label>
+                    <label>热锻标准: <input type="number" id="stdWeld" value="3200" step="100"></label>
+                    <label>后续标准: <input type="number" id="stdAssembly" value="3500" step="100"></label>
+                    <button id="applyStdCapacity" style="background:#eef3fc; border-radius:16px; border:1px solid #cbdae9; padding:2px 10px; font-size:0.65rem;">应用</button>
+                </div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+    </div>
+    <footer>✅ 冷锻/热锻互斥 · 距离交付时间/开工日期排序 · 相同日期按优先级区分 · 更新按钮保存 · 📦备货关联销售订单</footer>
+</div>
+
+<div id="stockModal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog">
+        <h3><span class="modal-icon">📦</span>新建备货订单</h3>
+        <div class="form-row">
+            <div class="form-group"><label>规格</label><select id="stockSpec"><option value="">请选择规格</option></select></div>
+            <div class="form-group"><label>图号</label><select id="stockDrawing"><option value="">请先选规格</option></select></div>
+            <div class="form-group"><label>数量</label><input type="number" id="stockQtyInput" value="500" min="1" step="1"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>优先级</label><select id="stockPriority"><option value="9">9 - 最低</option><option value="8">8</option><option value="7">7</option><option value="6">6</option><option value="5" selected>5 - 中等</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1 - 高</option><option value="紧急">紧急</option></select></div>
+            <div class="form-group"><label>开工日期</label><input type="date" id="stockStartDate"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>冷锻天数 (0则不使用冷锻)</label><input type="number" id="stockColdDays" value="2" min="0" step="1"><span class="mutual-hint">⚠ 冷锻与热锻互斥，填写冷锻则热锻自动归零</span></div>
+            <div class="form-group"><label>热锻天数 (0则不使用热锻)</label><input type="number" id="stockHotDays" value="0" min="0" step="1"><span class="mutual-hint">⚠ 冷锻与热锻互斥，填写热锻则冷锻自动归零</span></div>
+            <div class="form-group"><label>后续天数</label><input type="number" id="stockSubsequentDays" value="2" min="1" step="1"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="cancelStockBtn">取消</button>
+            <button class="modal-btn primary" id="confirmStockBtn">确认创建备货</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const statusOptions = ['生效', '创建', '生产中', '已完成', '关闭', '备货'];
+        const columns = [
+            { key: 'checkbox', label: '', width: 32, filterable: false },
+            { key: 'salesOrder', label: '销售订单', width: 130, filterable: true },
+            { key: 'salesQty', label: '销售订单数量', width: 70, filterable: false },
+            { key: 'spec', label: '规格', width: 110, filterable: true },
+            { key: 'shipMode', label: '走货方式', width: 80, filterable: true },
+            { key: 'customer', label: '客户', width: 110, filterable: true },
+            { key: 'orderDate', label: '下单日期', width: 95, filterable: true },
+            { key: 'prodOrder', label: '生产订单', width: 95, filterable: true },
+            { key: 'drawing', label: '图号', width: 80, filterable: true },
+            { key: 'drawingQty', label: '数量', width: 55, filterable: false },
+            { key: 'priority', label: '优先级', width: 75, filterable: false },
+            { key: 'planStart', label: '开工', width: 85, filterable: false },
+            { key: 'daysToDelivery', label: '距离交付时间', width: 85, filterable: false },
+            { key: 'coldForge', label: '冷锻', width: 50, filterable: false },
+            { key: 'hotForge', label: '热锻', width: 50, filterable: false },
+            { key: 'subsequent', label: '后续', width: 50, filterable: false },
+            { key: 'planColdStart', label: '计划冷锻开始', width: 100, filterable: false },
+            { key: 'coldFinish', label: '冷锻完成', width: 80, filterable: false },
+            { key: 'hotStart', label: '计划热锻开始', width: 100, filterable: false },
+            { key: 'hotFinish', label: '热锻完成', width: 80, filterable: false },
+            { key: 'subsequentStart', label: '计划后续开始', width: 100, filterable: false },
+            { key: 'subsequentFinish', label: '后续完成', width: 80, filterable: false },
+            { key: 'actualStart', label: '实际开工', width: 90, filterable: false },
+            { key: 'actualComplete', label: '实际完成', width: 90, filterable: false },
+            { key: 'planComplete', label: '计划生产完成', width: 85, filterable: false },
+            { key: 'deliveryDate', label: '交付日期', width: 85, filterable: true },
+            { key: 'status', label: '状态', width: 80, filterable: true },
+            { key: 'action', label: '操作', width: 80, filterable: false }
+        ];
+
+        const customerList = ['信德', '南京爱督宝', '图腾进出口', '中轮进出口', '帝欧', '福盛达', '杭州名诚', '浩博',
+            '鸿瑞大版', '金玖', '久祺', '久趣', '久胜', '久祥', '柯米克', '雷克斯', '赛科曼', '森巴克', '五甲子', '意普',
+            '永豪', '浙江凯喜雅', '志翔鸿盛'
+        ];
+        const forkModels = [{ code: 'S-FOX-RL32' }, { code: 'S-EPICON-XC' }, { code: 'S-BOOST-29' }, { code: 'S-ROCKSHOX' },
+            { code: 'S-AIR-140' }, { code: 'S-EBIKE-HD' }, { code: 'S-FAT-SNOW' }, { code: 'S-ROAD-FF' },
+            { code: 'S-DUAL-CROWN' }, { code: 'S-TRACTION' }
+        ];
+        const drawingLibrary = {
+            'S-FOX-RL32': ['FOX-32-100-1A', 'FOX-32-100-1B'],
+            'S-EPICON-XC': ['EP-XC-120-A', 'EP-XC-120-B'],
+            'S-BOOST-29': ['BST-29-110-1', 'BST-29-110-2'],
+            'S-ROCKSHOX': ['RS-150-Z1', 'RS-150-Z2'],
+            'S-AIR-140': ['AIR-140-01', 'AIR-140-02'],
+            'S-EBIKE-HD': ['EBIKE-HD-01', 'EBIKE-HD-02'],
+            'S-FAT-SNOW': ['FAT-SNOW-A', 'FAT-SNOW-B'],
+            'S-ROAD-FF': ['ROAD-FF-01'],
+            'S-DUAL-CROWN': ['DC-200-1', 'DC-200-2'],
+            'S-TRACTION': ['TRAC-AD-01']
+        };
+        const priorityValues = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '紧急'];
+        const shipModeList = ['CKD', 'SKD'];
+        const salesPrefix = ['SO-2503-01', 'SO-2503-02', 'SO-2503-03', 'SO-2503-04', 'SO-2503-05', 'SO-2503-06',
+            'SO-2503-07', 'SO-2503-08', 'SO-2503-09', 'SO-2503-10', 'SO-2503-11', 'SO-2503-12', 'SO-2503-13',
+            'SO-2503-14', 'SO-2503-15', 'SO-2503-16', 'SO-2503-17', 'SO-2503-18', 'SO-2503-19', 'SO-2503-20',
+            'SO-2503-21', 'SO-2503-22', 'SO-2503-23'
+        ];
+        const baseOrderIds = ['PO-F240301', 'PO-F240302', 'PO-F240303', 'PO-F240304', 'PO-F240305', 'PO-F240306',
+            'PO-F240307', 'PO-F240308', 'PO-F240309', 'PO-F240310', 'PO-F240311', 'PO-F240312', 'PO-F240313',
+            'PO-F240314', 'PO-F240315', 'PO-F240316', 'PO-F240317', 'PO-F240318', 'PO-F240319', 'PO-F240320',
+            'PO-F240321', 'PO-F240322', 'PO-F240323'
+        ];
+
+        let orderDrawingsList = [];
+        let selectedIds = new Set();
+        let sortMode = 'delivery';
+        let stockIdCounter = 1;
+        let expandedParentIds = new Set();      // 展开的父订单行ID
+        let currentStockParentId = null;        // 新建备货关联的父行ID
+
+        // 生成销售订单数据
+        for (let i = 0; i < customerList.length; i++) {
+            const startBase = new Date(2025, 3, 5 + (i * 2) % 25);
+            startBase.setDate(startBase.getDate() + (i % 12));
+            let startStr = startBase.toISOString().slice(0, 10);
+            const deliveryDate = new Date(startBase);
+            deliveryDate.setDate(startBase.getDate() + 12 + Math.floor(Math.random() * 15) + (i % 8));
+            const deliveryStr = deliveryDate.toISOString().slice(0, 10);
+            const status = statusOptions[Math.floor(Math.random() * (statusOptions.length - 1))];
+            const modelObj = forkModels[i % forkModels.length];
+            const planQty = 350 + i * 45 + Math.floor(Math.random() * 200);
+            const drawings = drawingLibrary[modelObj.code] || ['DWG-001'];
+            const selectedDrawings = drawings.slice(0, Math.min(drawings.length, 2));
+            let remaining = planQty;
+            const qtyList = [];
+            for (let j = 0; j < selectedDrawings.length - 1; j++) {
+                const qty = Math.floor(remaining * (0.2 + Math.random() * 0.3));
+                qtyList.push(qty);
+                remaining -= qty;
+            }
+            qtyList.push(remaining);
+
+            const isCold = Math.random() > 0.5;
+            const coldDays = isCold ? Math.floor(Math.random() * 5) + 1 : 0;
+            const hotDays = !isCold ? Math.floor(Math.random() * 4) + 1 : 0;
+            const subsequentDays = Math.floor(Math.random() * 4) + 1;
+
+            const basePriorityIndex = Math.floor(Math.random() * priorityValues.length);
+            for (let j = 0; j < selectedDrawings.length; j++) {
+                let actualStart = startStr;
+                let actualComplete = addDays(startStr, (coldDays || hotDays) + subsequentDays);
+                if (Math.random() > 0.7) actualStart = addDays(startStr, Math.floor(Math.random() * 3) - 1);
+                if (Math.random() > 0.7) actualComplete = addDays(actualComplete, Math.floor(Math.random() * 3) - 1);
+                const orderDate = addDays(startStr, -(Math.floor(Math.random() * 18) + 3));
+                const shipMode = shipModeList[i % shipModeList.length];
+                const priority = priorityValues[(basePriorityIndex + j) % priorityValues.length];
+                orderDrawingsList.push({
+                    id: orderDrawingsList.length + 1,
+                    salesOrder: salesPrefix[i],
+                    orderId: baseOrderIds[i] + (i + 10).toString(),
+                    customer: customerList[i],
+                    totalQty: planQty,
+                    spec: modelObj.code,
+                    shipMode,
+                    orderDate,
+                    drawingCode: selectedDrawings[j],
+                    drawingQty: qtyList[j],
+                    startDate: startStr,
+                    deliveryDate: deliveryStr,
+                    priority: priority,
+                    coldDays,
+                    hotDays,
+                    subsequentDays,
+                    status,
+                    actualStart,
+                    actualComplete,
+                    isStock: false,
+                    parentId: null
+                });
+            }
+        }
+
+        // 添加示例备货订单，挂在某些父订单行下（基于行ID）
+        const stockSamples = [
+            { parentSo: 'SO-2503-01', spec: 'S-FOX-RL32', drawing: 'FOX-32-100-1A', qty: 200, cold: 2, hot: 0, sub: 2, pri: '5', start: '2026-03-05' },
+            { parentSo: 'SO-2503-01', spec: 'S-FOX-RL32', drawing: 'FOX-32-100-1B', qty: 100, cold: 0, hot: 3, sub: 1, pri: '6', start: '2026-03-10' },
+            { parentSo: 'SO-2503-03', spec: 'S-BOOST-29', drawing: 'BST-29-110-1', qty: 300, cold: 1, hot: 0, sub: 2, pri: '4', start: '2026-03-15' },
+            { parentSo: 'SO-2503-05', spec: 'S-ROCKSHOX', drawing: 'RS-150-Z1', qty: 150, cold: 0, hot: 2, sub: 1, pri: '7', start: '2026-03-22' }
+        ];
+        stockSamples.forEach(s => {
+            const parentItem = orderDrawingsList.find(o => o.salesOrder === s.parentSo && !o.isStock);
+            if (parentItem) {
+                const sid = stockIdCounter++;
+                orderDrawingsList.push({
+                    id: orderDrawingsList.length + 1,
+                    salesOrder: `备货-${s.parentSo}-${String(sid).padStart(3,'0')}`,
+                    orderId: `PO-STOCK-${String(sid).padStart(3,'0')}`,
+                    customer: '库存备货',
+                    totalQty: s.qty,
+                    spec: s.spec,
+                    shipMode: '—',
+                    orderDate: new Date().toISOString().slice(0,10),
+                    drawingCode: s.drawing,
+                    drawingQty: s.qty,
+                    startDate: s.start,
+                    deliveryDate: '2029-12-31',
+                    priority: s.pri,
+                    coldDays: s.cold,
+                    hotDays: s.hot,
+                    subsequentDays: s.sub,
+                    status: '备货',
+                    actualStart: '',
+                    actualComplete: '',
+                    isStock: true,
+                    parentId: parentItem.id
+                });
+            }
+        });
+
+        function addDays(dateStr, days) {
+            if (!dateStr || dateStr === '—') return '—';
+            const d = new Date(dateStr);
+            d.setDate(d.getDate() + days);
+            return d.toISOString().slice(0, 10);
+        }
+
+        function calculatePlanDates(item) {
+            const planStart = item.startDate;
+            let planColdStart = item.coldDays > 0 ? planStart : '—';
+            let coldFinish = item.coldDays > 0 ? addDays(planStart, item.coldDays) : '—';
+            let hotStart, hotFinish;
+            if (item.hotDays > 0) {
+                hotStart = item.coldDays > 0 ? coldFinish : planStart;
+                hotFinish = addDays(hotStart, item.hotDays);
+            } else {
+                hotStart = '—';
+                hotFinish = '—';
+            }
+            const subsequentStart = (item.coldDays > 0 && coldFinish !== '—') ? coldFinish : (item.hotDays > 0 ?
+                hotFinish : planStart);
+            const subsequentFinish = addDays(subsequentStart, item.subsequentDays);
+            const planComplete = subsequentFinish;
+            return { planStart, planColdStart, coldFinish, hotStart, hotFinish, subsequentStart, subsequentFinish,
+                planComplete };
+        }
+
+        function isStartOverdue(item) {
+            const today = new Date().toISOString().slice(0, 10);
+            return item.startDate && item.startDate < today && item.status !== '已完成' && item.status !== '关闭';
+        }
+
+        function isDeliveryOverdue(item) {
+            if (item.isStock) return false;
+            const p = calculatePlanDates(item);
+            return p.planComplete !== '—' && p.planComplete > item.deliveryDate;
+        }
+
+        function calcDaysToDelivery(item) {
+            if (item.isStock) return Infinity;
+            return Math.ceil((new Date(item.deliveryDate) - new Date(item.startDate)) / (1000 * 3600 * 24)) || 1;
+        }
+
+        function getPriorityValue(priority) {
+            if (priority === '紧急') return 0;
+            const num = parseInt(priority, 10);
+            return isNaN(num) ? 10 : num;
+        }
+
+        function setSortMode(mode) {
+            sortMode = mode;
+            renderTable();
+        }
+
+        let currentDateRange = { start: '2026-02-01', end: '2026-03-31' };
+        let filters = {
+            salesOrder: '',
+            spec: '',
+            shipMode: '',
+            customer: '',
+            orderDate: '',
+            orderId: '',
+            drawing: '',
+            status: 'all',
+            deliveryDate: ''
+        };
+        let currentPage = 1;
+        const pageSize = 12;
+        let columnWidths = {};
+
+        function getFilteredData() {
+            const filtered = orderDrawingsList.filter(item => {
+                if (filters.salesOrder && !item.salesOrder.toLowerCase().includes(filters.salesOrder
+                        .toLowerCase())) return false;
+                if (filters.spec && !item.spec.toLowerCase().includes(filters.spec.toLowerCase())) return false;
+                if (filters.shipMode && !item.shipMode.toLowerCase().includes(filters.shipMode.toLowerCase()))
+                    return false;
+                if (filters.customer && !item.customer.toLowerCase().includes(filters.customer.toLowerCase()))
+                    return false;
+                if (filters.orderDate && !item.orderDate.includes(filters.orderDate)) return false;
+                if (filters.orderId && !item.orderId.toLowerCase().includes(filters.orderId.toLowerCase()))
+                    return false;
+                if (filters.drawing && !item.drawingCode.toLowerCase().includes(filters.drawing.toLowerCase()))
+                    return false;
+                if (filters.status !== 'all' && item.status !== filters.status) return false;
+                if (filters.deliveryDate && !item.deliveryDate.includes(filters.deliveryDate)) return false;
+                return true;
+            });
+
+            if (sortMode === 'delivery') {
+                filtered.sort((a, b) => {
+                    if (a.isStock !== b.isStock) return a.isStock ? 1 : -1;
+                    if (a.isStock && b.isStock) {
+                        const priorityDiff = getPriorityValue(a.priority) - getPriorityValue(b.priority);
+                        if (priorityDiff !== 0) return priorityDiff;
+                        return a.id - b.id;
+                    }
+                    const daysA = calcDaysToDelivery(a);
+                    const daysB = calcDaysToDelivery(b);
+                    if (daysA !== daysB) return daysA - daysB;
+                    const priorityDiff = getPriorityValue(a.priority) - getPriorityValue(b.priority);
+                    if (priorityDiff !== 0) return priorityDiff;
+                    return a.id - b.id;
+                });
+            } else {
+                filtered.sort((a, b) => {
+                    if (a.isStock !== b.isStock) return a.isStock ? 1 : -1;
+                    const startA = a.startDate || '';
+                    const startB = b.startDate || '';
+                    if (startA !== startB) return startA.localeCompare(startB);
+                    const priorityDiff = getPriorityValue(a.priority) - getPriorityValue(b.priority);
+                    if (priorityDiff !== 0) return priorityDiff;
+                    return a.id - b.id;
+                });
+            }
+            return filtered;
+        }
+
+        function updateCapacityStats() {
+            const filteredData = getFilteredData();
+            const totalOrderCount = filteredData.filter(it => !it.isStock).length;
+            let totalPlanQtySum = 0,
+                inProdSum = 0,
+                completedSum = 0,
+                needProdSum = 0,
+                stockSum = 0;
+            let startOverdueSet = new Set(),
+                deliveryOverdueSet = new Set();
+            for (let it of filteredData) {
+                totalPlanQtySum += it.drawingQty;
+                if (it.status === '生产中') inProdSum += it.drawingQty;
+                if (it.status === '已完成') completedSum += it.drawingQty;
+                if (it.status === '生效' || it.status === '创建' || it.status === '备货') needProdSum += it.drawingQty;
+                if (it.isStock && it.status !== '已完成' && it.status !== '关闭') stockSum += it.drawingQty;
+                if (isStartOverdue(it)) startOverdueSet.add(it.id);
+                if (isDeliveryOverdue(it)) deliveryOverdueSet.add(it.id);
+            }
+            const progress = totalPlanQtySum ? Math.round((completedSum / totalPlanQtySum) * 100) : 0;
+            document.getElementById('totalOrderCount').innerText = totalOrderCount.toLocaleString();
+            document.getElementById('totalPlanQtySum').innerText = totalPlanQtySum.toLocaleString();
+            document.getElementById('inProductionQty').innerText = inProdSum.toLocaleString();
+            document.getElementById('completedQty').innerText = completedSum.toLocaleString();
+            document.getElementById('needToProduce').innerText = needProdSum.toLocaleString();
+            document.getElementById('stockQty').innerText = stockSum.toLocaleString();
+            document.getElementById('totalProgress').innerText = progress;
+            document.getElementById('startOverdueOrderCount').innerText = startOverdueSet.size;
+            document.getElementById('deliveryOverdueOrderCount').innerText = deliveryOverdueSet.size;
+        }
+
+        let dailyDetailedCapacity = {};
+        function initDetailedCapacities() {
+            for (let y = 2025; y <= 2027; y++) {
+                for (let m = 0; m < 12; m++) {
+                    const days = new Date(y, m + 1, 0).getDate();
+                    for (let d = 1; d <= days; d++) {
+                        const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                        let total = Math.floor(Math.random() * 6000) + 4000;
+                        let coldRatio = 0.32 + Math.random() * 0.08;
+                        let hotRatio = 0.30 + Math.random() * 0.08;
+                        let subsequentRatio = 1 - coldRatio - hotRatio;
+                        subsequentRatio = Math.min(0.42, Math.max(0.30, subsequentRatio));
+                        let cold = Math.floor(total * coldRatio);
+                        let hot = Math.floor(total * hotRatio);
+                        let subsequent = total - cold - hot;
+                        dailyDetailedCapacity[dateStr] = { cold, hot, subsequent, total };
+                    }
+                }
+            }
+        }
+        initDetailedCapacities();
+
+        let stdCold = 2800, stdHot = 3200, stdSubsequent = 3500;
+        function updateStd() {
+            stdCold = parseInt(document.getElementById('stdMaterial').value) || 2800;
+            stdHot = parseInt(document.getElementById('stdWeld').value) || 3200;
+            stdSubsequent = parseInt(document.getElementById('stdAssembly').value) || 3500;
+            renderCalendar();
+        }
+        let currentCalendarYear = 2026, currentCalendarMonth = 1;
+
+        function renderCalendar() {
+            const year = currentCalendarYear, month = currentCalendarMonth;
+            const firstDay = new Date(year, month, 1);
+            const startWeekday = firstDay.getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const prevMonthDays = new Date(year, month, 0).getDate();
+            let monthTotal = 0;
+            for (let d = 1; d <= daysInMonth; d++) {
+                const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                if (dailyDetailedCapacity[ds]) monthTotal += dailyDetailedCapacity[ds].total;
+            }
+            document.getElementById('monthTotalCapacity').innerHTML = `总产能: ${monthTotal.toLocaleString()} 个`;
+            document.getElementById('calendarTitle').innerHTML = `<span>${year}年${String(month+1).padStart(2,'0')}月</span><span class="month-total">总产能: ${monthTotal.toLocaleString()} 个</span>`;
+            let gridHtml = '';
+            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            for (let w of weekdays) gridHtml += `<div class="calendar-weekday">${w}</div>`;
+            let dayCount = 1, nextMonthDay = 1;
+            for (let i = 0; i < 42; i++) {
+                let displayDay, isCurrent = true, dateStr;
+                if (i < startWeekday) {
+                    displayDay = prevMonthDays - (startWeekday - i) + 1;
+                    isCurrent = false;
+                    let prevYear = year, prevMonth = month - 1;
+                    if (prevMonth < 0) { prevMonth = 11; prevYear--; }
+                    dateStr = `${prevYear}-${String(prevMonth+1).padStart(2,'0')}-${String(displayDay).padStart(2,'0')}`;
+                } else if (dayCount <= daysInMonth) {
+                    displayDay = dayCount++;
+                    dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(displayDay).padStart(2,'0')}`;
+                } else {
+                    displayDay = nextMonthDay++;
+                    isCurrent = false;
+                    let nextYear = year, nextMonth = month + 1;
+                    if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+                    dateStr = `${nextYear}-${String(nextMonth+1).padStart(2,'0')}-${String(displayDay).padStart(2,'0')}`;
+                }
+                const cap = dailyDetailedCapacity[dateStr] || { cold: 0, hot: 0, subsequent: 0, total: 0 };
+                const isToday = (new Date().toISOString().slice(0, 10) === dateStr);
+                const coldPct = (cap.cold / stdCold * 100).toFixed(1);
+                const hotPct = (cap.hot / stdHot * 100).toFixed(1);
+                const subPct = (cap.subsequent / stdSubsequent * 100).toFixed(1);
+                const stockOnDay = orderDrawingsList.filter(o => o.isStock && o.startDate === dateStr);
+                let stockIndicator = '';
+                if (stockOnDay.length > 0) {
+                    const stockTotal = stockOnDay.reduce((s, o) => s + o.drawingQty, 0);
+                    stockIndicator = `<div style="font-size:0.5rem;color:#7b5ea7;background:#f5edfa;border-radius:8px;padding:1px 4px;margin-top:2px;text-align:center;">📦备货${stockTotal}</div>`;
+                }
+                gridHtml += `<div class="calendar-day ${!isCurrent ? 'other-month' : ''} ${isToday ? 'today' : ''}">
+                <div class="day-number">${displayDay}</div>
+                ${stockIndicator}
+                <div class="subcapacity-detail">
+                    <div class="subcapacity-row"><span class="subcapacity-label">冷锻:</span><span class="subcapacity-value">${cap.cold.toLocaleString()}</span><span class="capacity-percent ${parseFloat(coldPct)>100?'capacity-highlight':''}">${coldPct}%</span></div>
+                    <div class="subcapacity-row"><span class="subcapacity-label">热锻:</span><span class="subcapacity-value">${cap.hot.toLocaleString()}</span><span class="capacity-percent ${parseFloat(hotPct)>100?'capacity-highlight':''}">${hotPct}%</span></div>
+                    <div class="subcapacity-row"><span class="subcapacity-label">后续:</span><span class="subcapacity-value">${cap.subsequent.toLocaleString()}</span><span class="capacity-percent ${parseFloat(subPct)>100?'capacity-highlight':''}">${subPct}%</span></div>
+                </div>
+            </div>`;
+            }
+            document.getElementById('calendarGrid').innerHTML = gridHtml;
+        }
+
+        function prevMonth() {
+            if (currentCalendarMonth === 0) { currentCalendarMonth = 11; currentCalendarYear--; } else currentCalendarMonth--;
+            renderCalendar();
+        }
+        function nextMonth() {
+            if (currentCalendarMonth === 11) { currentCalendarMonth = 0; currentCalendarYear++; } else currentCalendarMonth++;
+            renderCalendar();
+        }
+
+        function enforceMutualExclusive(item) {
+            if (item.coldDays > 0) item.hotDays = 0;
+            else if (item.hotDays > 0) item.coldDays = 0;
+        }
+
+        function renderTable() {
+            const filtered = getFilteredData();
+            const displayList = [];
+            for (const item of filtered) {
+                if (item.isStock) continue;
+                displayList.push(item);
+                if (expandedParentIds.has(item.id)) {
+                    const stocks = filtered.filter(o => o.isStock && o.parentId === item.id);
+                    for (const stock of stocks) {
+                        displayList.push(stock);
+                    }
+                }
+            }
+
+            const totalP = Math.ceil(displayList.length / pageSize) || 1;
+            if (currentPage > totalP) currentPage = totalP || 1;
+            const pageData = displayList.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+            let theadHtml = '<tr>';
+            for (let i = 0; i < columns.length; i++) {
+                const col = columns[i];
+                const width = columnWidths[col.key] || col.width;
+                if (col.key === 'status') {
+                    theadHtml += `<th style="width:${width}px;" data-col="${col.key}">
+                    <div class="filterable-header"><span>${col.label}</span><span class="filter-icon status-filter-icon">🔽</span></div>
+                    <div id="statusFilter" class="inline-filter" style="display:none;">
+                        <select id="statusFilterSelect" class="inline-filter-select">
+                            <option value="all">全部</option>
+                            ${statusOptions.map(s => `<option value="${s}">${s}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="resize-handle" data-col="${col.key}" data-colindex="${i}"></div>
+                </th>`;
+                } else if (col.filterable) {
+                    theadHtml += `<th style="width:${width}px;" data-col="${col.key}" data-colindex="${i}">
+                    <div class="filterable-header"><span>${col.label}</span><span class="filter-icon ${col.key}-filter-icon">🔽</span></div>
+                    <div id="${col.key}Filter" class="inline-filter" style="display:none;">
+                        <input type="text" id="${col.key}Input" placeholder="筛选" class="inline-filter-input">
+                    </div>
+                    <div class="resize-handle" data-col="${col.key}" data-colindex="${i}"></div>
+                </th>`;
+                } else {
+                    theadHtml += `<th style="width:${width}px;" data-col="${col.key}" data-colindex="${i}">
+                    <span>${col.label}</span><div class="resize-handle" data-col="${col.key}" data-colindex="${i}"></div>
+                </th>`;
+                }
+            }
+            theadHtml += '</tr>';
+            document.getElementById('tableHeader').innerHTML = theadHtml;
+
+            let bodyHtml = '';
+            for (let item of pageData) {
+                const planDates = calculatePlanDates(item);
+                let priorityClass;
+                if (item.priority === '紧急') {
+                    priorityClass = 'priority-urgent';
+                } else if (item.priority === '1' || item.priority === '2' || item.priority === '3') {
+                    priorityClass = 'priority-1';
+                } else if (item.priority === '4' || item.priority === '5' || item.priority === '6') {
+                    priorityClass = 'priority-4';
+                } else {
+                    priorityClass = 'priority-7';
+                }
+                let statusClass = `status-${item.status}`;
+                const isChecked = selectedIds.has(item.id);
+                const daysToDelivery = item.isStock ? '—' : calcDaysToDelivery(item);
+                const rowClass = item.isStock ? 'stock-row' : '';
+
+                const renderArrowDate = (dateVal, fieldKey) => {
+                    if (dateVal === '—') return `<div class="date-display" style="background:transparent;">—</div>`;
+                    return `<div class="date-with-arrows"><span class="date-arrow" data-id="${item.id}" data-field="${fieldKey}" data-delta="-1">◀</span><span class="date-display">${dateVal}</span><span class="date-arrow" data-id="${item.id}" data-field="${fieldKey}" data-delta="1">▶</span></div>`;
+                };
+
+                const coldDisabled = item.hotDays > 0 ? 'disabled' : '';
+                const hotDisabled = item.coldDays > 0 ? 'disabled' : '';
+
+                let salesOrderDisplay = '';
+                if (item.isStock) {
+                    salesOrderDisplay = `<span class="stock-tag">📦</span>${item.salesOrder}`;
+                } else {
+                    const hasStock = orderDrawingsList.some(o => o.isStock && o.parentId === item.id);
+                    const isExpanded = expandedParentIds.has(item.id);
+                    salesOrderDisplay = `${item.salesOrder}
+                        <span class="so-actions">
+                            <button class="so-btn stock-add" data-id="${item.id}" title="新建备货">＋</button>
+                            ${hasStock ? `<button class="so-btn stock-toggle" data-id="${item.id}" title="${isExpanded ? '收起备货' : '展开备货'}">${isExpanded ? '▼' : '▶'}</button>` : ''}
+                        </span>`;
+                }
+
+                const deliveryDateDisplay = item.isStock ? '—' : item.deliveryDate;
+                const shipModeDisplay = item.isStock ? '—' : item.shipMode;
+
+                let statusTdHtml = '';
+                if (item.status === '创建') {
+                    statusTdHtml = `<td><select class="status-select ${statusClass}" data-id="${item.id}" data-field="status">
+                        <option value="创建" selected>创建</option>
+                        <option value="生效">生效</option>
+                    </select></td>`;
+                } else {
+                    statusTdHtml = `<td><select class="status-select ${statusClass}" data-id="${item.id}" data-field="status" disabled>
+                        <option selected>${item.status}</option>
+                    </select></td>`;
+                }
+
+                bodyHtml +=
+                    `<tr data-id="${item.id}" class="${rowClass}">
+                <td class="checkbox-col center-text"><input type="checkbox" class="row-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''}></td>
+                <td>${salesOrderDisplay}</td><td class="numeric center-text">${item.totalQty.toLocaleString()}</td>
+                <td>${item.spec}</td>
+                <td class="center-text">${shipModeDisplay}</td>
+                <td><input type="text" class="customer-input" data-id="${item.id}" data-field="customer" value="${item.customer.replace(/"/g, '&quot;')}" style="text-align:center" ${item.isStock ? 'readonly style="background:#f5f0fa;cursor:default;"' : ''}></td>
+                <td class="plan-date-static">${item.orderDate}</td>
+                <td>${item.orderId}</td><td class="drawing-code">${item.drawingCode}</td><td class="numeric">${item.drawingQty.toLocaleString()}</td>
+                <td><select class="priority-select ${priorityClass}" data-id="${item.id}" data-field="priority">${priorityValues.map(v=>`<option ${item.priority===v?'selected':''}>${v}</option>`).join('')}</select></td>
+                <td><input type="date" class="date-input" data-id="${item.id}" data-field="startDate" value="${item.startDate}"></td>
+                <td class="numeric center-text">${daysToDelivery === '—' ? '—' : daysToDelivery + '天'}</td>
+                <td><input type="number" step="1" min="0" class="ws-input" data-id="${item.id}" data-field="coldDays" value="${item.coldDays}" style="width:55px" ${coldDisabled}></td>
+                <td><input type="number" step="1" min="0" class="ws-input" data-id="${item.id}" data-field="hotDays" value="${item.hotDays}" style="width:55px" ${hotDisabled}></td>
+                <td><input type="number" step="1" min="1" class="ws-input" data-id="${item.id}" data-field="subsequentDays" value="${item.subsequentDays}" style="width:55px"></td>
+                <td>${renderArrowDate(planDates.planColdStart, 'planColdStart')}</td>
+                <td>${renderArrowDate(planDates.coldFinish, 'coldFinish')}</td>
+                <td>${renderArrowDate(planDates.hotStart, 'hotStart')}</td>
+                <td>${renderArrowDate(planDates.hotFinish, 'hotFinish')}</td>
+                <td>${renderArrowDate(planDates.subsequentStart, 'subsequentStart')}</td>
+                <td>${renderArrowDate(planDates.subsequentFinish, 'subsequentFinish')}</td>
+                <td><input type="date" class="date-input" data-id="${item.id}" data-field="actualStart" value="${item.actualStart || ''}"></td>
+                <td><input type="date" class="date-input" data-id="${item.id}" data-field="actualComplete" value="${item.actualComplete || ''}"></td>
+                <td class="plan-date-static">${planDates.planComplete}</td>
+                <td class="plan-date-static">${deliveryDateDisplay}</td>
+                ${statusTdHtml}
+                <td class="center-text">
+                    <button class="action-btn update-row-btn" data-id="${item.id}">更新</button>
+                </td>
+            </tr>`;
+            }
+            if (!pageData.length) bodyHtml = `<tr><td colspan="${columns.length}" style="text-align:center;">暂无匹配的生产订单</td></tr>`;
+            document.getElementById('tableBody').innerHTML = bodyHtml;
+
+            attachTableEvents();
+            attachResizeHandlers();
+            document.getElementById('totalPages').innerText = totalP;
+            let opts = '';
+            for (let i = 1; i <= totalP; i++) opts += `<option value="${i}" ${i===currentPage?'selected':''}>${i}</option>`;
+            document.getElementById('pageSelect').innerHTML = opts;
+            updateSelectedCount();
+            updateCapacityStats();
+            attachFilterIconEvents();
+        }
+
+        function attachFilterIconEvents() {
+            ['salesOrder', 'spec', 'shipMode', 'customer', 'orderDate', 'prodOrder', 'drawing', 'deliveryDate'].forEach(key => {
+                const inp = document.getElementById(`${key}Input`);
+                if (inp) inp.oninput = (e) => {
+                    filters[key === 'prodOrder' ? 'orderId' : key] = e.target.value;
+                    currentPage = 1;
+                    renderTable();
+                };
+            });
+            const statusSelect = document.getElementById('statusFilterSelect');
+            if (statusSelect) {
+                statusSelect.onchange = (e) => {
+                    filters.status = e.target.value;
+                    currentPage = 1;
+                    renderTable();
+                };
+            }
+            columns.forEach(col => {
+                if (!col.filterable) return;
+                const icon = document.querySelector(`.${col.key}-filter-icon`);
+                if (icon) {
+                    icon.onclick = (e) => {
+                        e.stopPropagation();
+                        const filterDiv = document.getElementById(`${col.key}Filter`);
+                        if (filterDiv) filterDiv.style.display = filterDiv.style.display === 'none' ? 'block' : 'none';
+                    };
+                }
+            });
+            const statusIcon = document.querySelector('.status-filter-icon');
+            if (statusIcon) {
+                statusIcon.onclick = (e) => {
+                    e.stopPropagation();
+                    const filterDiv = document.getElementById('statusFilter');
+                    if (filterDiv) filterDiv.style.display = filterDiv.style.display === 'none' ? 'block' : 'none';
+                };
+            }
+        }
+
+        function attachResizeHandlers() {
+            document.querySelectorAll('.resize-handle').forEach(handle => {
+                const newHandle = handle.cloneNode(true);
+                handle.parentNode.replaceChild(newHandle, handle);
+                newHandle.addEventListener('mousedown', (e) => {
+                    const th = newHandle.parentElement;
+                    const colIndex = parseInt(th.dataset.colindex);
+                    startResize(e, th, colIndex);
+                });
+            });
+        }
+
+        function attachTableEvents() {
+            document.querySelectorAll('.row-checkbox').forEach(cb => cb.addEventListener('change', function() {
+                const id = parseInt(this.dataset.id);
+                if (this.checked) selectedIds.add(id);
+                else selectedIds.delete(id);
+                updateSelectedCount();
+            }));
+
+            document.querySelectorAll('.customer-input, .priority-select, .status-select, .date-input, .ws-input').forEach(el =>
+                el.addEventListener('change', function() {
+                    const id = parseInt(this.dataset.id), field = this.dataset.field, item = orderDrawingsList.find(o => o.id === id);
+                    if (item) {
+                        if (field === 'priority') item.priority = this.value;
+                        else if (field === 'status') { item.status = this.value; }
+                        else if (field === 'startDate') item.startDate = this.value;
+                        else if (field === 'customer' && !item.isStock) item.customer = this.value;
+                        else if (field === 'coldDays') {
+                            let newVal = Math.max(0, parseInt(this.value) || 0);
+                            item.coldDays = newVal;
+                            if (newVal > 0) item.hotDays = 0;
+                        } else if (field === 'hotDays') {
+                            let newVal = Math.max(0, parseInt(this.value) || 0);
+                            item.hotDays = newVal;
+                            if (newVal > 0) item.coldDays = 0;
+                        } else if (field === 'subsequentDays') item.subsequentDays = Math.max(1, parseInt(this.value) || 1);
+                        else if (field === 'actualStart') item.actualStart = this.value;
+                        else if (field === 'actualComplete') item.actualComplete = this.value;
+                        enforceMutualExclusive(item);
+                        renderTable();
+                    }
+                }));
+
+            document.querySelectorAll('.date-arrow').forEach(arrow => arrow.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const id = parseInt(this.dataset.id), field = this.dataset.field, delta = parseInt(this.dataset.delta), item = orderDrawingsList.find(o => o.id === id);
+                if (item) {
+                    if (field === 'planColdStart') { let newStart = addDays(item.startDate, delta); if (newStart !== '—') item.startDate = newStart; }
+                    else if (field === 'coldFinish') { let newCold = item.coldDays + delta; if (newCold < 0) newCold = 0; item.coldDays = newCold; if (newCold > 0) item.hotDays = 0; }
+                    else if (field === 'hotStart' || field === 'hotFinish') { let newHot = item.hotDays + delta; if (newHot < 0) newHot = 0; item.hotDays = newHot; if (newHot > 0) item.coldDays = 0; }
+                    else if (field === 'subsequentStart' || field === 'subsequentFinish') { let newSub = item.subsequentDays + delta; if (newSub < 1) newSub = 1; item.subsequentDays = newSub; }
+                    enforceMutualExclusive(item);
+                    renderTable();
+                }
+            }));
+
+            document.querySelectorAll('.update-row-btn').forEach(btn => btn.addEventListener('click', function() {
+                alert(`订单数据已刷新保存`);
+                renderTable();
+            }));
+
+            document.querySelectorAll('.so-btn.stock-add').forEach(btn => btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const parentId = parseInt(this.dataset.id);
+                openStockModal(parentId);
+            }));
+
+            document.querySelectorAll('.so-btn.stock-toggle').forEach(btn => btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const parentId = parseInt(this.dataset.id);
+                if (expandedParentIds.has(parentId)) {
+                    expandedParentIds.delete(parentId);
+                } else {
+                    expandedParentIds.add(parentId);
+                }
+                renderTable();
+            }));
+        }
+
+        function updateSelectedCount() {
+            const cnt = selectedIds.size;
+            document.getElementById('selectedCount').innerText = `已选择 ${cnt} 项`;
+            document.getElementById('batchStatusSelect').disabled = cnt === 0;
+            document.getElementById('batchConfirmBtn').disabled = cnt === 0;
+            document.getElementById('batchDeleteBtn').disabled = cnt === 0;
+        }
+
+        function batchConfirm() {
+            if (selectedIds.size === 0) return;
+            const ns = document.getElementById('batchStatusSelect').value;
+            if (!ns) { alert('请选择状态'); return; }
+            if (confirm(`确定将选中 ${selectedIds.size} 条状态批量确认为「${ns}」吗？`)) {
+                orderDrawingsList.forEach(it => { if (selectedIds.has(it.id)) it.status = ns; });
+                selectedIds.clear();
+                renderTable();
+            }
+        }
+
+        function batchDelete() {
+            if (selectedIds.size === 0) return;
+            if (confirm(`删除选中 ${selectedIds.size} 条工单？`)) {
+                orderDrawingsList = orderDrawingsList.filter(it => !selectedIds.has(it.id));
+                selectedIds.clear();
+                currentPage = 1;
+                renderTable();
+                if (currentViewMode === 'calendar') renderCalendar();
+            }
+        }
+
+        function resetAllFilters() {
+            filters = { salesOrder: '', spec: '', shipMode: '', customer: '', orderDate: '', orderId: '', drawing: '', status: 'all', deliveryDate: '' };
+            renderTable();
+        }
+
+        function openStockModal(parentId) {
+            currentStockParentId = parentId;
+            const modal = document.getElementById('stockModal');
+            modal.style.display = 'flex';
+            const specSelect = document.getElementById('stockSpec');
+            specSelect.innerHTML = '<option value="">请选择规格</option>' + forkModels.map(m => `<option value="${m.code}">${m.code}</option>`).join('');
+            document.getElementById('stockDrawing').innerHTML = '<option value="">请先选规格</option>';
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('stockStartDate').value = tomorrow.toISOString().slice(0, 10);
+            document.getElementById('stockColdDays').value = 2;
+            document.getElementById('stockHotDays').value = 0;
+            document.getElementById('stockSubsequentDays').value = 2;
+            document.getElementById('stockQtyInput').value = 500;
+            document.getElementById('stockPriority').value = '5';
+            if (parentId) {
+                const parentItem = orderDrawingsList.find(o => o.id === parentId);
+                if (parentItem) {
+                    specSelect.value = parentItem.spec;
+                    updateDrawingOptions();
+                    const drawingSelect = document.getElementById('stockDrawing');
+                    if (drawingSelect.querySelector(`option[value="${parentItem.drawingCode}"]`)) {
+                        drawingSelect.value = parentItem.drawingCode;
+                    }
+                }
+            }
+        }
+
+        function closeStockModal() {
+            document.getElementById('stockModal').style.display = 'none';
+        }
+
+        function confirmStockOrder() {
+            const spec = document.getElementById('stockSpec').value;
+            const drawing = document.getElementById('stockDrawing').value;
+            const qty = parseInt(document.getElementById('stockQtyInput').value) || 500;
+            const priority = document.getElementById('stockPriority').value;
+            const startDate = document.getElementById('stockStartDate').value;
+            const coldDays = parseInt(document.getElementById('stockColdDays').value) || 0;
+            const hotDays = parseInt(document.getElementById('stockHotDays').value) || 0;
+            const subsequentDays = parseInt(document.getElementById('stockSubsequentDays').value) || 1;
+            if (!spec) { alert('请选择规格'); return; }
+            if (!drawing) { alert('请选择图号'); return; }
+            if (!startDate) { alert('请选择开工日期'); return; }
+            if (qty < 1) { alert('数量必须大于0'); return; }
+            if (coldDays === 0 && hotDays === 0) { alert('冷锻和热锻至少填写一项'); return; }
+            if (coldDays > 0 && hotDays > 0) { alert('冷锻和热锻互斥，只能填写一项'); return; }
+            const sid = stockIdCounter++;
+            const parentItem = orderDrawingsList.find(o => o.id === currentStockParentId);
+            const newStock = {
+                id: orderDrawingsList.length + 1,
+                salesOrder: `备货-${parentItem ? parentItem.salesOrder : '独立'}-${String(sid).padStart(3,'0')}`,
+                orderId: `PO-STOCK-${String(sid).padStart(3,'0')}`,
+                customer: '库存备货',
+                totalQty: qty,
+                spec: spec,
+                shipMode: '—',
+                orderDate: new Date().toISOString().slice(0,10),
+                drawingCode: drawing,
+                drawingQty: qty,
+                startDate: startDate,
+                deliveryDate: '2029-12-31',
+                priority: priority,
+                coldDays: coldDays,
+                hotDays: hotDays,
+                subsequentDays: subsequentDays,
+                status: '备货',
+                actualStart: '',
+                actualComplete: '',
+                isStock: true,
+                parentId: currentStockParentId
+            };
+            orderDrawingsList.push(newStock);
+            if (currentStockParentId) expandedParentIds.add(currentStockParentId);
+            closeStockModal();
+            currentPage = 1;
+            renderTable();
+            if (currentViewMode === 'calendar') renderCalendar();
+        }
+
+        function updateDrawingOptions() {
+            const spec = document.getElementById('stockSpec').value;
+            const drawingSelect = document.getElementById('stockDrawing');
+            if (spec && drawingLibrary[spec]) {
+                drawingSelect.innerHTML = drawingLibrary[spec].map(d => `<option value="${d}">${d}</option>`).join('');
+            } else {
+                drawingSelect.innerHTML = '<option value="">请先选规格</option>';
+            }
+        }
+
+        function handleColdHotMutual(source) {
+            if (source === 'cold') {
+                if (parseInt(document.getElementById('stockColdDays').value) > 0) document.getElementById('stockHotDays').value = 0;
+            } else if (source === 'hot') {
+                if (parseInt(document.getElementById('stockHotDays').value) > 0) document.getElementById('stockColdDays').value = 0;
+            }
+        }
+
+        document.getElementById('cancelStockBtn').addEventListener('click', closeStockModal);
+        document.getElementById('confirmStockBtn').addEventListener('click', confirmStockOrder);
+        document.getElementById('stockSpec').addEventListener('change', updateDrawingOptions);
+        document.getElementById('stockColdDays').addEventListener('input', () => handleColdHotMutual('cold'));
+        document.getElementById('stockHotDays').addEventListener('input', () => handleColdHotMutual('hot'));
+        document.getElementById('stockModal').addEventListener('click', function(e) { if (e.target === this) closeStockModal(); });
+
+        let isResizing = false, currentTh = null, startX = 0, startWidth = 0;
+        function startResize(e, th, colIndex) {
+            e.preventDefault();
+            isResizing = true; currentTh = th; startX = e.pageX; startWidth = th.offsetWidth;
+            document.body.style.cursor = 'col-resize';
+        }
+        function onMouseMove(e) {
+            if (!isResizing) return;
+            const diff = e.pageX - startX;
+            const newWidth = Math.max(35, startWidth + diff);
+            currentTh.style.width = newWidth + 'px';
+            columnWidths[currentTh.dataset.col] = newWidth;
+        }
+        function stopResize() { isResizing = false; document.body.style.cursor = ''; }
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', stopResize);
+
+        function applyDateRange() {
+            const s = document.getElementById('rangeStartDate').value, e = document.getElementById('rangeEndDate').value;
+            if (s && e) { currentDateRange = { start: s, end: e }; updateCapacityStats(); }
+        }
+        let currentViewMode = 'table';
+        function switchView(mode) {
+            currentViewMode = mode;
+            document.getElementById('tableViewContainer').style.display = mode === 'table' ? 'block' : 'none';
+            document.getElementById('calendarViewContainer').style.display = mode === 'calendar' ? 'block' : 'none';
+            if (mode === 'table') renderTable(); else renderCalendar();
+        }
+
+        document.getElementById('clearFilterBtn').addEventListener('click', resetAllFilters);
+        document.getElementById('batchConfirmBtn').addEventListener('click', batchConfirm);
+        document.getElementById('batchDeleteBtn').addEventListener('click', batchDelete);
+        document.getElementById('prevPage').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTable(); } });
+        document.getElementById('nextPage').addEventListener('click', () => {
+            const displayList = [];
+            const filtered = getFilteredData();
+            for (const item of filtered) {
+                if (item.isStock) continue;
+                displayList.push(item);
+                if (expandedParentIds.has(item.id)) {
+                    const stocks = filtered.filter(o => o.isStock && o.parentId === item.id);
+                    for (const stock of stocks) displayList.push(stock);
+                }
+            }
+            if (currentPage < Math.ceil(displayList.length / pageSize)) { currentPage++; renderTable(); }
+        });
+        document.getElementById('pageSelect').addEventListener('change', (e) => { currentPage = parseInt(e.target.value); renderTable(); });
+        document.getElementById('applyDateRange').addEventListener('click', applyDateRange);
+        document.getElementById('calendarPrevMonth').addEventListener('click', prevMonth);
+        document.getElementById('calendarNextMonth').addEventListener('click', nextMonth);
+        document.getElementById('applyStdCapacity').addEventListener('click', updateStd);
+
+        document.querySelectorAll('.view-btn').forEach(btn => btn.addEventListener('click', function() {
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            switchView(this.dataset.viewMode);
+        }));
+        document.querySelectorAll('.picker-btn').forEach(btn => btn.addEventListener('click', function() {
+            document.querySelectorAll('.picker-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const today = new Date();
+            if (this.dataset.pickerView === 'day') {
+                document.getElementById('rangeStartDate').value = today.toISOString().slice(0,10);
+                document.getElementById('rangeEndDate').value = today.toISOString().slice(0,10);
+            } else if (this.dataset.pickerView === 'week') {
+                const day = today.getDay();
+                const start = new Date(today); start.setDate(today.getDate() - day + (day === 0 ? -6 : 1));
+                const end = new Date(start); end.setDate(start.getDate() + 6);
+                document.getElementById('rangeStartDate').value = start.toISOString().slice(0,10);
+                document.getElementById('rangeEndDate').value = end.toISOString().slice(0,10);
+            } else {
+                const start = new Date(today.getFullYear(), today.getMonth(), 1);
+                const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                document.getElementById('rangeStartDate').value = start.toISOString().slice(0,10);
+                document.getElementById('rangeEndDate').value = end.toISOString().slice(0,10);
+            }
+            applyDateRange();
+        }));
+        document.querySelectorAll('.sort-btn').forEach(btn => btn.addEventListener('click', function() {
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            setSortMode(this.dataset.sort);
+        }));
+
+        renderTable();
+        renderCalendar();
+    })();
+</script>
+</body>
+</html>

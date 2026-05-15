@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计划排程 | 避震前叉智能排程 | 完整统计逻辑 + 顺序调整 + 完整日历视图</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #f0f4fa;
+            margin: 0;
+            padding: 12px;
+            color: #1a2c3e;
+        }
+        .app {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        /* 头部区域 - 紧凑单行布局 */
+        .page-header {
+            background: white;
+            border: 1px solid #cbdbe0;
+            padding: 6px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: nowrap;
+            gap: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .header-left h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 650;
+            color: #1a4972;
+            white-space: nowrap;
+        }
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+            background: #eef3fc;
+            border-radius: 32px;
+            padding: 2px;
+        }
+        .view-btn {
+            background: transparent;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 28px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #4a627a;
+            transition: 0.1s;
+            white-space: nowrap;
+        }
+        .view-btn.active {
+            background: #2d6a9f;
+            color: white;
+        }
+        .header-center {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            min-width: 0;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .date-range-picker {
+            background: #f8fafd;
+            border: 1px solid #cbdae9;
+            border-radius: 24px;
+            padding: 2px 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .date-range-picker .view-btns {
+            display: flex;
+            gap: 2px;
+            border-right: 1px solid #d4e0f0;
+            padding-right: 6px;
+            margin-right: 4px;
+        }
+        .date-range-picker .view-btns .picker-btn {
+            background: transparent;
+            border: none;
+            padding: 2px 8px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: #4a627a;
+        }
+        .date-range-picker .view-btns .picker-btn.active {
+            background: #2d6a9f;
+            color: white;
+        }
+        .date-inputs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .date-inputs input {
+            border: 1px solid #cbdae9;
+            border-radius: 14px;
+            padding: 2px 6px;
+            font-size: 0.65rem;
+            font-family: monospace;
+            background: white;
+            width: 95px;
+        }
+        .date-inputs button {
+            background: #eef3fc;
+            border: 1px solid #cbdae9;
+            border-radius: 16px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 0.65rem;
+        }
+
+        .batch-actions-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .batch-btn {
+            background: #2d6a9f;
+            color: white;
+            border: none;
+            padding: 3px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .batch-btn:hover {
+            background: #1e4f78;
+        }
+        .batch-btn.disabled {
+            background: #b8cae0;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .batch-edit-select {
+            padding: 3px 6px;
+            border: 1px solid #cbdae9;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            background: white;
+        }
+        .selected-count {
+            font-size: 0.7rem;
+            color: #1a4972;
+            background: #e8f0fa;
+            padding: 2px 8px;
+            border-radius: 16px;
+            white-space: nowrap;
+        }
+        .clear-filter {
+            background: #eff3fa;
+            border: 1px solid #b8cae0;
+            padding: 3px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: 500;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+        .clear-filter:hover {
+            background: #e2e9f3;
+        }
+
+        /* 操作栏 - 扩展产能卡片 */
+        .action-panel {
+            background: white;
+            border: 1px solid #cbdbe0;
+            padding: 6px 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .capacity-card {
+            background: #eef3fc;
+            border-radius: 24px;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            border: 1px solid #cbdae9;
+            flex-wrap: wrap;
+        }
+        .capacity-item {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+        .capacity-label {
+            color: #2d5a7e;
+            font-size: 0.7rem;
+        }
+        .capacity-value {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #1a4972;
+        }
+        .capacity-unit {
+            font-size: 0.55rem;
+            color: #5f7c9c;
+        }
+        .overdue-badge {
+            background: #ffe2db;
+            border-radius: 16px;
+            padding: 1px 8px;
+            color: #bc3f2c;
+            font-weight: 700;
+        }
+        .capacity-divider {
+            color: #cbdae9;
+            font-size: 1rem;
+            margin: 0 4px;
+        }
+        .section-title {
+            font-weight: 700;
+            color: #1a4972;
+            font-size: 0.8rem;
+            margin-right: 8px;
+        }
+
+        /* 表格视图样式 */
+        .table-wrapper {
+            background: white;
+            border: 1px solid #d7e0ec;
+            border-radius: 8px;
+            overflow-x: auto;
+            position: relative;
+        }
+        .resizable-table {
+            border-collapse: collapse;
+            font-size: 0.7rem;
+            table-layout: fixed;
+            min-width: 100%;
+            width: auto;
+        }
+        .resizable-table th, .resizable-table td {
+            padding: 4px 5px;
+            border-bottom: 1px solid #e6edf6;
+            border-right: 1px solid #e2e8f0;
+            vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .resizable-table th {
+            background: #f7fafd;
+            font-weight: 650;
+            color: #1e4770;
+            border-bottom: 2px solid #d4e0f0;
+            border-right: 1px solid #d4e0f0;
+            font-size: 0.68rem;
+            position: relative;
+        }
+        .resizable-table td:last-child, .resizable-table th:last-child {
+            border-right: none;
+        }
+        .resize-handle {
+            position: absolute;
+            right: -5px;
+            top: 0;
+            width: 10px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 10;
+        }
+        .resize-handle:hover {
+            background: #2d6a9f;
+            opacity: 0.3;
+        }
+        .filterable-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 2px;
+        }
+        .filter-icon {
+            font-size: 0.5rem;
+            cursor: pointer;
+            color: #2d6a9f;
+            background: #eef3fc;
+            width: 14px;
+            height: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 2px;
+            border: 1px solid #cbdae9;
+            margin-left: 4px;
+        }
+        .inline-filter {
+            margin-top: 2px;
+            width: 100%;
+        }
+        .inline-filter-input, .inline-filter-select {
+            width: 100%;
+            padding: 1px 2px;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            font-size: 0.55rem;
+        }
+        .priority-select, .status-select {
+            padding: 2px 4px;
+            border-radius: 10px;
+            border: 1px solid #cddaea;
+            background: white;
+            font-weight: 500;
+            font-size: 0.65rem;
+            cursor: pointer;
+            width: 100%;
+            min-width: 70px;
+        }
+        .priority-1, .priority-2, .priority-3 { background-color: #e2f3e4; color: #1c6e3f; }
+        .priority-4, .priority-5, .priority-6 { background-color: #fff0d6; color: #b45f1b; }
+        .priority-7, .priority-8, .priority-9, .priority-紧急 { background-color: #ffe2db; color: #bc3f2c; }
+        .status-生效 { background-color: #e1f7ea; color: #19794d; }
+        .status-创建 { background-color: #e3f0fd; color: #1f6392; }
+        .status-生产中 { background-color: #fff3e0; color: #c97e00; }
+        .status-已完成 { background-color: #d4edda; color: #155724; }
+        .status-关闭 { background-color: #eff2f7; color: #5b6f8c; }
+
+        .customer-input {
+            padding: 2px 3px;
+            border: 1px solid #cbdae9;
+            border-radius: 4px;
+            background: white;
+            font-size: 0.65rem;
+            width: 100%;
+            min-width: 80px;
+            text-align: center;
+        }
+        .date-input, .ws-input {
+            padding: 2px 3px;
+            border: 1px solid #cbdae9;
+            border-radius: 4px;
+            background: white;
+            font-size: 0.65rem;
+            width: 100%;
+        }
+        .date-with-arrows {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            background: #f8fafc;
+            border-radius: 4px;
+            padding: 1px 2px;
+            justify-content: space-between;
+        }
+        .date-arrow {
+            cursor: pointer;
+            font-size: 0.65rem;
+            font-weight: bold;
+            background: #eef3fc;
+            border: 1px solid #cbdae9;
+            border-radius: 4px;
+            width: 16px;
+            text-align: center;
+            user-select: none;
+            line-height: 1.1;
+        }
+        .date-arrow:hover { background: #d4e3f5; }
+        .date-display {
+            font-family: monospace;
+            font-size: 0.62rem;
+            text-align: center;
+            background: white;
+            padding: 1px 2px;
+            border-radius: 4px;
+            flex: 1;
+        }
+        .plan-date-static {
+            font-family: monospace;
+            font-size: 0.62rem;
+            background: #f8fafc;
+            padding: 2px 2px;
+            border-radius: 4px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .numeric { text-align: right; font-weight: 500; }
+        .center-text { text-align: center !important; }
+        .drawing-code { font-weight: 600; color: #1a4972; }
+        .checkbox-col { width: 28px; text-align: center; }
+        .checkbox-col input { width: 13px; height: 13px; cursor: pointer; }
+        .action-btn {
+            background: #eef3fc;
+            border: 1px solid #cbdae9;
+            border-radius: 14px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 0.6rem;
+            font-weight: 500;
+            color: #1e4770;
+            transition: 0.1s;
+            white-space: nowrap;
+        }
+        .action-btn:hover {
+            background: #d4e3f5;
+            border-color: #9bb7d4;
+        }
+        .move-btn {
+            background: #eef3fc;
+            border: 1px solid #cbdae9;
+            border-radius: 14px;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 0.6rem;
+            font-weight: 500;
+            margin: 0 2px;
+            color: #1e4770;
+        }
+        .move-btn:hover {
+            background: #d4e3f5;
+        }
+        .pagination {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 32px;
+            border: 1px solid #d7e0ec;
+        }
+        .pagination button {
+            background: white;
+            border: 1px solid #b8cae0;
+            padding: 2px 8px;
+            cursor: pointer;
+            border-radius: 24px;
+            font-size: 0.65rem;
+        }
+        .page-select {
+            padding: 2px 4px;
+            border-radius: 16px;
+            border: 1px solid #b8cae0;
+            font-size: 0.65rem;
+        }
+        footer {
+            text-align: center;
+            margin: 12px 0 6px;
+            color: #6c7f9c;
+            font-size: 0.6rem;
+        }
+
+        /* 日历视图样式 */
+        .calendar-view {
+            background: white;
+            border: 1px solid #d7e0ec;
+            border-radius: 10px;
+            padding: 12px;
+            overflow-x: auto;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .calendar-nav button {
+            background: #eef3fc;
+            border: 1px solid #cbdae9;
+            border-radius: 20px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        .calendar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1a4972;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .month-total {
+            font-size: 0.7rem;
+            background: #eef3fc;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+        .std-capacity-inputs {
+            display: flex;
+            gap: 10px;
+            background: #f0f7ff;
+            padding: 4px 10px;
+            border-radius: 28px;
+            border: 1px solid #cbdae9;
+            align-items: center;
+        }
+        .std-capacity-inputs label {
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: #1e4770;
+        }
+        .std-capacity-inputs input {
+            width: 70px;
+            padding: 2px 6px;
+            border-radius: 16px;
+            border: 1px solid #cbdae9;
+            font-size: 0.65rem;
+            text-align: center;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+        .calendar-weekday {
+            text-align: center;
+            font-weight: 600;
+            color: #2d6a9f;
+            padding: 6px;
+            background: #f7fafd;
+            border-radius: 6px;
+            font-size: 0.7rem;
+        }
+        .calendar-day {
+            min-height: 120px;
+            background: #fefefe;
+            border: 1px solid #e6edf6;
+            border-radius: 8px;
+            padding: 6px;
+        }
+        .calendar-day.today {
+            border: 2px solid #2d6a9f;
+            background: #f0f8ff;
+        }
+        .calendar-day.other-month {
+            background: #fafbfd;
+            color: #9aabbf;
+        }
+        .day-number {
+            font-weight: 700;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+            color: #1a4972;
+        }
+        .subcapacity-detail {
+            font-size: 0.6rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            padding: 4px 3px;
+            margin-top: 3px;
+            border-left: 2px solid #9bb7d4;
+        }
+        .subcapacity-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+            font-size: 0.58rem;
+        }
+        .subcapacity-label {
+            font-weight: 500;
+            color: #3a6d8c;
+        }
+        .subcapacity-value {
+            font-weight: 600;
+            color: #1e3b5c;
+        }
+        .capacity-percent {
+            font-family: monospace;
+            font-size: 0.55rem;
+            background: #eef2f7;
+            border-radius: 10px;
+            padding: 1px 4px;
+            margin-left: 3px;
+        }
+        .capacity-highlight {
+            font-weight: 700;
+            color: #bc3f2c;
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- 头部区域 -->
+    <div class="page-header">
+        <div class="header-left">
+            <h1>计划排程</h1>
+            <div class="view-toggle">
+                <button class="view-btn active" data-view-mode="table">表格视图</button>
+                <button class="view-btn" data-view-mode="calendar">日历视图</button>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="date-range-picker">
+                <div class="view-btns">
+                    <button class="picker-btn" data-picker-view="day">日</button>
+                    <button class="picker-btn" data-picker-view="week">周</button>
+                    <button class="picker-btn active" data-picker-view="month">月</button>
+                </div>
+                <div class="date-inputs">
+                    <input type="date" id="rangeStartDate" value="2026-02-01">
+                    <span>至</span>
+                    <input type="date" id="rangeEndDate" value="2026-03-31">
+                    <button id="applyDateRange">筛选</button>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="batch-actions-header">
+                <span class="selected-count" id="selectedCount">已选择 0 项</span>
+                <select id="batchStatusSelect" class="batch-edit-select" disabled>
+                    <option value="">批量改状态</option>
+                    <option value="生效">生效</option>
+                    <option value="创建">创建</option>
+                    <option value="生产中">生产中</option>
+                    <option value="已完成">已完成</option>
+                    <option value="关闭">关闭</option>
+                </select>
+                <button class="batch-btn" id="batchConfirmBtn" disabled>批量确认</button>
+                <button class="batch-btn" id="batchDeleteBtn" disabled>批量删除</button>
+                <button class="clear-filter" id="clearFilterBtn">重置筛选</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作栏：排产总览卡片 -->
+    <div class="action-panel">
+        <div class="capacity-card">
+            <span class="section-title">排产总览：</span>
+            <div class="capacity-item"><span class="capacity-label">订单总数</span><span class="capacity-value" id="totalOrderCount">0</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">已排产</span><span class="capacity-value" id="totalPlanQty">12</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">已排产数量</span><span class="capacity-value" id="totalPlanQtySum">6,869</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">生产中</span><span class="capacity-value" id="inProductionQty">3,644</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">已完成</span><span class="capacity-value" id="completedQty">1,604</span><span class="capacity-unit">个</span></div>
+            <span class="capacity-divider">|</span>
+            <div class="capacity-item"><span class="capacity-label">需投产数量</span><span class="capacity-value" id="needToProduce">1,621</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">生产总进度</span><span class="capacity-value" id="totalProgress">23</span><span class="capacity-unit">%</span></div>
+            <div class="capacity-item"><span class="capacity-label">开工延期订单</span><span class="capacity-value overdue-badge" id="startOverdueOrderCount">0</span><span class="capacity-unit">个</span></div>
+            <div class="capacity-item"><span class="capacity-label">交付延期订单</span><span class="capacity-value overdue-badge" id="deliveryOverdueOrderCount">0</span><span class="capacity-unit">个</span></div>
+        </div>
+    </div>
+
+    <!-- 表格视图 -->
+    <div id="tableViewContainer">
+        <div class="table-wrapper">
+            <table class="resizable-table" id="orderTable">
+                <thead id="tableHeader"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        <div class="pagination">
+            <button id="prevPage">◀ 上一页</button>
+            <span>第 <select id="pageSelect" class="page-select"></select> 页</span>
+            <span>共 <span id="totalPages">1</span> 页</span>
+            <button id="nextPage">下一页 ▶</button>
+        </div>
+    </div>
+
+    <!-- 日历视图容器（完整显示） -->
+    <div id="calendarViewContainer" style="display: none;">
+        <div class="calendar-view">
+            <div class="calendar-header">
+                <div class="calendar-nav">
+                    <button id="calendarPrevMonth">◀ 上月</button>
+                    <div class="calendar-title" id="calendarTitle"><span>2026年02月</span><span class="month-total" id="monthTotalCapacity">总产能: 0</span></div>
+                    <button id="calendarNextMonth">下月 ▶</button>
+                </div>
+                <div class="std-capacity-inputs">
+                    <label>备料标准: <input type="number" id="stdMaterial" value="2800" step="100"></label>
+                    <label>焊接标准: <input type="number" id="stdWeld" value="3200" step="100"></label>
+                    <label>组装标准: <input type="number" id="stdAssembly" value="3500" step="100"></label>
+                    <button id="applyStdCapacity" style="background:#eef3fc; border-radius:16px; border:1px solid #cbdae9; padding:2px 10px; font-size:0.65rem;">应用</button>
+                </div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+    </div>
+    <footer>✅ 拖拽表头分割线调整列宽 | 箭头调整日期 | 日历视图展示产能细分及占比 | 上移/下移调整订单顺序</footer>
+</div>
+
+<script>
+(function(){
+    const statusOptions = ['生效', '创建', '生产中', '已完成', '关闭'];
+    const columns = [
+        { key: 'checkbox', label: '', width: 32, filterable: false, align: 'center' },
+        { key: 'salesOrder', label: '销售订单', width: 90, filterable: true, align: 'left' },
+        { key: 'salesQty', label: '销售订单数量', width: 70, filterable: false, align: 'center' },
+        { key: 'spec', label: '规格', width: 110, filterable: true, align: 'left' },
+        { key: 'customer', label: '客户', width: 110, filterable: true, align: 'center' },
+        { key: 'prodOrder', label: '生产订单', width: 95, filterable: true, align: 'left' },
+        { key: 'drawing', label: '图号', width: 80, filterable: true, align: 'left' },
+        { key: 'drawingQty', label: '数量', width: 55, filterable: false, align: 'right' },
+        { key: 'priority', label: '优先级', width: 75, filterable: false, align: 'left' },
+        { key: 'planStart', label: '开工', width: 85, filterable: false, align: 'left' },
+        { key: 'daysToDelivery', label: '距离交付时间', width: 85, filterable: false, align: 'center' },
+        { key: 'material', label: '备料', width: 50, filterable: false, align: 'left' },
+        { key: 'weld', label: '焊接', width: 50, filterable: false, align: 'left' },
+        { key: 'assembly', label: '组装', width: 50, filterable: false, align: 'left' },
+        { key: 'planMaterialStart', label: '计划备料开始', width: 100, filterable: false, align: 'left' },
+        { key: 'materialFinish', label: '备料完成', width: 80, filterable: false, align: 'left' },
+        { key: 'weldStart', label: '计划焊接开始', width: 100, filterable: false, align: 'left' },
+        { key: 'weldFinish', label: '焊接完成', width: 80, filterable: false, align: 'left' },
+        { key: 'assemblyStart', label: '计划组装开始', width: 100, filterable: false, align: 'left' },
+        { key: 'assemblyFinish', label: '组装完成', width: 80, filterable: false, align: 'left' },
+        { key: 'actualStart', label: '实际开工', width: 90, filterable: false, align: 'left' },
+        { key: 'actualComplete', label: '实际完成', width: 90, filterable: false, align: 'left' },
+        { key: 'planComplete', label: '计划生产完成', width: 85, filterable: false, align: 'left' },
+        { key: 'deliveryDate', label: '交付日期', width: 85, filterable: true, align: 'left' },
+        { key: 'status', label: '状态', width: 80, filterable: true, align: 'left' },
+        { key: 'action', label: '操作', width: 120, filterable: false, align: 'center' }
+    ];
+
+    // ---------- 生成订单数据 ----------
+    const customerList = ['信德','南京爱督宝','图腾进出口','中轮进出口','帝欧','福盛达','杭州名诚','浩博','鸿瑞大版','金玖','久祺','久趣','久胜','久祥','柯米克','雷克斯','赛科曼','森巴克','五甲子','意普','永豪','浙江凯喜雅','志翔鸿盛'];
+    const forkModels = [{ code: 'S-FOX-RL32' },{ code: 'S-EPICON-XC' },{ code: 'S-BOOST-29' },{ code: 'S-ROCKSHOX' },{ code: 'S-AIR-140' },{ code: 'S-EBIKE-HD' },{ code: 'S-FAT-SNOW' },{ code: 'S-ROAD-FF' },{ code: 'S-DUAL-CROWN' },{ code: 'S-TRACTION' }];
+    const drawingLibrary = { 'S-FOX-RL32':['FOX-32-100-1A','FOX-32-100-1B'], 'S-EPICON-XC':['EP-XC-120-A','EP-XC-120-B'], 'S-BOOST-29':['BST-29-110-1','BST-29-110-2'], 'S-ROCKSHOX':['RS-150-Z1','RS-150-Z2'], 'S-AIR-140':['AIR-140-01','AIR-140-02'], 'S-EBIKE-HD':['EBIKE-HD-01','EBIKE-HD-02'], 'S-FAT-SNOW':['FAT-SNOW-A','FAT-SNOW-B'], 'S-ROAD-FF':['ROAD-FF-01'], 'S-DUAL-CROWN':['DC-200-1','DC-200-2'], 'S-TRACTION':['TRAC-AD-01'] };
+    const priorityValues = ['1','2','3','4','5','6','7','8','9','紧急'];
+    const salesPrefix = ['SO-2503-01','SO-2503-02','SO-2503-03','SO-2503-04','SO-2503-05','SO-2503-06','SO-2503-07','SO-2503-08','SO-2503-09','SO-2503-10','SO-2503-11','SO-2503-12','SO-2503-13','SO-2503-14','SO-2503-15','SO-2503-16','SO-2503-17','SO-2503-18','SO-2503-19','SO-2503-20','SO-2503-21','SO-2503-22','SO-2503-23'];
+    const baseOrderIds = ['PO-F240301','PO-F240302','PO-F240303','PO-F240304','PO-F240305','PO-F240306','PO-F240307','PO-F240308','PO-F240309','PO-F240310','PO-F240311','PO-F240312','PO-F240313','PO-F240314','PO-F240315','PO-F240316','PO-F240317','PO-F240318','PO-F240319','PO-F240320','PO-F240321','PO-F240322','PO-F240323'];
+    let orderDrawingsList = [];
+    let selectedIds = new Set();
+
+    for (let i = 0; i < customerList.length; i++) {
+        const startBase = new Date(2025, 3, 5 + (i * 2) % 25);
+        startBase.setDate(startBase.getDate() + (i % 12));
+        let startStr = startBase.toISOString().slice(0,10);
+        const deliveryDate = new Date(startBase);
+        deliveryDate.setDate(startBase.getDate() + 12 + Math.floor(Math.random() * 15) + (i % 8));
+        const deliveryStr = deliveryDate.toISOString().slice(0,10);
+        const priority = priorityValues[Math.floor(Math.random() * priorityValues.length)];
+        const status = statusOptions[Math.floor(Math.random() * statusOptions.length)];
+        const modelObj = forkModels[i % forkModels.length];
+        const planQty = 350 + i * 45 + Math.floor(Math.random() * 200);
+        const drawings = drawingLibrary[modelObj.code] || ['DWG-001'];
+        const selectedDrawings = drawings.slice(0, Math.min(drawings.length, 2));
+        let remaining = planQty;
+        const qtyList = [];
+        for (let j = 0; j < selectedDrawings.length - 1; j++) { const qty = Math.floor(remaining * (0.2 + Math.random() * 0.3)); qtyList.push(qty); remaining -= qty; }
+        qtyList.push(remaining);
+        const materialDays = Math.floor(Math.random() * 5) + 1;
+        const weldDays = Math.floor(Math.random() * 4) + 1;
+        const assemblyDays = Math.floor(Math.random() * 4) + 1;
+        for (let j = 0; j < selectedDrawings.length; j++) {
+            let actualStart = startStr;
+            let actualComplete = addDays(startStr, materialDays + weldDays + assemblyDays);
+            if (Math.random() > 0.7) actualStart = addDays(startStr, Math.floor(Math.random() * 3) - 1);
+            if (Math.random() > 0.7) actualComplete = addDays(actualComplete, Math.floor(Math.random() * 3) - 1);
+            orderDrawingsList.push({ 
+                id: orderDrawingsList.length + 1, salesOrder: salesPrefix[i], orderId: baseOrderIds[i] + (i+10).toString(), customer: customerList[i], totalQty: planQty, 
+                spec: modelObj.code,
+                drawingCode: selectedDrawings[j], drawingQty: qtyList[j], startDate: startStr, deliveryDate: deliveryStr, priority: priority, 
+                materialDays, weldDays, assemblyDays, status, actualStart, actualComplete 
+            });
+        }
+    }
+
+    function addDays(dateStr, days) { if (!dateStr || dateStr === '—') return '—'; const d = new Date(dateStr); d.setDate(d.getDate() + days); return d.toISOString().slice(0,10); }
+    function calculatePlanDates(item) {
+        const planStart = item.startDate;
+        const planMaterialStart = planStart;
+        const materialFinish = addDays(planMaterialStart, item.materialDays);
+        const weldStart = materialFinish;
+        const weldFinish = addDays(weldStart, item.weldDays);
+        const assemblyStart = weldFinish;
+        const assemblyFinish = addDays(assemblyStart, item.assemblyDays);
+        const planComplete = assemblyFinish;
+        return { planStart, planMaterialStart, materialFinish, weldStart, weldFinish, assemblyStart, assemblyFinish, planComplete };
+    }
+    function isStartOverdue(item) { const today = new Date().toISOString().slice(0,10); return item.startDate && item.startDate < today && item.status !== '已完成' && item.status !== '关闭'; }
+    function isDeliveryOverdue(item) { const p = calculatePlanDates(item); return p.planComplete !== '—' && p.planComplete > item.deliveryDate; }
+    function calcDaysToDelivery(item) { return Math.ceil((new Date(item.deliveryDate) - new Date(item.startDate)) / (1000*3600*24)) || 1; }
+
+    // 移动顺序
+    function moveOrderUp(id) {
+        const index = orderDrawingsList.findIndex(item => item.id === id);
+        if (index > 0) {
+            [orderDrawingsList[index-1], orderDrawingsList[index]] = [orderDrawingsList[index], orderDrawingsList[index-1]];
+            renderTable();
+        }
+    }
+    function moveOrderDown(id) {
+        const index = orderDrawingsList.findIndex(item => item.id === id);
+        if (index !== -1 && index < orderDrawingsList.length-1) {
+            [orderDrawingsList[index], orderDrawingsList[index+1]] = [orderDrawingsList[index+1], orderDrawingsList[index]];
+            renderTable();
+        }
+    }
+
+    let currentDateRange = { start: '2026-02-01', end: '2026-03-31' };
+    let filters = { salesOrder: '', spec: '', customer: '', orderId: '', drawing: '', status: 'all', deliveryDate: '' };
+    let currentPage = 1;
+    const pageSize = 12;
+    let columnWidths = {};
+
+    function getFilteredData() {
+        return orderDrawingsList.filter(item => {
+            if(filters.salesOrder && !item.salesOrder.toLowerCase().includes(filters.salesOrder.toLowerCase())) return false;
+            if(filters.spec && !item.spec.toLowerCase().includes(filters.spec.toLowerCase())) return false;
+            if(filters.customer && !item.customer.toLowerCase().includes(filters.customer.toLowerCase())) return false;
+            if(filters.orderId && !item.orderId.toLowerCase().includes(filters.orderId.toLowerCase())) return false;
+            if(filters.drawing && !item.drawingCode.toLowerCase().includes(filters.drawing.toLowerCase())) return false;
+            if(filters.status !== 'all' && item.status !== filters.status) return false;
+            if(filters.deliveryDate && !item.deliveryDate.includes(filters.deliveryDate)) return false;
+            return true;
+        });
+    }
+
+    function updateCapacityStats() {
+        const filteredData = getFilteredData();
+        const totalOrderCount = filteredData.length;
+        let startOverdueSet = new Set(), deliveryOverdueSet = new Set();
+        for (let it of filteredData) {
+            if (isStartOverdue(it)) startOverdueSet.add(it.id);
+            if (isDeliveryOverdue(it)) deliveryOverdueSet.add(it.id);
+        }
+        document.getElementById('totalOrderCount').innerText = totalOrderCount.toLocaleString();
+        document.getElementById('startOverdueOrderCount').innerText = startOverdueSet.size;
+        document.getElementById('deliveryOverdueOrderCount').innerText = deliveryOverdueSet.size;
+    }
+
+    // 日历逻辑
+    let dailyDetailedCapacity = {};
+    function initDetailedCapacities() {
+        for (let y = 2025; y <= 2027; y++) {
+            for (let m = 0; m < 12; m++) {
+                const days = new Date(y, m+1, 0).getDate();
+                for (let d = 1; d <= days; d++) {
+                    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    let total = Math.floor(Math.random() * 6000) + 4000;
+                    if (dateStr === '2026-02-10') total = 9800;
+                    if (dateStr === '2026-02-14') total = 9500;
+                    if (dateStr === '2026-02-20') total = 9200;
+                    if (dateStr === '2026-02-28') total = 9900;
+                    let matRatio = 0.32 + Math.random() * 0.08;
+                    let weldRatio = 0.30 + Math.random() * 0.08;
+                    let asmRatio = 1 - matRatio - weldRatio;
+                    asmRatio = Math.min(0.42, Math.max(0.30, asmRatio));
+                    let material = Math.floor(total * matRatio);
+                    let weld = Math.floor(total * weldRatio);
+                    let assembly = total - material - weld;
+                    dailyDetailedCapacity[dateStr] = { material, weld, assembly, total };
+                }
+            }
+        }
+    }
+    initDetailedCapacities();
+
+    let stdMaterial = 2800, stdWeld = 3200, stdAssembly = 3500;
+    function updateStd() {
+        stdMaterial = parseInt(document.getElementById('stdMaterial').value) || 2800;
+        stdWeld = parseInt(document.getElementById('stdWeld').value) || 3200;
+        stdAssembly = parseInt(document.getElementById('stdAssembly').value) || 3500;
+        renderCalendar();
+    }
+    let currentCalendarYear = 2026, currentCalendarMonth = 1; // 0-index: 1表示2月
+    function renderCalendar() {
+        const year = currentCalendarYear, month = currentCalendarMonth;
+        const firstDay = new Date(year, month, 1);
+        const startWeekday = firstDay.getDay();
+        const daysInMonth = new Date(year, month+1, 0).getDate();
+        const prevMonthDays = new Date(year, month, 0).getDate();
+        let monthTotal = 0;
+        for(let d=1; d<=daysInMonth; d++) {
+            const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            if(dailyDetailedCapacity[ds]) monthTotal += dailyDetailedCapacity[ds].total;
+        }
+        document.getElementById('monthTotalCapacity').innerHTML = `总产能: ${monthTotal.toLocaleString()} 个`;
+        document.getElementById('calendarTitle').innerHTML = `<span>${year}年${String(month+1).padStart(2,'0')}月</span><span class="month-total">总产能: ${monthTotal.toLocaleString()} 个</span>`;
+        let gridHtml = '';
+        const weekdays = ['日','一','二','三','四','五','六'];
+        for(let w of weekdays) gridHtml += `<div class="calendar-weekday">${w}</div>`;
+        let dayCount=1, nextMonthDay=1;
+        for(let i=0;i<42;i++) {
+            let displayDay, isCurrent=true, dateStr;
+            if(i<startWeekday) {
+                displayDay = prevMonthDays - (startWeekday - i) + 1;
+                isCurrent=false;
+                let prevYear = year, prevMonth = month-1;
+                if(prevMonth<0) { prevMonth=11; prevYear--; }
+                dateStr = `${prevYear}-${String(prevMonth+1).padStart(2,'0')}-${String(displayDay).padStart(2,'0')}`;
+            } else if(dayCount<=daysInMonth) {
+                displayDay = dayCount++;
+                dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(displayDay).padStart(2,'0')}`;
+            } else {
+                displayDay = nextMonthDay++;
+                isCurrent=false;
+                let nextYear = year, nextMonth = month+1;
+                if(nextMonth>11) { nextMonth=0; nextYear++; }
+                dateStr = `${nextYear}-${String(nextMonth+1).padStart(2,'0')}-${String(displayDay).padStart(2,'0')}`;
+            }
+            const cap = dailyDetailedCapacity[dateStr] || { material:0, weld:0, assembly:0, total:0 };
+            const isToday = (new Date().toISOString().slice(0,10) === dateStr);
+            const matPct = (cap.material / stdMaterial * 100).toFixed(1);
+            const weldPct = (cap.weld / stdWeld * 100).toFixed(1);
+            const asmPct = (cap.assembly / stdAssembly * 100).toFixed(1);
+            gridHtml += `<div class="calendar-day ${!isCurrent ? 'other-month' : ''} ${isToday ? 'today' : ''}">
+                <div class="day-number">${displayDay}</div>
+                <div class="subcapacity-detail">
+                    <div class="subcapacity-row"><span class="subcapacity-label">备料:</span><span class="subcapacity-value">${cap.material.toLocaleString()}</span><span class="capacity-percent ${parseFloat(matPct)>100?'capacity-highlight':''}">${matPct}%</span></div>
+                    <div class="subcapacity-row"><span class="subcapacity-label">焊接:</span><span class="subcapacity-value">${cap.weld.toLocaleString()}</span><span class="capacity-percent ${parseFloat(weldPct)>100?'capacity-highlight':''}">${weldPct}%</span></div>
+                    <div class="subcapacity-row"><span class="subcapacity-label">组装:</span><span class="subcapacity-value">${cap.assembly.toLocaleString()}</span><span class="capacity-percent ${parseFloat(asmPct)>100?'capacity-highlight':''}">${asmPct}%</span></div>
+                </div>
+            </div>`;
+        }
+        document.getElementById('calendarGrid').innerHTML = gridHtml;
+    }
+    function prevMonth() { if(currentCalendarMonth===0) { currentCalendarMonth=11; currentCalendarYear--; } else currentCalendarMonth--; renderCalendar(); }
+    function nextMonth() { if(currentCalendarMonth===11) { currentCalendarMonth=0; currentCalendarYear++; } else currentCalendarMonth++; renderCalendar(); }
+
+    // 表格渲染 (含上下移动按钮)
+    function renderTable() {
+        const filtered = getFilteredData();
+        const totalP = Math.ceil(filtered.length / pageSize) || 1;
+        if(currentPage > totalP) currentPage = totalP || 1;
+        const pageData = filtered.slice((currentPage-1)*pageSize, currentPage*pageSize);
+        let theadHtml = '<tr>';
+        for (let i = 0; i < columns.length; i++) {
+            const col = columns[i];
+            const width = columnWidths[col.key] || col.width;
+            theadHtml += `<th style="width:${width}px;" data-col="${col.key}" data-colindex="${i}"><div class="filterable-header"><span>${col.label}</span>${col.filterable ? `<span class="filter-icon ${col.key}-filter-icon">🔽</span>` : ''}</div>${col.filterable ? `<div id="${col.key}Filter" class="inline-filter" style="display:none;"><input type="text" id="${col.key}Input" placeholder="筛选" class="inline-filter-input"></div>` : ''}<div class="resize-handle" data-col="${col.key}" data-colindex="${i}"></div></th>`;
+        }
+        theadHtml += '</tr>';
+        document.getElementById('tableHeader').innerHTML = theadHtml;
+        let bodyHtml = '';
+        for(let item of pageData) {
+            const planDates = calculatePlanDates(item);
+            let priorityClass = (item.priority === '1'||item.priority === '2'||item.priority === '3') ? 'priority-1' : ((item.priority === '4'||item.priority === '5'||item.priority === '6') ? 'priority-4' : 'priority-7');
+            let statusClass = `status-${item.status}`;
+            const isChecked = selectedIds.has(item.id);
+            const daysToDelivery = calcDaysToDelivery(item);
+            const renderArrowDate = (dateVal, fieldKey) => `<div class="date-with-arrows"><span class="date-arrow" data-id="${item.id}" data-field="${fieldKey}" data-delta="-1">◀</span><span class="date-display">${dateVal}</span><span class="date-arrow" data-id="${item.id}" data-field="${fieldKey}" data-delta="1">▶</span></div>`;
+            bodyHtml += `<tr data-id="${item.id}">
+                <td class="checkbox-col center-text"><input type="checkbox" class="row-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''}></td>
+                <td>${item.salesOrder}</td><td class="numeric center-text">${item.totalQty.toLocaleString()}</td>
+                <td>${item.spec}</td>
+                <td><input type="text" class="customer-input" data-id="${item.id}" data-field="customer" value="${item.customer.replace(/"/g, '&quot;')}" style="text-align:center"></td>
+                <td>${item.orderId}</td><td class="drawing-code">${item.drawingCode}</td><td class="numeric">${item.drawingQty.toLocaleString()}</td>
+                <td><select class="priority-select ${priorityClass}" data-id="${item.id}" data-field="priority">${priorityValues.map(v=>`<option ${item.priority===v?'selected':''}>${v}</option>`).join('')}</select></td>
+                <td><input type="date" class="date-input" data-id="${item.id}" data-field="startDate" value="${item.startDate}"></td>
+                <td class="numeric center-text">${daysToDelivery}天</td>
+                <td><input type="number" step="1" min="1" class="ws-input" data-id="${item.id}" data-field="materialDays" value="${item.materialDays}" style="width:55px"></td>
+                <td><input type="number" step="1" min="1" class="ws-input" data-id="${item.id}" data-field="weldDays" value="${item.weldDays}" style="width:55px"></td>
+                <td><input type="number" step="1" min="1" class="ws-input" data-id="${item.id}" data-field="assemblyDays" value="${item.assemblyDays}" style="width:55px"></td>
+                <td>${renderArrowDate(planDates.planMaterialStart, 'planMaterialStart')}</td>
+                <td>${renderArrowDate(planDates.materialFinish, 'materialFinish')}</td>
+                <td>${renderArrowDate(planDates.weldStart, 'weldStart')}</td>
+                <td>${renderArrowDate(planDates.weldFinish, 'weldFinish')}</td>
+                <td>${renderArrowDate(planDates.assemblyStart, 'assemblyStart')}</td>
+                <td>${renderArrowDate(planDates.assemblyFinish, 'assemblyFinish')}</td>
+                <td><input type="date" class="date-input" data-id="${item.id}" data-field="actualStart" value="${item.actualStart || ''}"></td>
+                <td><input type="date" class="date-input" data-id="${item.id}" data-field="actualComplete" value="${item.actualComplete || ''}"></td>
+                <td class="plan-date-static">${planDates.planComplete}</td>
+                <td class="plan-date-static">${item.deliveryDate}</td>
+                <td><select class="status-select ${statusClass}" data-id="${item.id}" data-field="status">${statusOptions.map(s=>`<option ${item.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
+                <td class="center-text"><button class="move-btn move-up" data-id="${item.id}">▲上移</button><button class="move-btn move-down" data-id="${item.id}">▼下移</button><button class="action-btn update-row-btn" data-id="${item.id}">更新</button></td>
+              </tr>`;
+        }
+        if(!pageData.length) bodyHtml = `<tr><td colspan="${columns.length}" style="text-align:center;">暂无匹配的生产订单</td></tr>`;
+        document.getElementById('tableBody').innerHTML = bodyHtml;
+        attachTableEvents(); attachResizeHandlers();
+        document.getElementById('totalPages').innerText = totalP;
+        let opts=''; for(let i=1;i<=totalP;i++) opts+=`<option value="${i}" ${i===currentPage?'selected':''}>${i}</option>`;
+        document.getElementById('pageSelect').innerHTML=opts;
+        updateSelectedCount();
+        updateCapacityStats();
+        attachFilterIconEvents();
+    }
+
+    function attachFilterIconEvents() {
+        columns.forEach(col => {
+            if(!col.filterable) return;
+            const icon = document.querySelector(`.${col.key}-filter-icon`);
+            if(icon) icon.onclick = (e) => { e.stopPropagation(); const filterDiv = document.getElementById(`${col.key}Filter`); if(filterDiv) filterDiv.style.display = filterDiv.style.display === 'none' ? 'block' : 'none'; };
+        });
+        const statusSelect = document.getElementById('statusSelect'); if(statusSelect) statusSelect.onchange = (e) => { filters.status = e.target.value; currentPage=1; renderTable(); };
+        const deliveryInput = document.getElementById('deliveryDateInput'); if(deliveryInput) deliveryInput.oninput = (e) => { filters.deliveryDate = e.target.value; currentPage=1; renderTable(); };
+        ['salesOrder','spec','customer','prodOrder','drawing'].forEach(key => {
+            const inp = document.getElementById(`${key}Input`); if(inp) inp.oninput = (e) => { filters[key === 'prodOrder' ? 'orderId' : key] = e.target.value; currentPage=1; renderTable(); };
+        });
+    }
+
+    function attachResizeHandlers() { document.querySelectorAll('.resize-handle').forEach(handle => { const newHandle = handle.cloneNode(true); handle.parentNode.replaceChild(newHandle, handle); newHandle.addEventListener('mousedown', (e) => { const th = newHandle.parentElement; const colIndex = parseInt(th.dataset.colindex); startResize(e, th, colIndex); }); }); }
+    
+    function attachTableEvents() {
+        document.querySelectorAll('.row-checkbox').forEach(cb=>cb.addEventListener('change',function(){const id=parseInt(this.dataset.id); if(this.checked) selectedIds.add(id); else selectedIds.delete(id); updateSelectedCount(); }));
+        document.querySelectorAll('.customer-input, .priority-select, .status-select, .date-input, .ws-input').forEach(el=>el.addEventListener('change',function(){const id=parseInt(this.dataset.id), field=this.dataset.field, item=orderDrawingsList.find(o=>o.id===id); if(item){ if(field==='priority') item.priority=this.value; else if(field==='status') item.status=this.value; else if(field==='startDate') item.startDate=this.value; else if(field==='customer') item.customer=this.value; else if(field==='materialDays') item.materialDays=Math.max(1,parseInt(this.value)||1); else if(field==='weldDays') item.weldDays=Math.max(1,parseInt(this.value)||1); else if(field==='assemblyDays') item.assemblyDays=Math.max(1,parseInt(this.value)||1); else if(field==='actualStart') item.actualStart=this.value; else if(field==='actualComplete') item.actualComplete=this.value; renderTable(); } }));
+        document.querySelectorAll('.date-arrow').forEach(arrow=>arrow.addEventListener('click',function(e){e.stopPropagation(); const id=parseInt(this.dataset.id), field=this.dataset.field, delta=parseInt(this.dataset.delta), item=orderDrawingsList.find(o=>o.id===id); if(item){ if(field==='planMaterialStart'){ let newStart=addDays(item.startDate, delta); if(newStart!=='—') item.startDate=newStart; } else if(field==='materialFinish'){ let newMat=item.materialDays+delta; if(newMat<1) newMat=1; item.materialDays=newMat; } else if(field==='weldStart'||field==='weldFinish'){ let newWeld=item.weldDays+delta; if(newWeld<1) newWeld=1; item.weldDays=newWeld; } else if(field==='assemblyStart'||field==='assemblyFinish'){ let newAssembly=item.assemblyDays+delta; if(newAssembly<1) newAssembly=1; item.assemblyDays=newAssembly; } renderTable(); } }));
+        document.querySelectorAll('.update-row-btn').forEach(btn=>btn.addEventListener('click',function(e){const id=parseInt(this.dataset.id); alert(`订单 ID:${id} 数据已刷新保存`); renderTable(); }));
+        document.querySelectorAll('.move-up').forEach(btn=>btn.addEventListener('click',function(){ const id=parseInt(this.dataset.id); moveOrderUp(id); }));
+        document.querySelectorAll('.move-down').forEach(btn=>btn.addEventListener('click',function(){ const id=parseInt(this.dataset.id); moveOrderDown(id); }));
+    }
+    
+    function updateSelectedCount() { const cnt = selectedIds.size; document.getElementById('selectedCount').innerText = `已选择 ${cnt} 项`; document.getElementById('batchStatusSelect').disabled = cnt===0; document.getElementById('batchConfirmBtn').disabled = cnt===0; document.getElementById('batchDeleteBtn').disabled = cnt===0; }
+    function batchConfirm() { if(selectedIds.size===0) return; const ns = document.getElementById('batchStatusSelect').value; if(!ns){ alert('请选择状态'); return; } if(confirm(`确定将选中 ${selectedIds.size} 条状态批量确认为「${ns}」吗？`)){ orderDrawingsList.forEach(it=>{ if(selectedIds.has(it.id)) it.status=ns; }); selectedIds.clear(); renderTable(); } }
+    function batchDelete() { if(selectedIds.size===0) return; if(confirm(`删除选中 ${selectedIds.size} 条工单？`)){ orderDrawingsList = orderDrawingsList.filter(it=>!selectedIds.has(it.id)); selectedIds.clear(); currentPage=1; renderTable(); if(currentViewMode === 'calendar') renderCalendar(); } }
+    function resetAllFilters() { filters = { salesOrder:'', spec:'', customer:'', orderId:'', drawing:'', status:'all', deliveryDate:'' }; renderTable(); }
+
+    let isResizing = false, currentTh = null, startX = 0, startWidth = 0;
+    function startResize(e, th, colIndex) { e.preventDefault(); isResizing = true; currentTh = th; startX = e.pageX; startWidth = th.offsetWidth; document.body.style.cursor = 'col-resize'; }
+    function onMouseMove(e) { if (!isResizing) return; const diff = e.pageX - startX; const newWidth = Math.max(35, startWidth + diff); currentTh.style.width = newWidth + 'px'; const colKey = currentTh.dataset.col; columnWidths[colKey] = newWidth; }
+    function stopResize() { isResizing = false; document.body.style.cursor = ''; }
+    document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', stopResize);
+    
+    function applyDateRange() { const s = document.getElementById('rangeStartDate').value, e = document.getElementById('rangeEndDate').value; if(s && e) { currentDateRange = { start:s, end:e }; updateCapacityStats(); } }
+    let currentViewMode = 'table';
+    function switchView(mode) { currentViewMode = mode; const tv = document.getElementById('tableViewContainer'), cv = document.getElementById('calendarViewContainer'); if(mode === 'table') { tv.style.display = 'block'; cv.style.display = 'none'; renderTable(); } else { tv.style.display = 'none'; cv.style.display = 'block'; renderCalendar(); } }
+
+    document.getElementById('clearFilterBtn').addEventListener('click', resetAllFilters);
+    document.getElementById('batchConfirmBtn').addEventListener('click', batchConfirm);
+    document.getElementById('batchDeleteBtn').addEventListener('click', batchDelete);
+    document.getElementById('prevPage').addEventListener('click',()=>{ if(currentPage>1){ currentPage--; renderTable(); } });
+    document.getElementById('nextPage').addEventListener('click',()=>{ const total=Math.ceil(getFilteredData().length/pageSize); if(currentPage<total){ currentPage++; renderTable(); } });
+    document.getElementById('pageSelect').addEventListener('change',(e)=>{ currentPage=parseInt(e.target.value); renderTable(); });
+    document.getElementById('applyDateRange').addEventListener('click', applyDateRange);
+    document.getElementById('calendarPrevMonth').addEventListener('click', prevMonth);
+    document.getElementById('calendarNextMonth').addEventListener('click', nextMonth);
+    document.getElementById('applyStdCapacity').addEventListener('click', updateStd);
+    document.querySelectorAll('.view-btn').forEach(btn=>btn.addEventListener('click',function(){ const mode=this.dataset.viewMode; document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active'); switchView(mode); }));
+    document.querySelectorAll('.picker-btn').forEach(btn=>btn.addEventListener('click',function(){ const view=this.dataset.pickerView; document.querySelectorAll('.picker-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active'); if(view==='day'){ const today=new Date(); document.getElementById('rangeStartDate').value=today.toISOString().slice(0,10); document.getElementById('rangeEndDate').value=today.toISOString().slice(0,10); applyDateRange(); } else if(view==='week'){ const today=new Date(); const day=today.getDay(); const start=new Date(today); start.setDate(today.getDate()-day+(day===0?-6:1)); const end=new Date(start); end.setDate(start.getDate()+6); document.getElementById('rangeStartDate').value=start.toISOString().slice(0,10); document.getElementById('rangeEndDate').value=end.toISOString().slice(0,10); applyDateRange(); } else if(view==='month'){ const today=new Date(); const start=new Date(today.getFullYear(), today.getMonth(),1); const end=new Date(today.getFullYear(), today.getMonth()+1,0); document.getElementById('rangeStartDate').value=start.toISOString().slice(0,10); document.getElementById('rangeEndDate').value=end.toISOString().slice(0,10); applyDateRange(); } }));
+    
+    renderTable();
+    renderCalendar();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2046 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>生产作业</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --line: #d7e0ea;
+      --primary: #3f7bb5;
+      --active-bg: #e5effa;
+      --text: #1f2d3d;
+      --sub: #667787;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Microsoft YaHei", Arial, sans-serif; background: var(--bg); color: var(--text); }
+    .page { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      height: 52px; background: #fff; border-bottom: 1px solid var(--line);
+      padding: 0 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .line-select-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .line-select-label {
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .line-select {
+      min-width: 160px;
+      height: 34px;
+      padding: 0 32px 0 12px;
+      border: 1px solid #b8d4e8;
+      border-radius: 6px;
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2399a8b5' d='M2 4l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 10px center;
+      font-size: 14px;
+      color: var(--text);
+      font-family: inherit;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .line-select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(63, 123, 181, 0.15);
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(10px, 2vw, 14px);
+      margin-bottom: 14px;
+    }
+    @media (max-width: 720px) {
+      .stats-row { grid-template-columns: 1fr; }
+    }
+    .stat-card {
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: #fff;
+      border: 1px solid #d7d7d7;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.12s;
+    }
+    .stat-card:hover {
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    }
+    .stat-card.is-active {
+      background: #dbeafe;
+      border-color: #d7d7d7;
+    }
+    .stat-card .stat-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #374151;
+      flex-shrink: 0;
+    }
+    .stat-card .stat-num {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #111827;
+      line-height: 1.15;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-left: auto;
+    }
+    .topbar .meta { display: flex; gap: 14px; color: var(--sub); font-size: 13px; align-items: center; }
+    .btn-worker-shift {
+      height: 34px;
+      padding: 0 16px;
+      border-radius: 6px;
+      border: 1px solid var(--primary);
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .btn-worker-shift:hover {
+      background: #356c9d;
+      border-color: #356c9d;
+    }
+    .btn-exception-report {
+      height: 34px;
+      padding: 0 16px;
+      border-radius: 6px;
+      border: 1px solid var(--primary);
+      background: #fff;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      white-space: nowrap;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-exception-report:hover {
+      background: var(--active-bg);
+    }
+    .btn-exception-report:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .container { flex: 1; min-height: 0; padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+
+    .panel { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 0; display: flex; flex-direction: column; }
+    .panel-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+
+    .table-wrap {
+      border: 1px solid var(--line); border-radius: 8px; overflow: auto; min-height: 280px;
+      max-height: calc(100vh - 300px); position: relative;
+    }
+    table { width: 100%; min-width: 1500px; border-collapse: collapse; background: #fff; }
+    th, td { border-bottom: 1px solid var(--line); padding: 10px 8px; white-space: nowrap; font-size: 13px; text-align: left; }
+    th { position: sticky; top: 0; z-index: 2; background: #f7fafd; }
+    th.cell-check,
+    td.cell-check {
+      width: 44px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .th-inner { display: inline-flex; align-items: center; gap: 4px; position: relative; }
+    .filter-trigger {
+      width: 16px; height: 16px; border: none; background: transparent; color: #5e7b97;
+      cursor: pointer; font-size: 12px; line-height: 16px; padding: 0;
+    }
+    .filter-active { color: var(--primary); font-weight: 700; }
+
+    .sticky-right {
+      position: sticky; right: 0; z-index: 3; background: #fff;
+      border-left: 1px solid var(--line);
+    }
+    th.sticky-right { background: #f1f7ff; z-index: 4; }
+
+    .status {
+      display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; border: 1px solid;
+    }
+    .status-waiting { color: #3f7bb5; border-color: #acc8e3; background: #eef6ff; }
+    .status-running { color: #c28308; border-color: #f0d7a8; background: #fff8eb; }
+    .status-done { color: #1f8744; border-color: #a8dbb8; background: #ebfbf0; }
+
+    .op-btn {
+      height: 28px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+      padding: 0 8px; cursor: pointer; font-size: 12px; margin-right: 4px;
+    }
+    .op-btn.main { color: #fff; border-color: var(--primary); background: var(--primary); }
+    .op-btn.warn { color: #fff; border-color: #c28308; background: #c28308; }
+    .op-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+
+    .pagination {
+      margin-top: 10px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap;
+      font-size: 13px;
+    }
+    .page-btn {
+      min-width: 32px; height: 30px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+      cursor: pointer; padding: 0 8px;
+    }
+    .page-btn.active { background: var(--active-bg); border-color: var(--primary); color: var(--primary); }
+    .empty { text-align: center; color: var(--sub); padding: 22px; }
+
+    .filter-popover {
+      position: fixed; z-index: 9999; width: 280px; background: #ececec;
+      border: 1px solid #b7b7b7; border-radius: 8px; padding: 10px; display: none;
+    }
+    .filter-popover input {
+      width: 100%; height: 30px; border: 1px solid var(--line); border-radius: 6px; padding: 0 8px;
+    }
+    .filter-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+    .small-btn { height: 28px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; padding: 0 8px; }
+    .small-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .rp-wrap { width: 100%; }
+    .rp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .rp-navbtn {
+      background: #eef3fc; border: 1px solid #cbdae9; border-radius: 8px;
+      width: 28px; height: 28px; cursor: pointer; font-size: 16px; line-height: 1; color: #1a4972;
+    }
+    .rp-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-size: 11px; color: #5f7c9c; margin-bottom: 4px; }
+    .rp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .rp-cell {
+      padding: 7px 2px; text-align: center; font-size: 12px; border-radius: 6px; cursor: pointer;
+      user-select: none; border: 1px solid transparent; background: #fff;
+    }
+    .rp-cell.other { opacity: .45; }
+    .rp-cell.in-range { background: #cfe2f3; }
+    .rp-cell.anchor { box-shadow: inset 0 0 0 2px #2d6a9f; font-weight: 700; }
+    .rp-cell.preview-end { box-shadow: inset 0 0 0 1px dashed #2d6a9f; }
+    .rp-selected { margin-top: 6px; font-size: 12px; color: #4a6581; }
+
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); display: none;
+      align-items: center; justify-content: center; z-index: 40;
+    }
+    .detail-modal {
+      width: min(92vw, 900px); max-height: 90vh; overflow: auto; background: #fff; border-radius: 10px;
+      border: 1px solid var(--line); padding: 14px;
+    }
+    .detail-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .detail-head h3 { margin: 0; font-size: 18px; color: #2f4a64; }
+    .detail-head .drawing { color: #3f7bb5; font-size: 16px; font-weight: 600; }
+    .grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-bottom: 10px; }
+    .kv { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+    .kv span:first-child { color: var(--sub); width: 94px; }
+    .kv input { height: 30px; border: 1px solid var(--line); border-radius: 6px; padding: 0 8px; width: 140px; }
+    .section-title { font-size: 14px; font-weight: 600; margin: 10px 0 6px; color: #33485b; }
+    .mini-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
+    .mini-table th, .mini-table td { border: 1px solid var(--line); padding: 6px; text-align: left; white-space: nowrap; }
+    .record-list { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 8px; }
+    .record-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; font-size: 12px;
+      border-bottom: 1px solid #edf1f6;
+    }
+    .record-row:last-child { border-bottom: none; }
+    .record-row span { flex: 1; }
+    .record-row span:nth-child(2) { text-align: center; }
+    .record-row span:nth-child(3) { text-align: right; }
+    #reportInputWrap { margin: 6px 0 10px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+    .btn { height: 32px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; padding: 0 12px; }
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn.success { background: #2c8f52; border-color: #2c8f52; color: #fff; }
+
+    .btn:disabled { cursor: not-allowed; opacity: 0.55; }
+
+    .report-modal {
+      width: min(94vw, 960px);
+      max-height: 88vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 16px;
+    }
+    .report-modal h3 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      color: #2f4a64;
+    }
+    .report-info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px 16px;
+      padding: 12px;
+      background: #f7fafd;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .report-info-grid .lbl { color: var(--sub); margin-right: 8px; }
+    .report-done-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 8px 0 12px;
+      font-size: 13px;
+    }
+    .report-done-row label { color: #33485b; font-weight: 600; padding-top: 6px; }
+    .report-done-input-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .report-done-row input {
+      width: 180px;
+      max-width: 100%;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 8px;
+      font-family: inherit;
+    }
+    .report-done-hint {
+      color: #c62828;
+      font-size: 12px;
+      line-height: 1.35;
+      max-width: 100%;
+    }
+    .report-table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: auto;
+      max-height: min(46vh, 380px);
+    }
+    .report-table {
+      width: 100%;
+      min-width: 680px;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 13px;
+    }
+    .report-table th,
+    .report-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+      text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .report-table th {
+      background: #f1f7ff;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .report-worker-cell { max-width: 0; }
+    .report-worker-ellipsis {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width: 100%;
+    }
+    .report-edit-input {
+      width: 100%;
+      max-width: 120px;
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 6px;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    .report-row-actions {
+      display: inline-flex;
+      gap: 6px;
+    }
+    .report-row-btn {
+      height: 26px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      padding: 0 8px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .report-row-btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .report-row-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    @media (max-width: 1200px) {
+      .grid-two { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .topbar { height: auto; padding: 10px 12px; flex-wrap: wrap; }
+      .container { padding: 10px 12px 12px; }
+    }
+
+    .exception-modal {
+      width: min(98vw, 1120px);
+      max-height: 90vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 16px 18px 14px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+    }
+    .exception-modal-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed var(--line);
+    }
+    .exception-title-bar {
+      width: 4px;
+      height: 18px;
+      border-radius: 2px;
+      background: var(--primary);
+      flex-shrink: 0;
+    }
+    .exception-modal-title h3 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      color: #2f4a64;
+    }
+    .exc-list-wrap {
+      margin-top: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: auto;
+      max-height: min(58vh, 520px);
+    }
+    .exc-data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: #fff;
+    }
+    .exc-data-table th,
+    .exc-data-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    .exc-data-table thead th {
+      background: #f2f6fa;
+      color: #2f4a64;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .exc-data-table tbody tr:hover {
+      background: #fafcfd;
+    }
+    .exc-data-table td {
+      color: var(--text);
+    }
+    .exc-status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .exc-status-pending {
+      background: #fff3e0;
+      color: #e65100;
+    }
+    .exc-status-doing {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+    .exc-status-done {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .exc-cell-input {
+      width: 100%;
+      min-width: 72px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 8px;
+      font-size: 13px;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .exc-cell-select {
+      width: 100%;
+      min-width: 100px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 8px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #fff;
+    }
+    .exc-cell-ta {
+      width: 100%;
+      min-width: 120px;
+      min-height: 56px;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      line-height: 1.4;
+      box-sizing: border-box;
+    }
+    .exc-row-actions {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .exc-row-btn {
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .exc-row-btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .exception-modal .modal-actions {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--line);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="line-select-wrap">
+        <label class="line-select-label" for="prodLineSelect">产线</label>
+        <select id="prodLineSelect" class="line-select" title="切换产线" aria-label="产线">
+          <option value="普车组装1线">普车组装1线</option>
+          <option value="普车组装2线">普车组装2线</option>
+          <option value="电助力组装">电助力组装</option>
+          <option value="高端车组装线">高端车组装线</option>
+          <option value="半成品组装线">半成品组装线</option>
+        </select>
+        <div class="meta">
+          <span>操作员：张三</span>
+          <span id="currentTime"></span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="btn-exception-report" id="btnExceptionReport" title="异常信息">异常信息</button>
+        <a href="生产上下工.html" class="btn-worker-shift" id="linkWorkerShift">工人上下工</a>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="stats-row" id="statsCards" aria-label="统计概览"></section>
+
+      <section class="panel">
+        <div class="panel-title">生产任务列表</div>
+        <div class="table-wrap" id="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>
+                  <span class="th-inner">销售订单号
+                    <button class="filter-trigger" data-filter-field="salesOrderNo">🔍</button>
+                  </span>
+                </th>
+                <th>
+                  <span class="th-inner">生产订单号
+                    <button class="filter-trigger" data-filter-field="productionOrderNo">🔍</button>
+                  </span>
+                </th>
+                <th>
+                  <span class="th-inner">图号
+                    <button class="filter-trigger" data-filter-field="drawingNo">🔍</button>
+                  </span>
+                </th>
+                <th>产品类型</th>
+                <th>产品名称</th>
+                <th>计划数量</th>
+                <th>完成数量</th>
+                <th>备料状态</th>
+                <th>生产状态</th>
+                <th>
+                  <span class="th-inner">计划开始时间
+                    <button class="filter-trigger" data-filter-field="planStart">🔍</button>
+                  </span>
+                </th>
+                <th>
+                  <span class="th-inner">计划完工时间
+                    <button class="filter-trigger" data-filter-field="planEnd">🔍</button>
+                  </span>
+                </th>
+                <th>
+                  <span class="th-inner">实际开始时间
+                    <button class="filter-trigger" data-filter-field="actualStart">🔍</button>
+                  </span>
+                </th>
+                <th>
+                  <span class="th-inner">实际完工时间
+                    <button class="filter-trigger" data-filter-field="actualEnd">🔍</button>
+                  </span>
+                </th>
+                <th>优先级</th>
+                <th class="sticky-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="taskTableBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="filter-popover" id="filterPopover">
+    <div id="textFilterArea">
+      <input id="filterTextInput" type="text" placeholder="请输入关键字">
+    </div>
+    <div id="dateFilterArea" style="display:none;">
+      <div class="rp-wrap">
+        <div class="rp-header">
+          <button type="button" class="rp-navbtn" id="rpPrev">‹</button>
+          <span id="rpTitle" style="font-weight:600;color:#1a4972"></span>
+          <button type="button" class="rp-navbtn" id="rpNext">›</button>
+        </div>
+        <div class="rp-weekdays">
+          <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+        </div>
+        <div class="rp-grid" id="rpGrid"></div>
+        <div class="rp-selected" id="rpSelectedText"></div>
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button class="small-btn" id="filterClearBtn">清空</button>
+      <button class="small-btn" id="filterCancelBtn">取消</button>
+      <button class="small-btn primary" id="filterApplyBtn">确定</button>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="reportModalMask" style="display: none;">
+    <div class="report-modal" id="reportModalInner">
+      <h3>报工</h3>
+      <div class="report-info-grid" id="reportOrderInfo"></div>
+      <div class="report-done-row">
+        <label for="reportDoneQtyInput">完成数量</label>
+        <div class="report-done-input-wrap">
+          <input id="reportDoneQtyInput" type="number" min="0" step="any" />
+          <span id="reportDoneQtyHint" class="report-done-hint" style="display: none" role="alert"></span>
+        </div>
+      </div>
+      <div class="section-title" style="margin-top: 0;">报工记录</div>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>报工时间</th>
+              <th>报工数量</th>
+              <th>操作员</th>
+              <th>生产人员</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="reportRecordBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="reportCancelBtn">取消</button>
+        <button type="button" class="btn primary" id="reportSaveBtn">保存</button>
+        <button type="button" class="btn success" id="reportFinishBtn">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="exceptionModalMask" style="display: none;">
+    <div class="exception-modal" id="exceptionModalInner" role="dialog" aria-labelledby="exceptionModalTitle">
+      <div class="exception-modal-title">
+        <span class="exception-title-bar" aria-hidden="true"></span>
+        <h3 id="exceptionModalTitle">异常信息</h3>
+      </div>
+      <div class="exc-list-wrap">
+        <table class="exc-data-table">
+          <thead>
+            <tr>
+              <th>异常开始时间</th>
+              <th>异常状态</th>
+              <th>异常类型</th>
+              <th>异常描述</th>
+              <th>处理结果</th>
+              <th>处理人</th>
+              <th>异常工时</th>
+              <th class="sticky-right">操作</th>
+            </tr>
+          </thead>
+          <tbody id="exceptionListBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="exceptionCloseBtn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const OPERATOR = "张三";
+    const WH_STORAGE_KEY = "warehouse_prep_orders_v4";
+    /** 与生产订单、任务列表无关联的异常记录（本页独立维护） */
+    const STANDALONE_EXCEPTION_STORAGE_KEY = "production_standalone_exceptions_v1";
+    const EXCEPTION_TYPE_OPTIONS = ["设备故障", "物料异常", "工艺异常", "质量异常", "其他"];
+    const SHIFT_WORKER_STORAGE_KEY = "shift_line_workers_v2";
+    /** 与「生产备料看板」叫料原因环形图共用：下拉「生产缺料」计入图表「短缺不足」 */
+    const CALL_REASON_STATS_KEY = "call_material_reason_distribution_v1";
+
+    function mapCallReasonDropdownToBucket(v) {
+      const s = String(v || "");
+      if (s === "生产缺料") return "短缺不足";
+      if (s === "生产损坏") return "生产损坏";
+      if (s === "来料不良") return "来料不良";
+      return "其他原因";
+    }
+
+    function incrementCallReasonStats(canonicalKey, n = 1) {
+      const buckets = ["短缺不足", "生产损坏", "来料不良", "其他原因"];
+      const keySafe = buckets.includes(canonicalKey) ? canonicalKey : "其他原因";
+      let counts = { 短缺不足: 0, 生产损坏: 0, 来料不良: 0, 其他原因: 0 };
+      try {
+        const raw = localStorage.getItem(CALL_REASON_STATS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const src = parsed.counts || parsed;
+          buckets.forEach((k) => {
+            const v = Number(src[k]);
+            if (Number.isFinite(v)) counts[k] = v;
+          });
+        }
+      } catch (e) {}
+      counts[keySafe] = (counts[keySafe] || 0) + Math.max(1, Number(n) || 1);
+      localStorage.setItem(CALL_REASON_STATS_KEY, JSON.stringify({ counts, updatedAt: Date.now() }));
+    }
+
+    function padDay2(n) {
+      return String(n).padStart(2, "0");
+    }
+    function localCalendarTodayStr() {
+      const d = new Date();
+      return d.getFullYear() + "-" + padDay2(d.getMonth() + 1) + "-" + padDay2(d.getDate());
+    }
+    const todayString = localCalendarTodayStr();
+
+    function loadWarehouseOrders() {
+      try {
+        const raw = localStorage.getItem(WH_STORAGE_KEY);
+        if (!raw) return [];
+        const data = JSON.parse(raw);
+        return Array.isArray(data.orders) ? data.orders : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    /** 叫料（申请物料）后，将对应仓库订单优先级置为「紧急」 */
+    function markWarehouseOrderUrgentByCall(task) {
+      if (!task || !task.warehouseOrderId) return;
+      try {
+        const raw = localStorage.getItem(WH_STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data.orders || !Array.isArray(data.orders)) return;
+        const ord = data.orders.find((o) => String(o.id) === String(task.warehouseOrderId));
+        if (ord) {
+          ord.prio = "紧急";
+          localStorage.setItem(WH_STORAGE_KEY, JSON.stringify(data));
+        }
+      } catch (e) {}
+    }
+
+    const PRODUCTION_LINES = ["普车组装1线", "普车组装2线", "电助力组装", "高端车组装线", "半成品组装线"];
+    const PRODUCT_TYPES = ["SKD自行车", "SKD电动车", "SKD高端车", "CKD自行车", "CKD电动车", "自行车车架", "电动车车架"];
+
+    function getProductionLineName() {
+      const sel = document.getElementById("prodLineSelect");
+      if (sel && sel.value) return String(sel.value).trim();
+      return PRODUCTION_LINES[0];
+    }
+
+    function productionDetailUrl(task, tab) {
+      const line = encodeURIComponent(getProductionLineName());
+      return "生产订单详情.html?id=" + encodeURIComponent(String(task.id)) + "&line=" + line + "&tab=" + encodeURIComponent(tab || "material");
+    }
+
+    const exceptionModalState = {
+      editingId: null,
+      draft: null
+    };
+
+    function loadStandaloneExceptionStore() {
+      try {
+        const raw = localStorage.getItem(STANDALONE_EXCEPTION_STORAGE_KEY);
+        if (!raw) return { records: [] };
+        const data = JSON.parse(raw);
+        return { records: Array.isArray(data.records) ? data.records : [] };
+      } catch (e) {
+        return { records: [] };
+      }
+    }
+
+    function saveStandaloneExceptionStore(store) {
+      try {
+        localStorage.setItem(STANDALONE_EXCEPTION_STORAGE_KEY, JSON.stringify(store));
+      } catch (e) {}
+    }
+
+    function mockExceptionStartTime(offsetMinutes) {
+      const d = new Date();
+      d.setMinutes(d.getMinutes() - offsetMinutes);
+      const pad = (n) => String(n).padStart(2, "0");
+      return d.getFullYear() + "/" + pad(d.getMonth() + 1) + "/" + pad(d.getDate()) + " " +
+        pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+    }
+
+    function ensureStandaloneExceptionSeed() {
+      const store = loadStandaloneExceptionStore();
+      if (store.records.length) return;
+      store.records = [
+        {
+          id: "se-seed-1",
+          startTime: mockExceptionStartTime(125),
+          status: "待处理",
+          exceptionType: "物料异常",
+          description: "轴承组件未到货，待仓储配送。",
+          result: "",
+          handler: "",
+          laborHours: "0.5"
+        },
+        {
+          id: "se-seed-2",
+          startTime: mockExceptionStartTime(88),
+          status: "处理中",
+          exceptionType: "设备故障",
+          description: "拧紧枪扭矩传感器报警，需设备检修。",
+          result: "已更换传感器并校准。",
+          handler: "",
+          laborHours: "1.2"
+        },
+        {
+          id: "se-seed-3",
+          startTime: mockExceptionStartTime(40),
+          status: "已处理",
+          exceptionType: "工艺异常",
+          description: "装配间隙超差，已返工调整工装定位销。",
+          result: "复检合格，恢复生产。",
+          handler: "李四",
+          laborHours: "2.0"
+        }
+      ];
+      saveStandaloneExceptionStore(store);
+    }
+
+    function statusBadgeClass(status) {
+      if (status === "已处理") return "exc-status exc-status-done";
+      if (status === "处理中") return "exc-status exc-status-doing";
+      return "exc-status exc-status-pending";
+    }
+
+    function exceptionTypeSelectHtml(selectedVal, nameAttr) {
+      const sel = String(selectedVal || "");
+      const head = '<option value="">请选择</option>';
+      const opts = EXCEPTION_TYPE_OPTIONS.map((t) =>
+        `<option value="${escapeHtml(t)}" ${t === sel ? "selected" : ""}>${escapeHtml(t)}</option>`
+      ).join("");
+      return `<select class="exc-cell-select" data-exc-field="exceptionType" aria-label="异常类型" name="${escapeHtml(nameAttr)}">${head}${opts}</select>`;
+    }
+
+    function deriveExceptionStatusAfterSave(rec) {
+      const result = String(rec.result || "").trim();
+      const type = String(rec.exceptionType || "").trim();
+      const desc = String(rec.description || "").trim();
+      const handler = String(rec.handler || "").trim();
+      if (!result) return "处理中";
+      if (type && desc && result && handler) return "已处理";
+      return "处理中";
+    }
+
+    function renderExceptionListTable() {
+      ensureStandaloneExceptionSeed();
+      const tbody = document.getElementById("exceptionListBody");
+      if (!tbody) return;
+      const store = loadStandaloneExceptionStore();
+      const list = store.records.slice().sort((a, b) =>
+        String(b.startTime || "").localeCompare(String(a.startTime || ""))
+      );
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty" style="text-align:center;padding:24px">暂无异常记录</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list
+        .map((r) => {
+          const isEdit = exceptionModalState.editingId === r.id;
+          const d = isEdit && exceptionModalState.draft ? exceptionModalState.draft : r;
+          const opHtml = isEdit
+            ? `<span class="exc-row-actions">
+                <button type="button" class="exc-row-btn" data-exc-act="cancel" data-exc-id="${escapeHtml(r.id)}">取消</button>
+                <button type="button" class="exc-row-btn primary" data-exc-act="save" data-exc-id="${escapeHtml(r.id)}">保存</button>
+              </span>`
+            : `<span class="exc-row-actions">
+                <button type="button" class="exc-row-btn primary" data-exc-act="edit" data-exc-id="${escapeHtml(r.id)}">处理</button>
+              </span>`;
+
+          const typeCell = isEdit
+            ? exceptionTypeSelectHtml(d.exceptionType, `exc-type-${r.id}`)
+            : escapeHtml(String(r.exceptionType || ""));
+
+          const descCell = isEdit
+            ? `<textarea class="exc-cell-ta" data-exc-field="description" aria-label="异常描述">${escapeHtml(String(d.description || ""))}</textarea>`
+            : `<span style="white-space:normal;max-width:220px;display:inline-block">${escapeHtml(String(r.description || ""))}</span>`;
+
+          const resultCell = isEdit
+            ? `<input type="text" class="exc-cell-input" data-exc-field="result" aria-label="处理结果" value="${escapeHtml(String(d.result || ""))}" />`
+            : escapeHtml(String(r.result || ""));
+
+          const handlerCell = isEdit
+            ? `<input type="text" class="exc-cell-input" data-exc-field="handler" aria-label="处理人" value="${escapeHtml(String(d.handler || ""))}" placeholder="请输入" />`
+            : escapeHtml(String(r.handler || ""));
+
+          return `
+          <tr data-exc-row="${escapeHtml(r.id)}">
+            <td>${escapeHtml(String(r.startTime || ""))}</td>
+            <td><span class="${statusBadgeClass(r.status)}">${escapeHtml(String(r.status || ""))}</span></td>
+            <td>${typeCell}</td>
+            <td>${descCell}</td>
+            <td>${resultCell}</td>
+            <td>${handlerCell}</td>
+            <td>${escapeHtml(String(r.laborHours || ""))}</td>
+            <td class="sticky-right">${opHtml}</td>
+          </tr>`;
+        })
+        .join("");
+    }
+
+    function readDraftFromDom(recordId) {
+      const rid = String(recordId);
+      const tbody = document.getElementById("exceptionListBody");
+      const row = tbody
+        ? Array.from(tbody.querySelectorAll("tr[data-exc-row]")).find((tr) => tr.getAttribute("data-exc-row") === rid)
+        : null;
+      if (!row) return null;
+      const sel = row.querySelector('[data-exc-field="exceptionType"]');
+      const desc = row.querySelector('[data-exc-field="description"]');
+      const res = row.querySelector('[data-exc-field="result"]');
+      const handler = row.querySelector('[data-exc-field="handler"]');
+      return {
+        exceptionType: sel ? String(sel.value || "").trim() : "",
+        description: desc ? String(desc.value || "").trim() : "",
+        result: res ? String(res.value || "").trim() : "",
+        handler: handler ? String(handler.value || "").trim() : ""
+      };
+    }
+
+    function openExceptionModal() {
+      exceptionModalState.editingId = null;
+      exceptionModalState.draft = null;
+      document.getElementById("exceptionModalMask").style.display = "flex";
+      renderExceptionListTable();
+    }
+
+    function closeExceptionModal() {
+      exceptionModalState.editingId = null;
+      exceptionModalState.draft = null;
+      document.getElementById("exceptionModalMask").style.display = "none";
+    }
+
+    function bindExceptionListEvents() {
+      const tbody = document.getElementById("exceptionListBody");
+      if (!tbody || tbody.dataset.bound === "1") return;
+      tbody.dataset.bound = "1";
+      tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-exc-act]");
+        if (!btn) return;
+        const act = btn.getAttribute("data-exc-act");
+        const id = btn.getAttribute("data-exc-id");
+        if (!id) return;
+        const store = loadStandaloneExceptionStore();
+        const rec = store.records.find((x) => x.id === id);
+        if (!rec && act !== "edit") return;
+
+        if (act === "edit") {
+          if (!rec) return;
+          exceptionModalState.editingId = id;
+          exceptionModalState.draft = {
+            exceptionType: rec.exceptionType || "",
+            description: rec.description || "",
+            result: rec.result || "",
+            handler: rec.handler || ""
+          };
+          renderExceptionListTable();
+          return;
+        }
+
+        if (act === "cancel") {
+          exceptionModalState.editingId = null;
+          exceptionModalState.draft = null;
+          renderExceptionListTable();
+          return;
+        }
+
+        if (act === "save") {
+          const cur = store.records.find((x) => x.id === id);
+          if (!cur) return;
+          const draftFields = readDraftFromDom(id);
+          if (!draftFields) {
+            alert("无法读取编辑内容。");
+            return;
+          }
+          cur.exceptionType = draftFields.exceptionType;
+          cur.description = draftFields.description;
+          cur.result = draftFields.result;
+          cur.handler = draftFields.handler;
+          cur.status = deriveExceptionStatusAfterSave(cur);
+          saveStandaloneExceptionStore(store);
+          exceptionModalState.editingId = null;
+          exceptionModalState.draft = null;
+          renderExceptionListTable();
+        }
+      });
+    }
+
+    function appendWarehouseCallRecords(task, callRows) {
+      if (!task || !task.warehouseOrderId || !Array.isArray(callRows) || !callRows.length) return;
+      try {
+        const raw = localStorage.getItem(WH_STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data.orders || !Array.isArray(data.orders)) return;
+        const ord = data.orders.find((o) => String(o.id) === String(task.warehouseOrderId));
+        if (!ord) return;
+        if (!Array.isArray(ord.callRecords)) ord.callRecords = [];
+        const line = getProductionLineName();
+        const now = nowText();
+        callRows.forEach((row) => {
+          ord.callRecords.push({
+            time: now,
+            line,
+            materialName: row.materialName || "",
+            callQty: row.callQty,
+            reason: row.reason || "",
+            caller: task.operator || OPERATOR,
+            currentPrepQty: row.callQty,
+            currentPrepInput: String(row.callQty),
+            status: "待备料",
+          });
+        });
+        localStorage.setItem(WH_STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {}
+    }
+
+    /** 可用数量：与仓库订单领料页「当前领料数量」一致（已完成取 currentPickQty / 数值） */
+    function warehouseAvailableQtyDisplay(m) {
+      if (!m) return "—";
+      if (m.pickStatus === "领料完成" || m.pickStatus === "备料完成") {
+        const q = m.currentPickQty != null ? Number(m.currentPickQty) : Number(m.reqQty);
+        return Number.isFinite(q) ? String(q) : "—";
+      }
+      if (m.currentPickQty != null && m.currentPickQty !== "") {
+        const q = Number(m.currentPickQty);
+        return Number.isFinite(q) ? String(q) : "—";
+      }
+      const inp = parseFloat(String(m.currentPickInput || "").trim());
+      if (Number.isFinite(inp)) return String(inp);
+      return "—";
+    }
+
+    function pad3(n) {
+      return String(n).padStart(3, "0");
+    }
+
+    function dateOffset(days) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      return d.getFullYear() + "-" + padDay2(d.getMonth() + 1) + "-" + padDay2(d.getDate());
+    }
+    function nowText() {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      return d.getFullYear() + "/" + pad(d.getMonth() + 1) + "/" + pad(d.getDate()) + " " +
+        pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+    }
+
+    function buildProductionTasksSeed() {
+      return Array.from({ length: 36 }, (_, i) => {
+        const statusPool = ["生效", "生产中", "已完成", "生效", "生产中"];
+        const status = statusPool[i % statusPool.length];
+        const planStart = dateOffset((i % 9) - 4);
+        const planEnd = dateOffset(1 + (i % 4));
+        const actualStart = status === "生效" ? "" : todayString;
+        const actualEnd = status === "已完成" ? dateOffset(i % 2) : "";
+        const planQty = 30 + (i % 6) * 10;
+        const doneQty = status === "已完成" ? planQty : status === "生产中" ? Math.floor(planQty * 0.35) : 0;
+        return {
+          id: i + 1,
+          prodLine: PRODUCTION_LINES[i % PRODUCTION_LINES.length],
+          warehouseOrderId: "wo-" + pad3(i + 1),
+          salesOrderNo: "SO202604" + pad3(100 + i),
+          productionOrderNo: "MO202604" + pad3(200 + i),
+          drawingNo: "TH-" + (3100 + (i % 14)),
+          productType: PRODUCT_TYPES[i % PRODUCT_TYPES.length],
+          productName: "零件-" + ((i % 9) + 1),
+          planQty,
+          doneQty,
+          status,
+          planStart,
+          planEnd,
+          actualStart,
+          actualEnd,
+          priority: ["高", "中", "低"][i % 3],
+          operator: OPERATOR,
+          startMode: status === "生效" ? "idle" : "running",
+          reportRecords: status === "已完成"
+            ? [{ operator: OPERATOR, qty: planQty, time: nowText() }]
+            : status === "生产中"
+              ? [{ operator: OPERATOR, qty: Math.floor(planQty * 0.35), time: nowText() }]
+              : [],
+          productionCallRecords: []
+        };
+      });
+    }
+
+    const PRODUCTION_TASK_SNAPSHOT_KEY = "production_tasks_snapshot_v1";
+
+    function hydrateTasksFromSnapshot(seed) {
+      try {
+        const raw = localStorage.getItem(PRODUCTION_TASK_SNAPSHOT_KEY);
+        if (!raw) return seed.slice();
+        const data = JSON.parse(raw);
+        if (!Array.isArray(data.tasks) || data.tasks.length !== seed.length) return seed.slice();
+        return seed.map((s, idx) => {
+          const st = data.tasks[idx];
+          if (st && st.id === s.id) {
+            return {
+              ...s,
+              ...st,
+              prodLine: st.prodLine || s.prodLine,
+              productionCallRecords: Array.isArray(st.productionCallRecords) ? st.productionCallRecords : [],
+              reportRecords: Array.isArray(st.reportRecords) ? st.reportRecords : s.reportRecords
+            };
+          }
+          return { ...s, productionCallRecords: [] };
+        });
+      } catch (e) {
+        return seed.slice();
+      }
+    }
+
+    const taskSeed = buildProductionTasksSeed();
+    let tasks = hydrateTasksFromSnapshot(taskSeed);
+
+    function persistProductionTaskSnapshot() {
+      try {
+        const lineName = getProductionLineName();
+        localStorage.setItem(
+          PRODUCTION_TASK_SNAPSHOT_KEY,
+          JSON.stringify({
+            line: lineName,
+            tasks: tasks.map((t) => ({
+              id: t.id,
+              prodLine: t.prodLine,
+              warehouseOrderId: t.warehouseOrderId,
+              salesOrderNo: t.salesOrderNo,
+              productionOrderNo: t.productionOrderNo,
+              drawingNo: t.drawingNo,
+              productType: t.productType,
+              productName: t.productName,
+              planQty: t.planQty,
+              doneQty: t.doneQty,
+              status: t.status,
+              planStart: t.planStart,
+              planEnd: t.planEnd,
+              actualStart: t.actualStart,
+              actualEnd: t.actualEnd,
+              priority: t.priority,
+              operator: t.operator,
+              startMode: t.startMode,
+              reportRecords: t.reportRecords,
+              productionCallRecords: t.productionCallRecords || []
+            }))
+          })
+        );
+      } catch (e) {}
+    }
+
+    persistProductionTaskSnapshot();
+
+    const state = {
+      statFilter: null,
+      page: 1,
+      pageSize: 8,
+      filter: {
+        salesOrderNo: "",
+        productionOrderNo: "",
+        drawingNo: "",
+        planStart: { from: "", to: "" },
+        planEnd: { from: "", to: "" },
+        actualStart: { from: "", to: "" },
+        actualEnd: { from: "", to: "" }
+      },
+      filterPopover: { field: "", type: "", trigger: null, dateDraft: { from: "", to: "", hover: "", viewMonth: "", selectingEnd: false } },
+      reportModalTaskId: null,
+      reportEditIndex: null
+    };
+
+    function isFieldActive(field) {
+      if (field === "salesOrderNo" || field === "productionOrderNo" || field === "drawingNo") {
+        return !!state.filter[field];
+      }
+      return !!state.filter[field].from || !!state.filter[field].to;
+    }
+
+    function inDateRange(value, from, to) {
+      if (!from && !to) return true;
+      if (!value) return false;
+      if (from && value < from) return false;
+      if (to && value > to) return false;
+      return true;
+    }
+
+    function applyFilters(list) {
+      return list.filter((item) => {
+        const txtOk =
+          item.salesOrderNo.toLowerCase().includes(state.filter.salesOrderNo.trim().toLowerCase()) &&
+          item.productionOrderNo.toLowerCase().includes(state.filter.productionOrderNo.trim().toLowerCase()) &&
+          item.drawingNo.toLowerCase().includes(state.filter.drawingNo.trim().toLowerCase());
+        const dateOk =
+          inDateRange(item.planStart, state.filter.planStart.from, state.filter.planStart.to) &&
+          inDateRange(item.planEnd, state.filter.planEnd.from, state.filter.planEnd.to) &&
+          inDateRange(item.actualStart, state.filter.actualStart.from, state.filter.actualStart.to) &&
+          inDateRange(item.actualEnd, state.filter.actualEnd.from, state.filter.actualEnd.to);
+        return txtOk && dateOk;
+      });
+    }
+
+    function tasksForCurrentLine() {
+      const line = getProductionLineName();
+      return tasks.filter((t) => String(t.prodLine) === line);
+    }
+
+    function planStartCalendarDay(v) {
+      const s = String(v == null ? "" : v).trim();
+      const m = /^(\d{4}-\d{2}-\d{2})/.exec(s.replace(/\//g, "-"));
+      return m ? m[1] : "";
+    }
+
+    function applyStatFilter(list) {
+      const today = localCalendarTodayStr();
+      if (state.statFilter === "unfinished") return list.filter((t) => t.status !== "已完成");
+      if (state.statFilter === "currentPrep") return list.filter((t) => planStartCalendarDay(t.planStart) === today);
+      if (state.statFilter === "futurePrep") {
+        return list.filter((t) => {
+          const d = planStartCalendarDay(t.planStart);
+          return d && d > today;
+        });
+      }
+      return list;
+    }
+
+    function cardSource() {
+      return applyStatFilter(tasksForCurrentLine());
+    }
+
+    function statCountsForLine() {
+      const base = tasksForCurrentLine();
+      const today = localCalendarTodayStr();
+      return {
+        unfinished: base.filter((t) => t.status !== "已完成").length,
+        current: base.filter((t) => planStartCalendarDay(t.planStart) === today).length,
+        future: base.filter((t) => {
+          const d = planStartCalendarDay(t.planStart);
+          return d && d > today;
+        }).length
+      };
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? "" : str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function statusClass(status) {
+      if (status === "生产中") return "status status-running";
+      if (status === "已完成") return "status status-done";
+      return "status status-waiting";
+    }
+
+    function startButtonLabel(task) {
+      if (task.status === "已完成") return "暂停";
+      if (task.startMode === "idle") return "投产";
+      if (task.startMode === "running") return "暂停";
+      return "复工";
+    }
+
+    function isReportActionDisabled(task) {
+      if (task.status === "已完成") return true;
+      return task.startMode === "idle" || task.startMode === "paused";
+    }
+
+    function renderCards() {
+      const c = statCountsForLine();
+      const cardsEl = document.getElementById("statsCards");
+      const defs = [
+        { key: "unfinished", title: "未完成订单", num: c.unfinished },
+        { key: "currentPrep", title: "今日订单", num: c.current },
+        { key: "futurePrep", title: "计划订单", num: c.future }
+      ];
+      cardsEl.innerHTML = defs
+        .map(
+          (d) => `
+        <div class="stat-card js-stat-filter${state.statFilter === d.key ? " is-active" : ""}" data-filter="${d.key}" tabindex="0" role="button" aria-pressed="${state.statFilter === d.key ? "true" : "false"}">
+          <span class="stat-title">${d.title}</span>
+          <span class="stat-num">${d.num}</span>
+        </div>`
+        )
+        .join("");
+      cardsEl.querySelectorAll(".js-stat-filter").forEach((el) => {
+        el.onclick = () => {
+          const id = el.getAttribute("data-filter");
+          state.statFilter = state.statFilter === id ? null : id;
+          state.page = 1;
+          render();
+        };
+        el.onkeydown = (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            el.click();
+          }
+        };
+      });
+    }
+
+    function resolveWarehouseOrder(task) {
+      const orders = loadWarehouseOrders();
+      if (!task) return null;
+      const byWarehouseId = task.warehouseOrderId
+        ? orders.find((o) => String(o.id) === String(task.warehouseOrderId))
+        : null;
+      if (byWarehouseId) return byWarehouseId;
+      const byProdOrder = task.productionOrderNo
+        ? orders.find((o) => String(o.prodOrderNo) === String(task.productionOrderNo))
+        : null;
+      return byProdOrder || null;
+    }
+
+    function prepStatusText(task) {
+      const order = resolveWarehouseOrder(task);
+      if (!order) return "—";
+      return String(order.prepStatus || "—");
+    }
+
+    function loadOnDutyWorkerNamesForCurrentLine() {
+      try {
+        const raw = localStorage.getItem(SHIFT_WORKER_STORAGE_KEY);
+        if (!raw) return [];
+        const data = JSON.parse(raw);
+        const onDuty = Array.isArray(data.onDuty) ? data.onDuty : [];
+        const line = getProductionLineName();
+        const list = onDuty.filter((p) => !line || String(p.line || "") === line);
+        return list
+          .map((p) => String(p.name || "").trim())
+          .filter((name, idx, arr) => !!name && arr.indexOf(name) === idx);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function normalizeReportRecords(task) {
+      if (!Array.isArray(task.reportRecords)) task.reportRecords = [];
+      task.reportRecords = task.reportRecords.map((r) => ({
+        operator: r && r.operator ? String(r.operator) : (task.operator || OPERATOR),
+        qty: Number(r && r.qty) || 0,
+        time: r && r.time ? String(r.time) : nowText(),
+        workersText: r && r.workersText ? String(r.workersText) : ""
+      }));
+    }
+
+    function reportRecordsQtySum(task) {
+      if (!task || !Array.isArray(task.reportRecords)) return 0;
+      return task.reportRecords.reduce((acc, r) => acc + (Number(r && r.qty) || 0), 0);
+    }
+
+    function planQtyNum(task) {
+      const n = Number(task && task.planQty);
+      return Number.isFinite(n) && n >= 0 ? n : 0;
+    }
+
+    function defaultDoneQtyForModal(task) {
+      const plan = planQtyNum(task);
+      const sum = reportRecordsQtySum(task);
+      if (!Array.isArray(task.reportRecords) || task.reportRecords.length === 0) return plan;
+      return Math.max(0, plan - sum);
+    }
+
+    function syncReportModalDoneField(task) {
+      if (state.reportModalTaskId !== task.id) return;
+      const inp = document.getElementById("reportDoneQtyInput");
+      if (inp.disabled) return;
+      inp.value = String(defaultDoneQtyForModal(task));
+      updateReportModalValidation(task);
+    }
+
+    function updateReportModalValidation(task) {
+      const hint = document.getElementById("reportDoneQtyHint");
+      const finishBtn = document.getElementById("reportFinishBtn");
+      const saveBtn = document.getElementById("reportSaveBtn");
+      const locked = task.status === "已完成";
+      if (locked) {
+        hint.style.display = "none";
+        hint.textContent = "";
+        finishBtn.disabled = true;
+        saveBtn.disabled = true;
+        return;
+      }
+      const plan = planQtyNum(task);
+      const sum = reportRecordsQtySum(task);
+      const raw = String(document.getElementById("reportDoneQtyInput").value || "").trim();
+      const done = raw === "" ? NaN : parseFloat(raw);
+      const finite = Number.isFinite(done) && done >= 0;
+      const recordOver = sum > plan + 1e-9;
+      const total = finite ? sum + done : NaN;
+      const over = recordOver || (finite && total > plan + 1e-9);
+      hint.style.display = over ? "inline" : "none";
+      hint.textContent = over ? "完成数量大于计划数量，请检查！" : "";
+      const exact = !recordOver && finite && Math.abs((sum + done) - plan) < 1e-9;
+      saveBtn.disabled = !finite || over || done <= 0;
+      finishBtn.disabled = !exact;
+    }
+
+    function closeReportModal() {
+      const hint = document.getElementById("reportDoneQtyHint");
+      hint.style.display = "none";
+      hint.textContent = "";
+      document.getElementById("reportModalMask").style.display = "none";
+      state.reportModalTaskId = null;
+      state.reportEditIndex = null;
+    }
+
+    function openReportRecordEdit(task, index) {
+      if (!task || task.status === "已完成") return;
+      if (!Array.isArray(task.reportRecords) || !task.reportRecords[index]) return;
+      state.reportEditIndex = index;
+      renderReportRecordTable(task);
+    }
+
+    function cancelReportRecordEdit(task) {
+      state.reportEditIndex = null;
+      renderReportRecordTable(task);
+    }
+
+    function saveReportRecordEdit(task, index) {
+      if (!Array.isArray(task.reportRecords) || !task.reportRecords[index]) return;
+      const input = document.querySelector(`#reportRecordBody input[data-edit-idx="${index}"]`);
+      if (!input) return;
+      const qty = parseFloat(String(input.value || "").trim());
+      if (!Number.isFinite(qty) || qty < 0) {
+        alert("请输入合法的报工数量（大于等于 0）。");
+        return;
+      }
+      task.reportRecords[index].qty = qty;
+      state.reportEditIndex = null;
+      persistProductionTaskSnapshot();
+      renderTable();
+      syncReportModalDoneField(task);
+      renderReportRecordTable(task);
+    }
+
+    function renderReportRecordTable(task) {
+      normalizeReportRecords(task);
+      const tbody = document.getElementById("reportRecordBody");
+      if (!task.reportRecords.length) {
+        tbody.innerHTML = '<tr><td class="empty" colspan="5">暂无报工记录</td></tr>';
+      } else {
+        const locked = task.status === "已完成";
+        tbody.innerHTML = task.reportRecords
+          .slice()
+          .reverse()
+          .map((r, revIndex, arr) => {
+            const index = arr.length - 1 - revIndex;
+            const editing = state.reportEditIndex === index;
+            const workersText = String(r.workersText || "");
+            const workersDisplay = workersText || "-";
+            return `
+            <tr>
+              <td>${escapeHtml(r.time || "-")}</td>
+              <td>${editing
+                ? `<input class="report-edit-input" type="number" min="0" step="any" data-edit-idx="${index}" value="${escapeHtml(String(r.qty || 0))}" />`
+                : escapeHtml(String(r.qty || 0))
+              }</td>
+              <td>${escapeHtml(r.operator || "-")}</td>
+              <td class="report-worker-cell" title="${escapeHtml(workersDisplay)}">
+                <span class="report-worker-ellipsis">${escapeHtml(workersDisplay)}</span>
+              </td>
+              <td>
+                <div class="report-row-actions">
+                  ${editing
+                    ? `<button type="button" class="report-row-btn" data-row-act="cancel-edit" data-row-idx="${index}">取消</button>
+                       <button type="button" class="report-row-btn primary" data-row-act="save-edit" data-row-idx="${index}">保存</button>`
+                    : `<button type="button" class="report-row-btn" data-row-act="edit" data-row-idx="${index}" ${locked ? "disabled" : ""}>修改</button>`
+                  }
+                </div>
+              </td>
+            </tr>`;
+          })
+          .join("");
+      }
+      if (state.reportModalTaskId === task.id) {
+        updateReportModalValidation(task);
+      }
+    }
+
+    function readDoneQtyFromModal() {
+      const raw = String(document.getElementById("reportDoneQtyInput").value || "").trim();
+      const val = raw === "" ? 0 : parseFloat(raw);
+      if (!Number.isFinite(val) || val < 0) {
+        alert("请输入合法的完成数量（大于等于 0）。");
+        return null;
+      }
+      return val;
+    }
+
+    function openReportModal(task) {
+      state.reportModalTaskId = task.id;
+      state.reportEditIndex = null;
+      normalizeReportRecords(task);
+      document.getElementById("reportOrderInfo").innerHTML = `
+        <div><span class="lbl">销售订单号</span><strong>${escapeHtml(task.salesOrderNo)}</strong></div>
+        <div><span class="lbl">生产订单号</span><strong>${escapeHtml(task.productionOrderNo)}</strong></div>
+        <div><span class="lbl">图号</span><strong>${escapeHtml(task.drawingNo)}</strong></div>
+        <div><span class="lbl">计划数量</span><strong>${escapeHtml(String(task.planQty))}</strong></div>
+        <div><span class="lbl">操作员</span><strong>${escapeHtml(task.operator || OPERATOR)}</strong></div>
+      `;
+      document.getElementById("reportDoneQtyInput").value = String(defaultDoneQtyForModal(task));
+      renderReportRecordTable(task);
+      const locked = task.status === "已完成";
+      document.getElementById("reportDoneQtyInput").disabled = locked;
+      document.getElementById("reportModalMask").style.display = "flex";
+    }
+
+    function saveReportForTask(task, opts = {}) {
+      const doneQty = readDoneQtyFromModal();
+      if (doneQty === null) return false;
+      const plan = planQtyNum(task);
+      const sumBefore = reportRecordsQtySum(task);
+      if (opts.markDone && Math.abs(sumBefore + doneQty - plan) >= 1e-9) return false;
+      const shouldAppend = !!opts.appendRecord;
+      if (shouldAppend) {
+        if (doneQty <= 0) return false;
+        if (sumBefore + doneQty > plan + 1e-9) return false;
+        const workerNames = loadOnDutyWorkerNamesForCurrentLine();
+        const workersText = workerNames.length ? workerNames.join(",") : "-";
+        task.reportRecords.push({
+          operator: task.operator || OPERATOR,
+          qty: doneQty,
+          time: nowText(),
+          workersText
+        });
+      }
+      task.doneQty = reportRecordsQtySum(task);
+      if (task.status === "生效") {
+        task.status = "生产中";
+        task.startMode = "running";
+        task.actualStart = task.actualStart || todayString;
+      }
+      if (opts.markDone) {
+        task.status = "已完成";
+        task.startMode = "running";
+        task.actualStart = task.actualStart || todayString;
+        task.actualEnd = todayString;
+      }
+      persistProductionTaskSnapshot();
+      renderTable();
+      if (shouldAppend) {
+        syncReportModalDoneField(task);
+      }
+      renderReportRecordTable(task);
+      return true;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("taskTableBody");
+      const filtered = applyFilters(cardSource());
+      const total = filtered.length;
+      const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
+      if (state.page > pageCount) state.page = pageCount;
+      const start = (state.page - 1) * state.pageSize;
+      const rows = filtered.slice(start, start + state.pageSize);
+
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td class="empty" colspan="15">暂无符合条件的数据</td></tr>';
+      } else {
+        tbody.innerHTML = rows
+          .map((t) => {
+            return `
+          <tr>
+            <td>${t.salesOrderNo}</td>
+            <td>${t.productionOrderNo}</td>
+            <td>${t.drawingNo}</td>
+            <td>${escapeHtml(t.productType || "-")}</td>
+            <td>${t.productName}</td>
+            <td>${t.planQty}</td>
+            <td>${reportRecordsQtySum(t)}</td>
+            <td>${escapeHtml(prepStatusText(t))}</td>
+            <td><span class="${statusClass(t.status)}">${t.status}</span></td>
+            <td>${t.planStart || "-"}</td>
+            <td>${t.planEnd || "-"}</td>
+            <td>${t.actualStart || "-"}</td>
+            <td>${t.actualEnd || "-"}</td>
+            <td>${t.priority}</td>
+            <td class="sticky-right">
+              <button class="op-btn" data-act="detail" data-id="${t.id}">详情</button>
+              <button class="op-btn ${t.startMode === "idle" ? "main" : "warn"}" data-act="start" data-id="${t.id}" ${t.status === "已完成" ? "disabled" : ""}>${startButtonLabel(t)}</button>
+              <button class="op-btn main" data-act="report" data-id="${t.id}" ${isReportActionDisabled(t) ? "disabled" : ""}>报工</button>
+            </td>
+          </tr>`;
+          })
+          .join("");
+      }
+
+      const pager = document.getElementById("pagination");
+      const nums = Array.from({ length: pageCount }, (_, idx) => idx + 1)
+        .slice(Math.max(0, state.page - 3), Math.max(0, state.page - 3) + 5)
+        .map((n) => `<button class="page-btn ${n === state.page ? "active" : ""}" data-page="${n}">${n}</button>`)
+        .join("");
+      pager.innerHTML = `
+        <span>共 ${total} 条</span>
+        <button class="page-btn" data-nav="prev">&lt;</button>
+        ${nums}
+        <button class="page-btn" data-nav="next">&gt;</button>
+        <span>每页</span>
+        <select id="pageSizeSelect" class="page-btn">
+          ${[8, 12, 20].map((n) => `<option value="${n}" ${n === state.pageSize ? "selected" : ""}>${n}</option>`).join("")}
+        </select>
+      `;
+      pager.querySelectorAll("[data-page]").forEach((btn) => {
+        btn.onclick = () => { state.page = Number(btn.getAttribute("data-page")); renderTable(); };
+      });
+      const prev = pager.querySelector('[data-nav="prev"]');
+      const next = pager.querySelector('[data-nav="next"]');
+      prev.disabled = state.page <= 1;
+      next.disabled = state.page >= pageCount;
+      prev.onclick = () => { if (state.page > 1) { state.page -= 1; renderTable(); } };
+      next.onclick = () => { if (state.page < pageCount) { state.page += 1; renderTable(); } };
+      document.getElementById("pageSizeSelect").onchange = (e) => {
+        state.pageSize = Number(e.target.value);
+        state.page = 1;
+        renderTable();
+      };
+
+    }
+
+    function positionPopover(triggerEl) {
+      const pop = document.getElementById("filterPopover");
+      const rect = triggerEl.getBoundingClientRect();
+      pop.style.left = Math.max(8, Math.min(window.innerWidth - 288, rect.left)) + "px";
+      pop.style.top = Math.min(window.innerHeight - 360, rect.bottom + 4) + "px";
+      pop.style.display = "block";
+    }
+
+    function parseDateStr(s) {
+      if (!s) return null;
+      const parts = s.split("-").map(Number);
+      if (parts.length !== 3) return null;
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function formatDateStr(d) {
+      const pad = (n) => String(n).padStart(2, "0");
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    }
+
+    function monthFirstString(d) {
+      const m = new Date(d.getFullYear(), d.getMonth(), 1);
+      return formatDateStr(m);
+    }
+
+    function dateInRange(date, from, to, hover) {
+      const f = from || "";
+      const t = to || hover || "";
+      if (!f || !t) return false;
+      const start = f <= t ? f : t;
+      const end = f <= t ? t : f;
+      return date >= start && date <= end;
+    }
+
+    function renderDateFilterGrid() {
+      const title = document.getElementById("rpTitle");
+      const grid = document.getElementById("rpGrid");
+      const selectedText = document.getElementById("rpSelectedText");
+      const vm = parseDateStr(state.filterPopover.dateDraft.viewMonth) || new Date();
+      const year = vm.getFullYear();
+      const month = vm.getMonth();
+      title.textContent = year + "年" + (month + 1) + "月";
+
+      const first = new Date(year, month, 1);
+      const firstWeekday = first.getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const prevDays = new Date(year, month, 0).getDate();
+      const cells = [];
+
+      for (let i = 0; i < 42; i += 1) {
+        let d;
+        let muted = false;
+        if (i < firstWeekday) {
+          d = new Date(year, month - 1, prevDays - firstWeekday + i + 1);
+          muted = true;
+        } else if (i >= firstWeekday + daysInMonth) {
+          d = new Date(year, month + 1, i - firstWeekday - daysInMonth + 1);
+          muted = true;
+        } else {
+          d = new Date(year, month, i - firstWeekday + 1);
+        }
+        const dateText = formatDateStr(d);
+        const isStart = state.filterPopover.dateDraft.from === dateText;
+        const isEnd = state.filterPopover.dateDraft.to === dateText;
+        const inRange = dateInRange(dateText, state.filterPopover.dateDraft.from, state.filterPopover.dateDraft.to, state.filterPopover.dateDraft.hover);
+        const cls =
+          "rp-cell " +
+          (muted ? "other " : "") +
+          (inRange ? "in-range " : "") +
+          ((isStart || isEnd) ? "anchor " : "");
+        cells.push('<button type="button" class="' + cls + '" data-date="' + dateText + '">' + d.getDate() + "</button>");
+      }
+      grid.innerHTML = cells.join("");
+      const from = state.filterPopover.dateDraft.from;
+      const to = state.filterPopover.dateDraft.to;
+      selectedText.textContent = from
+        ? "已选范围：" + from + " 至 " + (to || "（待选择结束日期）")
+        : "请选择开始日期和结束日期";
+    }
+
+    function openFilterPopover(field, triggerEl) {
+      state.filterPopover.field = field;
+      state.filterPopover.type = (field === "salesOrderNo" || field === "productionOrderNo" || field === "drawingNo") ? "text" : "date";
+      state.filterPopover.trigger = triggerEl;
+
+      document.querySelectorAll(".filter-trigger").forEach((el) => {
+        const f = el.getAttribute("data-filter-field");
+        el.classList.toggle("filter-active", isFieldActive(f));
+      });
+
+      const textArea = document.getElementById("textFilterArea");
+      const dateArea = document.getElementById("dateFilterArea");
+      if (state.filterPopover.type === "text") {
+        textArea.style.display = "block";
+        dateArea.style.display = "none";
+        document.getElementById("filterTextInput").value = state.filter[field];
+      } else {
+        textArea.style.display = "none";
+        dateArea.style.display = "block";
+        const vm = parseDateStr(state.filter[field].from) || new Date();
+        state.filterPopover.dateDraft = {
+          from: state.filter[field].from || "",
+          to: state.filter[field].to || "",
+          hover: "",
+          viewMonth: monthFirstString(vm),
+          selectingEnd: !!(state.filter[field].from && !state.filter[field].to)
+        };
+        renderDateFilterGrid();
+      }
+      positionPopover(triggerEl);
+    }
+
+    function closeFilterPopover() {
+      document.getElementById("filterPopover").style.display = "none";
+      state.filterPopover.field = "";
+      state.filterPopover.trigger = null;
+    }
+
+    function handleStart(task) {
+      if (task.status === "已完成") return;
+      if (task.startMode === "idle") {
+        task.startMode = "running";
+        task.status = "生产中";
+        task.actualStart = task.actualStart || todayString;
+        persistProductionTaskSnapshot();
+        render();
+        return;
+      }
+      if (task.startMode === "running") {
+        task.startMode = "paused";
+      } else {
+        task.startMode = "running";
+      }
+      render();
+    }
+
+    function bindTableActions() {
+      document.getElementById("taskTableBody").onclick = (e) => {
+        const btn = e.target.closest("[data-act]");
+        if (!btn) return;
+        const id = Number(btn.getAttribute("data-id"));
+        const task = tasks.find((x) => x.id === id);
+        if (!task) return;
+        const act = btn.getAttribute("data-act");
+        if (act === "detail") {
+          persistProductionTaskSnapshot();
+          location.href = productionDetailUrl(task, "material");
+          return;
+        }
+        if (act === "start") handleStart(task);
+        if (act === "report") {
+          if (isReportActionDisabled(task)) return;
+          openReportModal(task);
+        }
+      };
+    }
+
+    function render() {
+      persistProductionTaskSnapshot();
+      renderCards();
+      renderTable();
+      document.querySelectorAll(".filter-trigger").forEach((el) => {
+        const f = el.getAttribute("data-filter-field");
+        el.classList.toggle("filter-active", isFieldActive(f));
+      });
+    }
+
+    function wireEvents() {
+      const linkShift = document.getElementById("linkWorkerShift");
+      if (linkShift) {
+        linkShift.addEventListener("click", (e) => {
+          e.preventDefault();
+          window.location.href =
+            "生产上下工.html?line=" + encodeURIComponent(getProductionLineName());
+        });
+      }
+
+      const btnExc = document.getElementById("btnExceptionReport");
+      if (btnExc) {
+        btnExc.addEventListener("click", () => {
+          openExceptionModal();
+        });
+      }
+
+      bindExceptionListEvents();
+      const excClose = document.getElementById("exceptionCloseBtn");
+      if (excClose) excClose.addEventListener("click", closeExceptionModal);
+      const excInner = document.getElementById("exceptionModalInner");
+      if (excInner) excInner.addEventListener("click", (e) => e.stopPropagation());
+      const excMask = document.getElementById("exceptionModalMask");
+      if (excMask) {
+        excMask.addEventListener("click", (e) => {
+          if (e.target.id === "exceptionModalMask") closeExceptionModal();
+        });
+      }
+
+      const lineSel = document.getElementById("prodLineSelect");
+      if (lineSel) {
+        lineSel.addEventListener("change", () => {
+          state.page = 1;
+          state.statFilter = null;
+          persistProductionTaskSnapshot();
+          render();
+        });
+      }
+
+      document.getElementById("filterPopover").addEventListener("click", (e) => {
+        e.stopPropagation();
+      });
+
+      document.querySelectorAll(".filter-trigger").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openFilterPopover(btn.getAttribute("data-filter-field"), btn);
+        });
+      });
+
+      document.getElementById("filterCancelBtn").onclick = closeFilterPopover;
+      document.getElementById("filterClearBtn").onclick = () => {
+        const f = state.filterPopover.field;
+        if (!f) return;
+        if (state.filterPopover.type === "text") {
+          document.getElementById("filterTextInput").value = "";
+          state.filter[f] = "";
+          state.page = 1;
+          render();
+          return;
+        }
+        state.filterPopover.dateDraft.from = "";
+        state.filterPopover.dateDraft.to = "";
+        state.filterPopover.dateDraft.hover = "";
+        state.filterPopover.dateDraft.selectingEnd = false;
+        renderDateFilterGrid();
+      };
+      document.getElementById("filterApplyBtn").onclick = () => {
+        const f = state.filterPopover.field;
+        if (!f) return;
+        if (state.filterPopover.type === "text") {
+          state.filter[f] = document.getElementById("filterTextInput").value;
+        } else {
+          const draftFrom = state.filterPopover.dateDraft.from || "";
+          const draftTo = state.filterPopover.dateDraft.to || "";
+          const normalizedFrom = draftFrom && draftTo ? (draftFrom <= draftTo ? draftFrom : draftTo) : draftFrom;
+          const normalizedTo = draftFrom && draftTo ? (draftFrom <= draftTo ? draftTo : draftFrom) : (draftFrom || "");
+          state.filter[f] = {
+            from: normalizedFrom,
+            to: normalizedTo
+          };
+        }
+        state.page = 1;
+        closeFilterPopover();
+        render();
+      };
+
+      document.getElementById("rpPrev").onclick = () => {
+        const vm = parseDateStr(state.filterPopover.dateDraft.viewMonth) || new Date();
+        vm.setMonth(vm.getMonth() - 1);
+        state.filterPopover.dateDraft.viewMonth = monthFirstString(vm);
+        renderDateFilterGrid();
+      };
+      document.getElementById("rpNext").onclick = () => {
+        const vm = parseDateStr(state.filterPopover.dateDraft.viewMonth) || new Date();
+        vm.setMonth(vm.getMonth() + 1);
+        state.filterPopover.dateDraft.viewMonth = monthFirstString(vm);
+        renderDateFilterGrid();
+      };
+      document.getElementById("rpGrid").onmouseover = (e) => {
+        e.stopPropagation();
+      };
+      document.getElementById("rpGrid").onclick = (e) => {
+        e.stopPropagation();
+        const cell = e.target.closest("[data-date]");
+        if (!cell) return;
+        const d = cell.getAttribute("data-date");
+        const draft = state.filterPopover.dateDraft;
+        if (!draft.from || !draft.selectingEnd) {
+          draft.from = d;
+          draft.to = "";
+          draft.hover = "";
+          draft.selectingEnd = true;
+        } else {
+          draft.to = d;
+          draft.hover = "";
+          draft.selectingEnd = false;
+        }
+        renderDateFilterGrid();
+      };
+
+      document.addEventListener("click", (e) => {
+        const pop = document.getElementById("filterPopover");
+        if (pop.style.display === "block" && !pop.contains(e.target) && !e.target.closest(".filter-trigger")) {
+          closeFilterPopover();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        if (state.filterPopover.trigger) positionPopover(state.filterPopover.trigger);
+      });
+      document.getElementById("tableWrap").addEventListener("scroll", () => {
+        if (state.filterPopover.trigger) positionPopover(state.filterPopover.trigger);
+      });
+
+      document.getElementById("reportCancelBtn").addEventListener("click", closeReportModal);
+      document.getElementById("reportSaveBtn").addEventListener("click", () => {
+        const task = tasks.find((t) => t.id === state.reportModalTaskId);
+        if (!task || task.status === "已完成") return;
+        if (!saveReportForTask(task, { appendRecord: true })) return;
+      });
+      document.getElementById("reportFinishBtn").addEventListener("click", () => {
+        const task = tasks.find((t) => t.id === state.reportModalTaskId);
+        if (!task || task.status === "已完成") return;
+        const plan = planQtyNum(task);
+        const sum = reportRecordsQtySum(task);
+        const doneQty = readDoneQtyFromModal();
+        if (doneQty === null) return;
+        if (Math.abs(sum + doneQty - plan) >= 1e-9) return;
+        const appendRecord = doneQty > 0;
+        if (!saveReportForTask(task, { appendRecord, markDone: true })) return;
+        closeReportModal();
+      });
+      document.getElementById("reportDoneQtyInput").addEventListener("input", () => {
+        const task = tasks.find((t) => t.id === state.reportModalTaskId);
+        if (task) updateReportModalValidation(task);
+      });
+      document.getElementById("reportRecordBody").addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-row-act]");
+        if (!btn) return;
+        const task = tasks.find((t) => t.id === state.reportModalTaskId);
+        if (!task) return;
+        const idx = Number(btn.getAttribute("data-row-idx"));
+        const act = btn.getAttribute("data-row-act");
+        if (!Number.isInteger(idx) || idx < 0) return;
+        if (act === "edit") {
+          openReportRecordEdit(task, idx);
+          return;
+        }
+        if (act === "cancel-edit") {
+          cancelReportRecordEdit(task);
+          return;
+        }
+        if (act === "save-edit") {
+          saveReportRecordEdit(task, idx);
+        }
+      });
+      document.getElementById("reportModalInner").addEventListener("click", (e) => e.stopPropagation());
+      document.getElementById("reportModalMask").addEventListener("click", (e) => {
+        if (e.target.id === "reportModalMask") closeReportModal();
+      });
+    }
+
+    function updateClock() {
+      document.getElementById("currentTime").textContent = nowText();
+    }
+
+    bindTableActions();
+    wireEvents();
+    (function initLineFromUrl() {
+      try {
+        const qs = new URLSearchParams(location.search);
+        const line = qs.get("line");
+        const sel = document.getElementById("prodLineSelect");
+        if (sel && line && PRODUCTION_LINES.includes(line)) sel.value = line;
+      } catch (e) {}
+    })();
+    updateClock();
+    setInterval(updateClock, 1000);
+    render();
+  </script>
+</body>
+</html>

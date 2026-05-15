@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.5">
+  <title>投产报工 · 工序生产看板</title>
+  <style>
+    :root {
+      --bg: #f0f4f9;
+      --surface: #ffffff;
+      --border: #dfe6f0;
+      --border-light: #eaf0f8;
+      --text: #1a2d42;
+      --text-secondary: #5b6f87;
+      --primary: #2b5f8e;
+      --primary-dark: #1a3f60;
+      --waste: #8b5a2b;
+      --waste-light: #fdf3e7;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+      --shadow: 0 4px 16px rgba(0,0,0,0.06);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,0.1);
+      --radius: 10px;
+      --radius-lg: 14px;
+      --transition: 0.2s ease;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: var(--bg); display: flex; justify-content: center; padding: 20px 14px 40px;
+      font-family: system-ui, -apple-system, sans-serif; min-height: 100vh;
+    }
+    .kanban {
+      max-width: 1800px; width: 100%; background: var(--surface); box-shadow: var(--shadow-lg);
+      padding: 26px 30px 22px; border: 1px solid var(--border); border-radius: var(--radius-lg);
+    }
+
+    .cards-container { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+    .stat-card {
+      flex: 1; min-width: 220px; background: var(--surface); border: 1.5px solid var(--border-light);
+      padding: 16px 20px; cursor: pointer; border-radius: var(--radius); transition: all var(--transition);
+      display: flex; align-items: flex-start; gap: 16px; box-shadow: var(--shadow-sm);
+    }
+    .stat-card.active { background: #f5f9ff; border-color: #8ab4da; box-shadow: 0 0 0 3px rgba(43,95,142,0.08), var(--shadow); }
+    .stat-card[data-filter='unfinished'] .card-icon { background: #fef5f5; color: #c0393b; }
+    .stat-card[data-filter='today'] .card-icon { background: #eaf6ef; color: #2d7d4f; }
+    .stat-card[data-filter='planned'] .card-icon { background: #f3f0fc; color: #6b4fbf; }
+    .card-icon { font-size: 1.6rem; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); }
+    .card-content { width: 100%; }
+    .card-title { font-weight: 600; color: var(--text-secondary); font-size: 0.82rem; }
+    .card-number { font-weight: 800; color: var(--text); font-size: 2.2rem; line-height: 1.1; font-family: var(--font-mono); }
+    .card-sub-stats { display: flex; gap: 14px; margin-top: 8px; font-size: 0.7rem; color: var(--text-secondary); border-top: 1px dashed #e2e8f2; padding-top: 8px; }
+    .live-time-row { margin-top: 8px; display: flex; align-items: center; gap: 6px; font-size: 0.72rem; }
+    .live-time-value { font-weight: 700; font-family: var(--font-mono); background: #eef5fc; padding: 2px 8px; border-radius: 20px; }
+
+    .table-wrapper { border: 1.5px solid var(--border); overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+    table { width: 100%; border-collapse: collapse; min-width: 2100px; font-size: 0.82rem; }
+    th { background: #f4f8fd; padding: 13px 10px; font-weight: 700; border-bottom: 2px solid #cbdaea; white-space: nowrap; }
+    td { padding: 13px 10px; border-bottom: 1px solid #edf2f8; }
+    .nowrap-cell { white-space: nowrap; }
+    .filter-trigger-btn {
+      background: #edf3fa; border: 1px solid #c5d4e8; border-radius: 16px; font-size: 0.68rem; padding: 3px 9px; cursor: pointer;
+    }
+    .filter-panel {
+      position: absolute; background: white; border: 1.5px solid #cbdae9; box-shadow: 0 10px 28px rgba(0,0,0,0.12);
+      padding: 12px; min-width: 210px; z-index: 100; border-radius: var(--radius);
+    }
+    .filter-panel-actions { display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; }
+    .filter-panel-actions button { border: 1px solid #cbdaea; padding: 4px 12px; border-radius: 16px; background: #fff; cursor: pointer; font-size: 0.7rem; }
+    .filter-panel-actions button.primary { background: #e4effa; border-color: #8fb0df; color: #1f4e7a; font-weight: 600; }
+    .action-btns { display: flex; gap: 7px; flex-wrap: wrap; }
+    .action-btn {
+      background: white; border: 1.5px solid #b8c9de; padding: 5px 11px; font-size: 0.7rem;
+      font-weight: 600; cursor: pointer; border-radius: 20px; transition: all var(--transition); white-space: nowrap;
+    }
+    .action-btn.primary { background: #e4effa; border-color: #8fb0df; color: #1f4e7a; }
+    .action-btn.waste { background: #fdf3e7; border-color: #d6b17e; color: #8b5a2b; }
+    .action-btn.waste:hover:not(.disabled) { background: #faebd5; border-color: #c28a3a; }
+    .action-btn.disabled { opacity: 0.5; pointer-events: none; }
+    .pagination { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; align-items: center; }
+    .page-num { padding: 4px 12px; border: 1px solid #cbdaea; border-radius: 16px; cursor: pointer; background: white; }
+    .page-num.active { background: #d2e2fa; border-color: #6a9ccf; color: #1a4c7a; font-weight: 700; }
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,25,40,0.5);
+      display: flex; align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(3px);
+    }
+    .modal-container {
+      background: white; max-width: 92vw; max-height: 84vh; border: 1px solid #cbdae9;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.22); border-radius: var(--radius-lg); display: flex; flex-direction: column;
+      animation: modalScaleIn 0.25s ease;
+    }
+    @keyframes modalScaleIn { from { opacity: 0; transform: scale(0.92); } }
+    .modal-header { background: #f4f8fd; padding: 13px 20px; border-bottom: 1px solid #dce5f0; font-weight: 800; color: #1f4970; display: flex; justify-content: space-between; }
+    .modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+    .waste-record-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-top: 6px; }
+    .waste-record-table th { background: #f4f8fd; padding: 6px 8px; border-bottom: 1px solid #cbdaea; }
+    .waste-record-table td { padding: 6px 8px; border-bottom: 1px solid #eef2f8; }
+    .report-group { margin-bottom: 12px; }
+    .report-group label { display: block; font-weight: 700; margin-bottom: 4px; color: #2a5b8c; font-size: 0.78rem; }
+    .report-group input, .report-group select { width: 100%; padding: 8px; border: 1.5px solid #b9cae2; border-radius: 6px; font-size: 0.82rem; }
+    .error-msg { color: #c0393b; font-size: 0.72rem; margin-top: 4px; }
+    .success-msg { color: #2d7d4f; font-size: 0.72rem; margin-top: 4px; }
+    .status-badge { padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
+    .status-badge.ongoing { background: #e6f0fa; color: #2b5f8e; }
+    .status-badge.pending { background: #f5f5f5; color: #6b7b8d; }
+    .status-badge.paused { background: #fff0da; color: #b5682c; }
+    .status-badge.done { background: #eaf6ef; color: #2d7d4f; }
+    .priority-red { color: #c0393b; font-weight: 700; }
+    .priority-yellow { color: #e67e22; font-weight: 700; }
+    .priority-green { color: #2d7d4f; font-weight: 700; }
+    .waste-status { cursor: pointer; text-decoration: underline; font-weight: 600; }
+    .waste-status.reported { color: #2d7d4f; }
+    .waste-status.unreported { color: #c0393b; }
+    .toast-msg { font-size: 0.82rem; }
+  </style>
+</head>
+<body>
+<div class="kanban">
+
+  <div class="cards-container" id="cardContainer">
+    <div class="stat-card active" data-filter="unfinished">
+      <span class="card-icon">⚙️</span>
+      <div class="card-content">
+        <span class="card-title">未完成订单</span>
+        <span class="card-number" id="unfinishedCount">0</span>
+        <div class="card-sub-stats"><div><span class="sub-stat-label">📦 剩余数量</span><span class="sub-stat-value" id="unfinishedRemainQty">0</span></div></div>
+      </div>
+    </div>
+    <div class="stat-card" data-filter="today">
+      <span class="card-icon">📆</span>
+      <div class="card-content">
+        <span class="card-title">当日订单</span>
+        <span class="card-number" id="todayCount">0</span>
+        <div class="card-sub-stats">
+          <div><span class="sub-stat-label">🏭 生产总数</span><span class="sub-stat-value" id="todayTotalQty">0</span></div>
+          <div><span class="sub-stat-label">⏳ 未完成量</span><span class="sub-stat-value" id="todayRemainQty">0</span></div>
+        </div>
+        <div class="live-time-row"><span>🕒</span><span class="live-time-value" id="liveClockDisplay">--:--:--</span></div>
+      </div>
+    </div>
+    <div class="stat-card" data-filter="planned">
+      <span class="card-icon">📌</span>
+      <div class="card-content">
+        <span class="card-title">计划订单</span>
+        <span class="card-number" id="plannedCount">0</span>
+        <div class="card-sub-stats"><div><span class="sub-stat-label">📋 计划数量</span><span class="sub-stat-value" id="plannedTotalQty">0</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 总废料上报按钮已移除 -->
+
+  <div class="table-wrapper" id="tableWrapper"></div>
+  <div class="pagination">
+    <button id="prevPageBtn">上一页</button>
+    <div class="page-numbers" id="pageNumbers"></div>
+    <button id="nextPageBtn">下一页</button>
+    <span>共 <span id="totalRecords">0</span> 条记录</span>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const todayStr = '2026-03-27';
+    const operators = ['张明', '李芳', '王海', '赵敏', '陈刚', '刘敏'];
+    const WASTE_TYPES = ['铝块', '铝丝', '铝渣'];
+
+    const liveClockSpan = document.getElementById('liveClockDisplay');
+    function updateLiveClock() {
+      if (!liveClockSpan) return;
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      liveClockSpan.innerText = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+    updateLiveClock();
+    const clockInterval = setInterval(updateLiveClock, 1000);
+    window.addEventListener('beforeunload', () => clearInterval(clockInterval));
+
+    function getMaterialListForOrder(prodOrder, orderStatus = '') {
+      const base = [
+        { name: '电机组件', required: 150, available: 150, unit: '个' },
+        { name: '控制面板', required: 150, available: 150, unit: '个' },
+        { name: '杯体组件', required: 150, available: 105, unit: '个' },
+        { name: '底座组件', required: 150, available: 105, unit: '个' },
+        { name: '电源线', required: 150, available: 135, unit: '个' },
+        { name: '锁体', required: 150, available: 150, unit: '个' },
+        { name: '指纹模块', required: 150, available: 120, unit: '个' },
+        { name: '蓝牙模块', required: 150, available: 150, unit: '个' }
+      ];
+      let hash = 0;
+      for (let i=0; i<prodOrder.length; i++) hash = ((hash<<5)-hash) + prodOrder.charCodeAt(i);
+      return base.map(m => {
+        let req = Math.floor(m.required * (0.95 + (Math.abs(hash)%15)/100));
+        let ava = Math.floor(m.available * (0.9 + (Math.abs(hash)%25)/100));
+        if (orderStatus === 'done') ava = req;
+        return { ...m, required: req, available: ava, status: ava >= req ? 'full' : 'partial' };
+      });
+    }
+
+    function calculateKitRate(materials) {
+      let totalReq = 0, totalAva = 0;
+      materials.forEach(m => { totalReq += m.required; totalAva += Math.min(m.available, m.required); });
+      return totalReq ? Math.round((totalAva / totalReq) * 100) : 0;
+    }
+
+    function enhanceOrders(orders) {
+      const processes = ['冷锻', '热锻', '后序'];
+      return orders.map(order => {
+        let plannedStartDate = order.startTime ? order.startTime.split(' ')[0] : '2026-03-20';
+        let actualStartTime = (order.status === 'ongoing' || order.status === 'done' || order.status === 'paused') ? order.startTime : '';
+        let plannedEndDate = plannedStartDate;
+        let daysToAdd = 5 + (order.priority === '紧急' ? 2 : (parseInt(order.priority) || 5) % 6);
+        let date = new Date(plannedStartDate);
+        date.setDate(date.getDate() + daysToAdd);
+        plannedEndDate = date.toISOString().slice(0,10);
+        let actualEndTime = '';
+        if (order.status === 'done' && order.reportRecords && order.reportRecords.length > 0) {
+          actualEndTime = order.reportRecords[order.reportRecords.length-1].time;
+        }
+        if (!order.processName) {
+          order.processName = processes[Math.floor(Math.random() * 3)];
+        }
+        return {
+          ...order,
+          plannedStartDate, actualStartTime, plannedEndDate, actualEndTime,
+          productionOrderNo: order.prodOrder ? order.prodOrder.replace(/^FO-/, 'PO-') : '',
+          wasteRecords: order.wasteRecords || [],
+          prevWasteRecords: order.prevWasteRecords || [],
+          forgingWasteRecords: order.forgingWasteRecords || [],
+          postWasteRecords: order.postWasteRecords || [],
+          prevSemiWeight: order.prevSemiWeight || null,
+          prevWasteWeight: order.prevWasteWeight || null
+        };
+      });
+    }
+
+    let rawUnfinished = [
+      { salesOrder:'SO-240326-02', prodOrder:'FO-20260326-002', model:'FORK-AM-RL', name:'铝合金减震前叉', type:'mtb', planned:1200, completed:540, startTime:'2026-03-26 09:15', status:'ongoing', priority:'8', reportRecords:[] },
+      { salesOrder:'SO-240327-06', prodOrder:'FO-20260327-006', model:'FORK-AM-29', name:'29寸气压前叉', type:'mtb', planned:780, completed:390, startTime:'2026-03-27 11:20', status:'ongoing', priority:'7', reportRecords:[] },
+      { salesOrder:'SO-240326-99', prodOrder:'FO-20260326-099', model:'FORK-BOOST-110', name:'BOOST前叉', type:'mtb', planned:920, completed:412, startTime:'2026-03-26 15:20', status:'ongoing', priority:'7', reportRecords:[] },
+      { salesOrder:'SO-240325-04', prodOrder:'FO-20260325-004', model:'FORK-TRAIL-XC', name:'越野线控前叉', type:'mtb', planned:950, completed:310, startTime:'2026-03-25 13:45', status:'paused', priority:'5', reportRecords:[] },
+      { salesOrder:'SO-240325-88', prodOrder:'FO-20260325-088', model:'FORK-REBA-RL', name:'智能线控前叉', type:'mtb', planned:760, completed:260, startTime:'2026-03-25 09:45', status:'paused', priority:'9', reportRecords:[] }
+    ];
+    let rawToday = [
+      { salesOrder:'SO-240327-01', prodOrder:'FO-20260327-001', model:'FORK-MTB-PRO', name:'山地气压前叉', type:'mtb', planned:850, completed:850, startTime:'2026-03-27 08:30', status:'done', priority:'紧急', reportRecords:[{id:1,qty:850,time:'2026-03-27 17:20',operator:'李芳'}] },
+      { salesOrder:'SO-240327-03', prodOrder:'FO-20260327-003', model:'FORK-ROAD-CF', name:'公路碳纤维前叉', type:'road', planned:600, completed:0, startTime:'2026-03-27 10:00', status:'pending', priority:'6', reportRecords:[] },
+      { salesOrder:'SO-240327-06', prodOrder:'FO-20260327-006', model:'FORK-AM-29', name:'29寸气压前叉', type:'mtb', planned:780, completed:390, startTime:'2026-03-27 11:20', status:'ongoing', priority:'7', reportRecords:[] },
+      { salesOrder:'SO-240327-07', prodOrder:'FO-20260327-007', model:'FORK-ROAD-DISC', name:'碟刹公路前叉', type:'road', planned:520, completed:0, startTime:'2026-03-27 14:15', status:'pending', priority:'3', reportRecords:[] },
+      { salesOrder:'SO-240327-08', prodOrder:'FO-20260327-008', model:'FORK-FAT-26', name:'胖胎车前叉', type:'fat', planned:340, completed:340, startTime:'2026-03-27 16:40', status:'done', priority:'2', reportRecords:[{id:1,qty:200,time:'2026-03-27 18:10',operator:'王海'},{id:2,qty:140,time:'2026-03-27 19:30',operator:'王海'}] },
+      { salesOrder:'SO-240327-10', prodOrder:'FO-20260327-010', model:'FORK-EBIKE-HD2', name:'电助力重载前叉', type:'ebike', planned:1100, completed:220, startTime:'2026-03-27 13:10', status:'ongoing', priority:'8', reportRecords:[] }
+    ];
+    let rawPlanned = [];
+    const forkTypes = ['mtb','road','ebike','fat'];
+    for (let i=0; i<15; i++) {
+      let type = forkTypes[Math.floor(Math.random()*4)];
+      rawPlanned.push({
+        salesOrder: `SO-2403${24+Math.floor(Math.random()*6)}-${500+i}`,
+        prodOrder: `FO-202603${24+Math.floor(Math.random()*6)}-${700+i}`,
+        model: `FORK-${type.toUpperCase()}-${String.fromCharCode(65+i%5)}${i%30}`,
+        name: type==='mtb'?'山地气压前叉':type==='road'?'公路碳纤维前叉':type==='ebike'?'电助力前叉':'雪地胖胎前叉',
+        type, planned: 400 + (i*37)%1200, completed:0,
+        startTime: `2026-03-${24+Math.floor(Math.random()*6)} ${8+Math.floor(Math.random()*9)}:00`,
+        status:'pending', priority:['紧急','9','8','7','6','5','4','3','2','1'][Math.floor(Math.random()*10)], reportRecords:[]
+      });
+    }
+    let rawDone = [
+      { salesOrder:'SO-240324-11', prodOrder:'FO-20260324-011', model:'FORK-ROAD-ULT', name:'公路超轻前叉', type:'road', planned:450, completed:450, startTime:'2026-03-24 09:00', status:'done', priority:'5', reportRecords:[{id:1,qty:450,time:'2026-03-24 16:20',operator:'赵敏'}] },
+    ];
+
+    let allOrders = enhanceOrders([...rawUnfinished, ...rawPlanned, ...rawDone, ...rawToday.filter(t => !rawUnfinished.some(u => u.prodOrder===t.prodOrder))]);
+
+    let nextRecordId = 100;
+    function addReportRecord(order, qty, operator) {
+      if (!order.reportRecords) order.reportRecords = [];
+      order.reportRecords.push({ id: nextRecordId++, qty, time: new Date().toLocaleString('zh-CN',{hour12:false}), operator });
+    }
+
+    const priorityWeight = { '紧急':1,'9':2,'8':3,'7':4,'6':5,'5':6,'4':7,'3':8,'2':9,'1':10 };
+    function getPriorityClass(p) { return ['紧急','9','8','7'].includes(p) ? 'priority-red' : ['6','5','4'].includes(p) ? 'priority-yellow' : 'priority-green'; }
+    function getProductIconClass(type) { return { mtb:'product-mtb', road:'product-road', ebike:'product-ebike', fat:'product-fat' }[type] || 'product-fork'; }
+
+    let currentCardFilter = 'unfinished';
+    let headerFilters = { prodOrder:'', productionOrderNo:'', model:'', status:'', priority:'' };
+
+    function updateCardCounts() {
+      let unf = allOrders.filter(o=>o.status==='ongoing'||o.status==='paused');
+      document.getElementById('unfinishedCount').innerText = unf.length;
+      document.getElementById('unfinishedRemainQty').innerText = unf.reduce((s,o)=>s+(o.planned-o.completed),0).toLocaleString();
+      let today = allOrders.filter(o=>o.startTime.startsWith(todayStr));
+      document.getElementById('todayCount').innerText = today.length;
+      document.getElementById('todayTotalQty').innerText = today.reduce((s,o)=>s+o.planned,0).toLocaleString();
+      document.getElementById('todayRemainQty').innerText = today.reduce((s,o)=>s+(o.planned-o.completed),0).toLocaleString();
+      let plan = allOrders.filter(o=>o.status==='pending');
+      document.getElementById('plannedCount').innerText = plan.length;
+      document.getElementById('plannedTotalQty').innerText = plan.reduce((s,o)=>s+o.planned,0).toLocaleString();
+    }
+
+    function getFilteredOrdersByCardAndUI() {
+      let base = [];
+      if (currentCardFilter === 'unfinished') base = allOrders.filter(o=>o.status==='ongoing'||o.status==='paused');
+      else if (currentCardFilter === 'today') base = allOrders.filter(o=>o.startTime.startsWith(todayStr));
+      else if (currentCardFilter === 'planned') base = allOrders.filter(o=>o.status==='pending');
+      else base = [...allOrders];
+      return base.filter(order => {
+        if (headerFilters.prodOrder && !order.prodOrder.toLowerCase().includes(headerFilters.prodOrder.toLowerCase())) return false;
+        if (headerFilters.productionOrderNo && !(order.productionOrderNo||'').toLowerCase().includes(headerFilters.productionOrderNo.toLowerCase())) return false;
+        if (headerFilters.model && !order.model.toLowerCase().includes(headerFilters.model.toLowerCase())) return false;
+        if (headerFilters.status && order.status !== headerFilters.status) return false;
+        if (headerFilters.priority && order.priority !== headerFilters.priority) return false;
+        return true;
+      }).sort((a,b) => a.startTime < b.startTime ? -1 : a.startTime > b.startTime ? 1 : priorityWeight[a.priority] - priorityWeight[b.priority]);
+    }
+
+    let activePanel = null;
+    function closeAllPanels() { document.querySelectorAll('.filter-panel').forEach(p=>p.remove()); activePanel=null; }
+    function showPanel(columnKey, triggerBtn) {
+      closeAllPanels();
+      const wrapper = document.querySelector('.table-wrapper');
+      const rect = triggerBtn.getBoundingClientRect();
+      const relTop = rect.bottom - wrapper.getBoundingClientRect().top;
+      const panel = document.createElement('div'); panel.className='filter-panel';
+      panel.style.cssText = `position:absolute;top:${relTop+4}px;left:${rect.left - wrapper.getBoundingClientRect().left}px;`;
+      if (columnKey==='prodOrder') {
+        panel.innerHTML = `<input id="pInput" placeholder="生产工单号" value="${escapeHtml(headerFilters.prodOrder)}"><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+        wrapper.appendChild(panel);
+        let inp = panel.querySelector('#pInput');
+        panel.querySelector('.confirm-btn').onclick = () => { headerFilters.prodOrder=inp.value; currentPage=1; renderTable(); closeAllPanels(); };
+        panel.querySelector('.clear-btn').onclick = () => { inp.value=''; headerFilters.prodOrder=''; currentPage=1; renderTable(); closeAllPanels(); };
+        inp.focus();
+      } else if (columnKey==='productionOrderNo') {
+        panel.innerHTML = `<input id="pInput" placeholder="生产订单号" value="${escapeHtml(headerFilters.productionOrderNo)}"><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+        wrapper.appendChild(panel);
+        let inp = panel.querySelector('#pInput');
+        panel.querySelector('.confirm-btn').onclick = () => { headerFilters.productionOrderNo=inp.value; currentPage=1; renderTable(); closeAllPanels(); };
+        panel.querySelector('.clear-btn').onclick = () => { inp.value=''; headerFilters.productionOrderNo=''; currentPage=1; renderTable(); closeAllPanels(); };
+        inp.focus();
+      } else if (columnKey==='model') {
+        panel.innerHTML = `<input id="pInput" placeholder="图号" value="${escapeHtml(headerFilters.model)}"><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+        wrapper.appendChild(panel);
+        let inp = panel.querySelector('#pInput');
+        panel.querySelector('.confirm-btn').onclick = () => { headerFilters.model=inp.value; currentPage=1; renderTable(); closeAllPanels(); };
+        panel.querySelector('.clear-btn').onclick = () => { inp.value=''; headerFilters.model=''; currentPage=1; renderTable(); closeAllPanels(); };
+        inp.focus();
+      } else if (columnKey==='status') {
+        panel.innerHTML = `<select id="pSelect"><option value="">全部状态</option>${['ongoing','pending','paused','done'].map(s=>`<option value="${s}" ${headerFilters.status===s?'selected':''}>${s==='ongoing'?'进行中':s==='pending'?'待投产':s==='paused'?'已暂停':'已完成'}</option>`).join('')}</select><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+        wrapper.appendChild(panel);
+        let sel = panel.querySelector('#pSelect');
+        panel.querySelector('.confirm-btn').onclick = () => { headerFilters.status=sel.value; currentPage=1; renderTable(); closeAllPanels(); };
+        panel.querySelector('.clear-btn').onclick = () => { sel.value=''; headerFilters.status=''; currentPage=1; renderTable(); closeAllPanels(); };
+      } else if (columnKey==='priority') {
+        let opts = ['紧急','9','8','7','6','5','4','3','2','1'];
+        panel.innerHTML = `<select id="pSelect"><option value="">全部优先级</option>${opts.map(p=>`<option value="${p}" ${headerFilters.priority===p?'selected':''}>${p}</option>`).join('')}</select><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+        wrapper.appendChild(panel);
+        let sel = panel.querySelector('#pSelect');
+        panel.querySelector('.confirm-btn').onclick = () => { headerFilters.priority=sel.value; currentPage=1; renderTable(); closeAllPanels(); };
+        panel.querySelector('.clear-btn').onclick = () => { sel.value=''; headerFilters.priority=''; currentPage=1; renderTable(); closeAllPanels(); };
+      }
+      activePanel = columnKey;
+      const closeHandler = (e) => { if(!panel.contains(e.target) && !triggerBtn.contains(e.target)) { closeAllPanels(); document.removeEventListener('click',closeHandler); } };
+      setTimeout(() => document.addEventListener('click', closeHandler), 10);
+    }
+
+    function showMessage(text) {
+      let toast = document.querySelector('.toast-msg'); if(toast) toast.remove();
+      let div = document.createElement('div'); div.className='toast-msg'; div.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#1e3a2e;color:#e8f5e9;padding:12px 20px;border-left:5px solid #6ecf7a;z-index:1000;border-radius:8px;';
+      div.innerText=text; document.body.appendChild(div); setTimeout(()=>div.remove(), 2000);
+    }
+
+    function showDetailModal(order) {
+      const existingModal = document.querySelector('.modal-overlay');
+      if (existingModal) existingModal.remove();
+      const materials = getMaterialListForOrder(order.prodOrder, order.status);
+      const kitRate = calculateKitRate(materials);
+      const progressPercent = order.planned>0 ? Math.round((order.completed/order.planned)*100) : 0;
+      let materialsHtml = '<table style="width:100%;font-size:0.72rem;"><thead><tr><th>物料</th><th>需求</th><th>可用</th><th>齐套</th></tr></thead><tbody>';
+      materials.forEach(m => materialsHtml += `<tr><td>${escapeHtml(m.name)}</td><td>${m.required}</td><td>${m.available}</td><td style="color:${m.available>=m.required?'#2d7d4f':'#c4882b'};">${m.available>=m.required?'已齐套':'部分齐套'}</td></tr>`);
+      materialsHtml += '</tbody></table>';
+      const reports = order.reportRecords || [];
+      let reportsHtml = reports.length ? reports.map((r,i)=>`<tr><td>${i+1}</td><td>${r.qty}件</td><td>${escapeHtml(r.time)}</td><td>${escapeHtml(r.operator)}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;">暂无</td></tr>';
+      const modalDiv = document.createElement('div'); modalDiv.className='modal-overlay';
+      modalDiv.innerHTML = `
+        <div class="modal-container">
+          <div class="modal-header"><span>📄 订单详情 · ${escapeHtml(order.prodOrder)}</span><button class="modal-close">&times;</button></div>
+          <div class="modal-body">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+              <div><strong>销售订单</strong> ${escapeHtml(order.salesOrder)}</div>
+              <div><strong>产品</strong> ${escapeHtml(order.name)}</div>
+              <div><strong>图号</strong> ${escapeHtml(order.model)}</div>
+              <div><strong>工序</strong> ${escapeHtml(order.processName)}</div>
+              <div><strong>进度</strong> ${order.completed}/${order.planned} (${progressPercent}%)</div>
+            </div>
+            <div style="margin-top:12px;"><strong>物料齐套率 ${kitRate}%</strong>${materialsHtml}</div>
+            <div style="margin-top:12px;"><strong>📋 报工记录</strong><table class="waste-record-table"><thead><tr><th>序号</th><th>数量</th><th>时间</th><th>操作员</th></tr></thead><tbody>${reportsHtml}</tbody></table></div>
+          </div>
+          <div style="padding:10px; text-align:right;"><button class="modal-close-btn action-btn">关闭</button></div>
+        </div>`;
+      document.body.appendChild(modalDiv);
+      const close = () => modalDiv.remove();
+      modalDiv.querySelector('.modal-close').onclick = close;
+      modalDiv.querySelector('.modal-close-btn').onclick = close;
+      modalDiv.addEventListener('click', (e) => { if(e.target === modalDiv) close(); });
+    }
+
+    function showReportModal(order) {
+      if (order.status !== 'ongoing' && order.status !== 'paused') { showMessage('只有进行中或暂停的任务可以报工'); return; }
+      const existingModal = document.querySelector('.modal-overlay');
+      if (existingModal) existingModal.remove();
+      const remaining = order.planned - order.completed;
+      const modal = document.createElement('div'); modal.className='modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-container" style="width:440px;">
+          <div class="modal-header"><span>📦 报工 · ${escapeHtml(order.prodOrder)}</span><button class="modal-close">&times;</button></div>
+          <div class="modal-body">
+            <div>计划 ${order.planned} 件，已完成 <span id="reportCompletedSpan">${order.completed}</span> 件</div>
+            <div class="report-group"><label>本次数量</label><input type="number" id="reportQty" min="1" max="${remaining}" value="${Math.min(remaining,50)}"></div>
+            <div class="report-group"><label>操作员</label><input type="text" id="operatorName" value="${operators[0]}"></div>
+            <div id="reportError" class="error-msg"></div>
+          </div>
+          <div style="padding:10px; display:flex; gap:8px; justify-content:flex-end;">
+            <button class="cancel-btn action-btn">取消</button>
+            <button class="confirm-report action-btn primary">确认报工</button>
+            <button class="complete-order-btn action-btn waste">一键完成</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      const close = () => modal.remove();
+      modal.querySelector('.modal-close, .cancel-btn').onclick = close;
+      const qtyInput = modal.querySelector('#reportQty');
+      const opInput = modal.querySelector('#operatorName');
+      modal.querySelector('.confirm-report').onclick = () => {
+        let qty = parseInt(qtyInput.value,10);
+        let op = opInput.value.trim();
+        if (!qty || qty<=0) { modal.querySelector('#reportError').innerText='请输入有效数量'; return; }
+        if (qty > order.planned - order.completed) { modal.querySelector('#reportError').innerText='超出剩余'; return; }
+        if (!op) { modal.querySelector('#reportError').innerText='请输入操作员'; return; }
+        addReportRecord(order, qty, op);
+        order.completed += qty;
+        if (order.completed >= order.planned) { order.status='done'; order.actualEndTime = new Date().toLocaleString('zh-CN',{hour12:false}); }
+        updateCardCounts(); renderTable();
+        close();
+      };
+      modal.querySelector('.complete-order-btn').onclick = () => {
+        const rem = order.planned - order.completed;
+        if (rem<=0) { close(); return; }
+        addReportRecord(order, rem, opInput.value.trim()||'系统');
+        order.completed = order.planned; order.status='done';
+        order.actualEndTime = new Date().toLocaleString('zh-CN',{hour12:false});
+        updateCardCounts(); renderTable();
+        close();
+      };
+      modal.addEventListener('click', (e) => { if(e.target === modal) close(); });
+    }
+
+    // 废料上报模态框函数保留（因为废料状态列仍可能触发），但按钮已移除，不会主动调用
+    function showWasteModal(order) {
+      if (!order.wasteRecords) order.wasteRecords = [];
+      const existingModal = document.querySelector('.modal-overlay');
+      if (existingModal) existingModal.remove();
+      const totalWaste = order.wasteRecords.reduce((s,r)=>s+r.weight,0);
+      let recordsHtml = order.wasteRecords.length ? order.wasteRecords.map((w,i)=>`<tr><td>${i+1}</td><td>${w.weight.toFixed(2)}</td><td>${escapeHtml(w.time)}</td><td>${escapeHtml(w.operator)}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;">暂无</td></tr>';
+      const modal = document.createElement('div'); modal.className='modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-container" style="width:480px;">
+          <div class="modal-header"><span>🗑️ 废料上报 · ${escapeHtml(order.prodOrder)}</span><button class="modal-close">&times;</button></div>
+          <div class="modal-body">
+            <div>工单 ${escapeHtml(order.prodOrder)} | 完成 ${order.completed}/${order.planned}</div>
+            <div style="margin:10px 0; background:#fdf3e7; padding:6px 12px; border-radius:6px;">📊 已上报总重 <strong>${totalWaste.toFixed(2)} kg</strong></div>
+            <div class="report-group"><label>本次重量(kg)</label><input type="number" id="wasteWeight" min="0.1" step="0.1" value="0.5"></div>
+            <div class="report-group"><label>操作员</label><input type="text" id="wasteOperator" value="${operators[0]}"></div>
+            <div id="wasteError" class="error-msg"></div>
+            <div style="margin-top:10px;"><strong>📋 废料记录</strong></div>
+            <table class="waste-record-table"><thead><tr><th>序号</th><th>重量</th><th>时间</th><th>操作员</th></tr></thead><tbody>${recordsHtml}</tbody></table>
+          </div>
+          <div style="padding:10px; display:flex; gap:8px; justify-content:flex-end;">
+            <button class="cancel-btn action-btn">取消</button>
+            <button class="confirm-waste action-btn waste">确认上报</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      const close = () => modal.remove();
+      modal.querySelector('.modal-close, .cancel-btn').onclick = close;
+      modal.querySelector('.confirm-waste').onclick = () => {
+        const weight = parseFloat(modal.querySelector('#wasteWeight').value);
+        const operator = modal.querySelector('#wasteOperator').value.trim();
+        if (isNaN(weight) || weight<=0) { modal.querySelector('#wasteError').innerText='请输入有效重量'; return; }
+        if (!operator) { modal.querySelector('#wasteError').innerText='请输入操作员'; return; }
+        order.wasteRecords.push({ id: nextRecordId++, weight, time: new Date().toLocaleString('zh-CN',{hour12:false}), operator });
+        showMessage(`✅ 废料上报成功：${weight.toFixed(2)} kg`);
+        close();
+      };
+      modal.addEventListener('click', (e) => { if(e.target === modal) close(); });
+    }
+
+    function showTotalWasteModal() {
+      // 保留函数但不会再有调用入口（总废料上报按钮已移除）
+      const allWasteRecords = [];
+      let totalWeight = 0;
+      allOrders.forEach(order => {
+        if (order.wasteRecords && order.wasteRecords.length > 0) {
+          order.wasteRecords.forEach(w => {
+            allWasteRecords.push({ prodOrder: order.prodOrder, weight: w.weight, time: w.time, operator: w.operator });
+            totalWeight += w.weight;
+          });
+        }
+      });
+      const existingModal = document.querySelector('.modal-overlay');
+      if (existingModal) existingModal.remove();
+      let recordsHtml = allWasteRecords.length ? allWasteRecords.map((w,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(w.prodOrder)}</td><td>${w.weight.toFixed(2)}</td><td>${escapeHtml(w.time)}</td><td>${escapeHtml(w.operator)}</td></tr>`).join('') : '<tr><td colspan="5" style="text-align:center;">暂无废料记录</td></tr>';
+      const reportableOrders = allOrders.filter(o => o.status !== 'pending');
+      const orderOptions = reportableOrders.map(o => `<option value="${escapeHtml(o.prodOrder)}">${escapeHtml(o.prodOrder)} (${o.completed}/${o.planned})</option>`).join('');
+      const modal = document.createElement('div'); modal.className='modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-container" style="width:700px;">
+          <div class="modal-header"><span>🗑️ 总废料上报与统计</span><button class="modal-close">&times;</button></div>
+          <div class="modal-body">
+            <div style="background:#fdf3e7; padding:8px 14px; border-radius:6px; margin-bottom:12px;">📊 全部订单累计废料总重量：<strong>${totalWeight.toFixed(2)} kg</strong></div>
+            <div style="border:1px solid #e0e6ed; border-radius:8px; padding:14px; margin-bottom:16px; background:#fafcfe;">
+              <div style="font-weight:700; color:#1f4970; margin-bottom:8px;">➕ 快速上报废料</div>
+              <div class="report-group"><label>选择工单</label><select id="totalWasteSelectOrder">${orderOptions || '<option value="">无可报工单</option>'}</select></div>
+              <div class="report-group"><label>废料重量 (kg)</label><input type="number" id="totalWasteWeight" min="0.1" step="0.1" value="0.5"></div>
+              <div class="report-group"><label>操作员</label><input type="text" id="totalWasteOperator" value="${operators[0]}"></div>
+              <div id="totalWasteError" class="error-msg"></div>
+              <div id="totalWasteSuccess" class="success-msg"></div>
+              <button id="submitTotalWasteBtn" class="action-btn waste" style="margin-top:6px;">确认上报</button>
+            </div>
+            <div style="font-weight:700; color:#1f4970; margin-bottom:6px;">📋 全部废料记录</div>
+            <table class="waste-record-table"><thead><tr><th>序号</th><th>工单号</th><th>重量(kg)</th><th>时间</th><th>操作员</th></tr></thead><tbody>${recordsHtml}</tbody></table>
+          </div>
+          <div style="padding:10px; text-align:right;"><button class="modal-close-btn action-btn">关闭</button></div>
+        </div>`;
+      document.body.appendChild(modal);
+      const close = () => modal.remove();
+      modal.querySelector('.modal-close').onclick = close;
+      modal.querySelector('.modal-close-btn').onclick = close;
+      modal.querySelector('#submitTotalWasteBtn').onclick = () => {
+        const selectEl = modal.querySelector('#totalWasteSelectOrder');
+        const weightEl = modal.querySelector('#totalWasteWeight');
+        const operatorEl = modal.querySelector('#totalWasteOperator');
+        const errorEl = modal.querySelector('#totalWasteError');
+        const successEl = modal.querySelector('#totalWasteSuccess');
+        const prodOrder = selectEl.value;
+        const weight = parseFloat(weightEl.value);
+        const operator = operatorEl.value.trim();
+        errorEl.innerText = ''; successEl.innerText = '';
+        if (!prodOrder) { errorEl.innerText = '请选择工单'; return; }
+        if (isNaN(weight) || weight <= 0) { errorEl.innerText = '请输入有效重量'; return; }
+        if (!operator) { errorEl.innerText = '请输入操作员姓名'; return; }
+        const targetOrder = allOrders.find(o => o.prodOrder === prodOrder);
+        if (!targetOrder) { errorEl.innerText = '未找到对应工单'; return; }
+        if (!targetOrder.wasteRecords) targetOrder.wasteRecords = [];
+        targetOrder.wasteRecords.push({ id: nextRecordId++, weight, time: new Date().toLocaleString('zh-CN', {hour12: false}), operator });
+        successEl.innerText = `✅ 已为工单 ${prodOrder} 上报废料 ${weight.toFixed(2)} kg`;
+        close();
+        setTimeout(() => showTotalWasteModal(), 100);
+      };
+      modal.addEventListener('click', (e) => { if(e.target === modal) close(); });
+    }
+
+    function showPrevWasteModal(order) {
+      if (!order.prevWasteRecords) order.prevWasteRecords = [];
+      const existingModal = document.querySelector('.modal-overlay');
+      if (existingModal) existingModal.remove();
+      let recordsHtml = order.prevWasteRecords.length ? order.prevWasteRecords.map((r,i)=>`<tr><td>${i+1}</td><td>${r.semiWeight.toFixed(2)}</td><td>${r.totalWeight.toFixed(2)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.operator)}</td><td>${escapeHtml(r.time)}</td></tr>`).join('') : '<tr><td colspan="6" style="text-align:center;">暂无记录</td></tr>';
+      const modal = document.createElement('div'); modal.className='modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-container" style="width:600px;">
+          <div class="modal-header"><span>🧾 前序废料上报 · ${escapeHtml(order.prodOrder)}</span><button class="modal-close">&times;</button></div>
+          <div class="modal-body">
+            <div style="margin-bottom:12px;"><strong>工序：</strong>${escapeHtml(order.processName)} | 计划 ${order.planned} 件</div>
+            <div style="border:1px solid #e0e6ed; border-radius:8px; padding:12px; margin-bottom:12px; background:#fafcfe;">
+              <div class="report-group"><label>本次单个半成品重量 (kg)</label><input type="number" id="prevSemiWeight" min="0.01" step="0.01" value="1.00"></div>
+              <div class="report-group"><label>总废料重量 (kg)</label><input type="number" id="prevTotalWeight" min="0.01" step="0.01" value="0.50"></div>
+              <div class="report-group"><label>废料类型</label><select id="prevWasteType">${WASTE_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}</select></div>
+              <div class="report-group"><label>上报人</label><input type="text" id="prevOperator" value="${operators[0]}"></div>
+              <div id="prevError" class="error-msg"></div>
+              <button id="submitPrevWasteBtn" class="action-btn waste" style="margin-top:6px;">确认上报</button>
+            </div>
+            <div style="font-weight:700; color:#1f4970; margin-bottom:6px;">📋 历史记录</div>
+            <table class="waste-record-table"><thead><tr><th>序号</th><th>半成品重(kg)</th><th>总重(kg)</th><th>类型</th><th>操作员</th><th>时间</th></tr></thead><tbody>${recordsHtml}</tbody></table>
+          </div>
+          <div style="padding:10px; text-align:right;"><button class="modal-close-btn action-btn">关闭</button></div>
+        </div>`;
+      document.body.appendChild(modal);
+      const close = () => modal.remove();
+      modal.querySelector('.modal-close').onclick = close;
+      modal.querySelector('.modal-close-btn').onclick = close;
+      modal.querySelector('#submitPrevWasteBtn').onclick = () => {
+        const semiWeight = parseFloat(modal.querySelector('#prevSemiWeight').value);
+        const totalWeight = parseFloat(modal.querySelector('#prevTotalWeight').value);
+        const type = modal.querySelector('#prevWasteType').value;
+        const operator = modal.querySelector('#prevOperator').value.trim();
+        const errorDiv = modal.querySelector('#prevError');
+        if (isNaN(semiWeight) || semiWeight <= 0) { errorDiv.innerText = '请输入有效的半成品重量'; return; }
+        if (isNaN(totalWeight) || totalWeight <= 0) { errorDiv.innerText = '请输入有效的总废料重量'; return; }
+        if (!operator) { errorDiv.innerText = '请输入上报人'; return; }
+        order.prevWasteRecords.push({
+          id: nextRecordId++,
+          semiWeight, totalWeight, type,
+          operator,
+          time: new Date().toLocaleString('zh-CN', {hour12: false})
+        });
+        showMessage(`✅ 前序废料已上报 (${totalWeight.toFixed(2)} kg)`);
+        close();
+        renderTable();
+      };
+      modal.addEventListener('click', (e) => { if(e.target === modal) close(); });
+    }
+
+    function showForgingWasteModal(order) {
+      if (!order.forgingWasteRecords) order.forgingWasteRecords = [];
+      const existingModal = document.querySelector('.modal-overlay');
+      if (existingModal) existingModal.remove();
+      let recordsHtml = order.forgingWasteRecords.length ? order.forgingWasteRecords.map((r,i)=>`<tr><td>${i+1}</td><td>${r.weight.toFixed(2)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.operator)}</td><td>${escapeHtml(r.time)}</td></tr>`).join('') : '<tr><td colspan="5" style="text-align:center;">暂无记录</td></tr>';
+      const modal = document.createElement('div'); modal.className='modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-container" style="width:550px;">
+          <div class="modal-header"><span>🔥 锻造废料上报 · ${escapeHtml(order.prodOrder)}</span><button class="modal-close">&times;</button></div>
+          <div class="modal-body">
+            <div style="border:1px solid #e0e6ed; border-radius:8px; padding:12px; margin-bottom:12px; background:#fafcfe;">
+              <div class="report-group"><label>单件半成品重量 (kg)</label><input type="number" id="forgingWeight" min="0.01" step="0.01" value="0.50"></div>
+              <div class="report-group"><label>废料类型</label><select id="forgingWasteType">${WASTE_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}</select></div>
+              <div class="report-group"><label>上报人</label><input type="text" id="forgingOperator" value="${operators[0]}"></div>
+              <div id="forgingError" class="error-msg"></div>
+              <button id="submitForgingWasteBtn" class="action-btn waste" style="margin-top:6px;">确认上报</button>
+            </div>
+            <div style="font-weight:700; color:#1f4970; margin-bottom:6px;">📋 历史记录</div>
+            <table class="waste-record-table"><thead><tr><th>序号</th><th>重量(kg)</th><th>类型</th><th>操作员</th><th>时间</th></tr></thead><tbody>${recordsHtml}</tbody></table>
+          </div>
+          <div style="padding:10px; text-align:right;"><button class="modal-close-btn action-btn">关闭</button></div>
+        </div>`;
+      document.body.appendChild(modal);
+      const close = () => modal.remove();
+      modal.querySelector('.modal-close').onclick = close;
+      modal.querySelector('.modal-close-btn').onclick = close;
+      modal.querySelector('#submitForgingWasteBtn').onclick = () => {
+        const weight = parseFloat(modal.querySelector('#forgingWeight').value);
+        const type = modal.querySelector('#forgingWasteType').value;
+        const operator = modal.querySelector('#forgingOperator').value.trim();
+        const errorDiv = modal.querySelector('#forgingError');
+        if (isNaN(weight) || weight <= 0) { errorDiv.innerText = '请输入有效重量'; return; }
+        if (!operator) { errorDiv.innerText = '请输入上报人'; return; }
+        order.forgingWasteRecords.push({
+          id: nextRecordId++,
+          weight, type,
+          operator,
+          time: new Date().toLocaleString('zh-CN', {hour12: false})
+        });
+        showMessage(`✅ 锻造废料已上报 (${weight.toFixed(2)} kg)`);
+        close();
+        renderTable();
+      };
+      modal.addEventListener('click', (e) => { if(e.target === modal) close(); });
+    }
+
+    function showPostWasteModal(order) {
+      if (!order.postWasteRecords) order.postWasteRecords = [];
+      const existingModal = document.querySelector('.modal-overlay');
+      if (existingModal) existingModal.remove();
+      let recordsHtml = order.postWasteRecords.length ? order.postWasteRecords.map((r,i)=>`<tr><td>${i+1}</td><td>${r.weight.toFixed(2)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.operator)}</td><td>${escapeHtml(r.time)}</td></tr>`).join('') : '<tr><td colspan="5" style="text-align:center;">暂无记录</td></tr>';
+      const modal = document.createElement('div'); modal.className='modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-container" style="width:550px;">
+          <div class="modal-header"><span>⚡ 后序废料上报 · ${escapeHtml(order.prodOrder)}</span><button class="modal-close">&times;</button></div>
+          <div class="modal-body">
+            <div style="border:1px solid #e0e6ed; border-radius:8px; padding:12px; margin-bottom:12px; background:#fafcfe;">
+              <div class="report-group"><label>单件半成品重量 (kg)</label><input type="number" id="postWeight" min="0.01" step="0.01" value="0.50"></div>
+              <div class="report-group"><label>废料类型</label><select id="postWasteType">${WASTE_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}</select></div>
+              <div class="report-group"><label>上报人</label><input type="text" id="postOperator" value="${operators[0]}"></div>
+              <div id="postError" class="error-msg"></div>
+              <button id="submitPostWasteBtn" class="action-btn waste" style="margin-top:6px;">确认上报</button>
+            </div>
+            <div style="font-weight:700; color:#1f4970; margin-bottom:6px;">📋 历史记录</div>
+            <table class="waste-record-table"><thead><tr><th>序号</th><th>重量(kg)</th><th>类型</th><th>操作员</th><th>时间</th></tr></thead><tbody>${recordsHtml}</tbody></table>
+          </div>
+          <div style="padding:10px; text-align:right;"><button class="modal-close-btn action-btn">关闭</button></div>
+        </div>`;
+      document.body.appendChild(modal);
+      const close = () => modal.remove();
+      modal.querySelector('.modal-close').onclick = close;
+      modal.querySelector('.modal-close-btn').onclick = close;
+      modal.querySelector('#submitPostWasteBtn').onclick = () => {
+        const weight = parseFloat(modal.querySelector('#postWeight').value);
+        const type = modal.querySelector('#postWasteType').value;
+        const operator = modal.querySelector('#postOperator').value.trim();
+        const errorDiv = modal.querySelector('#postError');
+        if (isNaN(weight) || weight <= 0) { errorDiv.innerText = '请输入有效重量'; return; }
+        if (!operator) { errorDiv.innerText = '请输入上报人'; return; }
+        order.postWasteRecords.push({
+          id: nextRecordId++,
+          weight, type,
+          operator,
+          time: new Date().toLocaleString('zh-CN', {hour12: false})
+        });
+        showMessage(`✅ 后序废料已上报 (${weight.toFixed(2)} kg)`);
+        close();
+        renderTable();
+      };
+      modal.addEventListener('click', (e) => { if(e.target === modal) close(); });
+    }
+
+    function bindTableActions() {
+      const wrapper = document.getElementById('tableWrapper');
+      if (!wrapper) return;
+      if (wrapper._listener) wrapper.removeEventListener('click', wrapper._listener);
+      const handler = (e) => {
+        const btn = e.target.closest('.action-btn');
+        if (btn) {
+          const row = btn.closest('tr');
+          if (!row) return;
+          const cells = row.querySelectorAll('td');
+          if (cells.length < 2) return;
+          const prodOrder = cells[1]?.innerText || '';
+          const order = allOrders.find(o => o.prodOrder === prodOrder);
+          if (!order) return;
+          // 废料上报按钮已移除，不再处理 waste-report
+          if (btn.innerText.includes('报工') && !btn.classList.contains('disabled')) {
+            showReportModal(order);
+          } else if (btn.innerText.includes('详情')) {
+            showDetailModal(order);
+          } else if (btn.innerText.includes('投产') && order.status === 'pending') {
+            order.status = 'ongoing';
+            order.actualStartTime = new Date().toLocaleString('zh-CN', {hour12: false});
+            order.startTime = order.actualStartTime;
+            showMessage(`🚀 已投产: ${order.prodOrder}`);
+            renderTable(); updateCardCounts();
+          } else if (btn.innerText.includes('暂停') && order.status === 'ongoing') {
+            order.status = 'paused'; renderTable(); updateCardCounts();
+          } else if (btn.innerText.includes('复工') && order.status === 'paused') {
+            order.status = 'ongoing'; renderTable(); updateCardCounts();
+          }
+          return;
+        }
+        const wasteStatus = e.target.closest('.waste-status');
+        if (wasteStatus) {
+          const row = wasteStatus.closest('tr');
+          const cells = row.querySelectorAll('td');
+          const prodOrder = cells[1]?.innerText || '';
+          const order = allOrders.find(o => o.prodOrder === prodOrder);
+          if (!order) return;
+          const type = wasteStatus.dataset.wasteType;
+          if (type === 'prev') showPrevWasteModal(order);
+          else if (type === 'forging') showForgingWasteModal(order);
+          else if (type === 'post') showPostWasteModal(order);
+          return;
+        }
+        const filterBtn = e.target.closest('.filter-trigger-btn');
+        if (filterBtn && filterBtn.dataset.column) {
+          e.stopPropagation();
+          showPanel(filterBtn.dataset.column, filterBtn);
+        }
+      };
+      wrapper.addEventListener('click', handler);
+      wrapper._listener = handler;
+    }
+
+    let currentPage = 1;
+    function renderTable() {
+      const orders = getFilteredOrdersByCardAndUI();
+      document.getElementById('totalRecords').innerText = orders.length;
+      const perPage = 10;
+      const totalPages = Math.ceil(orders.length / perPage);
+      if (currentPage > totalPages) currentPage = totalPages || 1;
+      const start = (currentPage - 1) * perPage;
+      const pageOrders = orders.slice(start, start + perPage);
+      const pageNumDiv = document.getElementById('pageNumbers');
+      pageNumDiv.innerHTML = '';
+      for (let i = 1; i <= totalPages; i++) {
+        const span = document.createElement('span');
+        span.className = `page-num ${i === currentPage ? 'active' : ''}`;
+        span.innerText = i;
+        span.onclick = (p => () => { currentPage = p; renderTable(); })(i);
+        pageNumDiv.appendChild(span);
+      }
+      document.getElementById('prevPageBtn').onclick = () => { if(currentPage>1){currentPage--; renderTable();} };
+      document.getElementById('nextPageBtn').onclick = () => { if(currentPage<totalPages){currentPage++; renderTable();} };
+
+      let tableHtml = '<table><thead><tr>';
+      tableHtml += '<th>销售订单号</th><th><div class="header-title">生产工单号<span class="filter-trigger-btn" data-column="prodOrder">🔽</span></div></th>';
+      tableHtml += '<th><div class="header-title">生产订单号<span class="filter-trigger-btn" data-column="productionOrderNo">🔽</span></div></th>';
+      tableHtml += '<th><div class="header-title">图号<span class="filter-trigger-btn" data-column="model">🔽</span></div></th>';
+      tableHtml += '<th>工序名称</th>';
+      tableHtml += '<th>计划数量</th><th>已完成</th><th>预计开工</th><th>实际开工</th><th>预计完工</th><th>实际完工</th>';
+      tableHtml += '<th><div class="header-title">状态<span class="filter-trigger-btn" data-column="status">🔽</span></div></th>';
+      tableHtml += '<th><div class="header-title">优先级<span class="filter-trigger-btn" data-column="priority">🔽</span></div></th>';
+      tableHtml += '<th>前序废料上报</th><th>锻造废料上报</th><th>后序废料上报</th>';
+      tableHtml += '<th class="nowrap-cell">操作</th></tr></thead><tbody>';
+
+      if (!pageOrders.length) tableHtml += '<tr><td colspan="17" style="text-align:center;padding:40px;">暂无匹配订单</td></tr>';
+      else for (const o of pageOrders) {
+        let statusText = { ongoing:'进行中', pending:'待投产', paused:'已暂停', done:'已完成' }[o.status];
+        let actions = '';
+        if (o.status === 'done') actions = `<span class="action-btn">详情</span><span class="action-btn completed">已完成</span><span class="action-btn report disabled">报工</span>`;
+        else if (o.status === 'pending') actions = `<span class="action-btn">详情</span><span class="action-btn primary">投产</span><span class="action-btn report disabled">报工</span>`;
+        else if (o.status === 'paused') actions = `<span class="action-btn">详情</span><span class="action-btn secondary">复工</span><span class="action-btn report">报工</span>`;
+        else actions = `<span class="action-btn">详情</span><span class="action-btn secondary">暂停</span><span class="action-btn report">报工</span>`;
+
+        const isForging = (o.processName === '冷锻' || o.processName === '热锻');
+        const prevReported = o.prevWasteRecords && o.prevWasteRecords.length > 0;
+        const forgingReported = o.forgingWasteRecords && o.forgingWasteRecords.length > 0;
+        const postReported = o.postWasteRecords && o.postWasteRecords.length > 0;
+
+        const prevCell = isForging ? `<span class="waste-status ${prevReported?'reported':'unreported'}" data-waste-type="prev">${prevReported?'是':'否'}</span>` : '<span>-</span>';
+        const forgingCell = isForging ? `<span class="waste-status ${forgingReported?'reported':'unreported'}" data-waste-type="forging">${forgingReported?'是':'否'}</span>` : '<span>-</span>';
+        const postCell = (o.processName === '后序') ? `<span class="waste-status ${postReported?'reported':'unreported'}" data-waste-type="post">${postReported?'是':'否'}</span>` : '<span>-</span>';
+
+        tableHtml += `<tr>
+          <td>${escapeHtml(o.salesOrder)}</td><td>${escapeHtml(o.prodOrder)}</td><td>${escapeHtml(o.productionOrderNo)}</td>
+          <td><span class="${getProductIconClass(o.type)}"></span>${escapeHtml(o.model)}</td>
+          <td>${escapeHtml(o.processName || '冷锻')}</td>
+          <td>${o.planned.toLocaleString()}</td><td>${o.completed.toLocaleString()}</td>
+          <td>${escapeHtml(o.plannedStartDate)}</td><td>${o.actualStartTime||'未开工'}</td>
+          <td>${escapeHtml(o.plannedEndDate)}</td><td>${o.actualEndTime||'未完工'}</td>
+          <td><span class="status-badge ${o.status}">${statusText}</span></td>
+          <td><span class="priority-tag ${getPriorityClass(o.priority)}">${escapeHtml(o.priority)}</span></td>
+          <td>${prevCell}</td><td>${forgingCell}</td><td>${postCell}</td>
+          <td class="action-btns nowrap-cell">${actions}</td>
+        </tr>`;
+      }
+      tableHtml += '</tbody></table>';
+      document.getElementById('tableWrapper').innerHTML = tableHtml;
+      bindTableActions();
+      closeAllPanels();
+    }
+
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+
+    // 总废料上报按钮的事件监听已取消，因为按钮已不存在
+
+    function initStatusCards() {
+      document.querySelectorAll('.stat-card').forEach(card => {
+        card.addEventListener('click', function() {
+          document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+          this.classList.add('active');
+          currentCardFilter = this.dataset.filter;
+          currentPage = 1;
+          renderTable();
+        });
+      });
+    }
+
+    updateCardCounts();
+    renderTable();
+    initStatusCards();
+  })();
+</script>
+</body>
+</html>

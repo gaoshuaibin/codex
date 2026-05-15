@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>销售订单进度跟踪看板</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: #eef3f8;
+            padding: 24px;
+        }
+
+        .dashboard {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #1b3a4e;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header h1 i {
+            color: #2a6b9c;
+            font-size: 2rem;
+        }
+
+        .date-range-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: white;
+            padding: 8px 16px;
+            border: 1px solid #d6e3f0;
+        }
+
+        .range-btn {
+            background: #f5f7fa;
+            border: 1px solid #cbd2dc;
+            color: #1e2b3c;
+            padding: 6px 16px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .range-btn.active {
+            background: #2a405c;
+            border-color: #1a2d44;
+            color: white;
+        }
+
+        .date-range-picker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f5f7fa;
+            border: 1px solid #cbd2dc;
+            padding: 4px 12px;
+        }
+
+        .date-range-picker input {
+            border: none;
+            background: transparent;
+            font-size: 0.85rem;
+            padding: 4px 0;
+            outline: none;
+            width: 110px;
+        }
+
+        .date-range-picker span {
+            color: #7f8d9e;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: white;
+            padding: 20px;
+            border: 1px solid #d6e3f0;
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.1s, border-color 0.1s;
+        }
+
+        .clickable-card:hover {
+            background: #f5faff;
+            border-color: #2d6ea0;
+            cursor: pointer;
+        }
+
+        .clickable-card.active {
+            background: #e1effa;
+            border-color: #2d6ea0;
+            border-width: 2px;
+        }
+
+        .kpi-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: #5e7d9c;
+            letter-spacing: 0.5px;
+            margin-bottom: 0px;
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 12px;
+        }
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1f4a73;
+            line-height: 1;
+        }
+        .kpi-unit {
+            font-size: 0.9rem;
+            font-weight: normal;
+            color: #6f95bd;
+            margin-left: 4px;
+        }
+        .kpi-progress {
+            margin-top: 8px;
+            height: 6px;
+            background: #dee9f2;
+            border: 1px solid #b6cde0;
+        }
+        .kpi-progress-fill {
+            height: 100%;
+            background: #2d6ea0;
+            width: 0%;
+        }
+        .delay-list {
+            margin-top: 12px;
+            font-size: 0.8rem;
+        }
+        .delay-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px dashed #e2eaf2;
+            color: #1f405d;
+        }
+        .delay-item:last-child {
+            border-bottom: none;
+        }
+        .delay-order {
+            font-weight: 600;
+            color: #b33a34;
+            background: #ffe6e5;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+        .delay-days {
+            font-family: monospace;
+            background: #f0f4f9;
+            padding: 2px 6px;
+            border-radius: 12px;
+            color: #b85c2a;
+            font-weight: 500;
+        }
+        .no-delay-tip {
+            font-size: 0.75rem;
+            color: #6f95bd;
+            text-align: center;
+            padding: 8px 0;
+        }
+        .sub-text {
+            margin-top: 8px;
+            font-size: 0.7rem;
+            color: #b33a34;
+        }
+        .desc-text {
+            margin-top: 6px;
+            font-size: 0.7rem;
+            color: #3d6a97;
+        }
+        .orders-section {
+            background: white;
+            padding: 24px;
+            border: 1px solid #cddeef;
+            border-radius: 0;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .section-header h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #193f58;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-tags {
+            margin-bottom: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .filter-tag {
+            background: #e8ecf2;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #1f2f42;
+        }
+        .filter-tag i {
+            cursor: pointer;
+            color: #d32f2f;
+            font-size: 0.7rem;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            border: 1px solid #d3e2f2;
+            position: relative;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 2100px;
+        }
+        th {
+            background: #dce9f5;
+            color: #143b57;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 12px 8px;
+            border-bottom: 2px solid #b0c7e3;
+            border-right: 1px solid #c2d4ea;
+            text-align: left;
+            position: relative;
+            white-space: nowrap;
+        }
+        th:last-child { border-right: none; }
+        .th-content {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        th:nth-child(1) { width: 6.5%; }
+        th:nth-child(2) { width: 6.5%; }
+        th:nth-child(3) { width: 5%; }
+        th:nth-child(4) { width: 5%; }
+        th:nth-child(5) { width: 5.5%; }
+        th:nth-child(6) { width: 7%; }
+        th:nth-child(7) { width: 3.5%; }
+        th:nth-child(8) { width: 4.5%; }
+        th:nth-child(9) { width: 4.5%; }
+        th:nth-child(10) { width: 4.5%; }
+        th:nth-child(11) { width: 4.5%; }
+        th:nth-child(12) { width: 4.5%; }
+        th:nth-child(13) { width: 4.5%; }
+        th:nth-child(14) { width: 3.5%; }
+        th:nth-child(15) { width: 6%; }
+        th:nth-child(16) { width: 6%; }
+        th:nth-child(17) { width: 6%; }
+
+        .filter-icon {
+            cursor: pointer;
+            color: #7f8d9e;
+            font-size: 0.7rem;
+            transition: color 0.2s;
+            padding: 2px;
+        }
+        .filter-icon:hover {
+            color: #2a405c;
+        }
+        .filter-icon.active {
+            color: #d32f2f;
+        }
+        .inline-filter-popup {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 5px;
+            background: white;
+            border: 1px solid #cbd2dc;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            min-width: 200px;
+        }
+        .inline-filter-popup input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cbd2dc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        .inline-filter-popup input:focus {
+            border-color: #2a405c;
+        }
+        .inline-filter-popup .filter-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .inline-filter-popup button {
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .inline-filter-popup .btn-confirm {
+            background: #2a405c;
+            color: white;
+            border: none;
+        }
+        .inline-filter-popup .btn-cancel {
+            background: #f0f2f5;
+            border: 1px solid #cbd2dc;
+            color: #4a627a;
+        }
+        td {
+            padding: 8px 8px;
+            border: none;
+            border-bottom: 1px solid #eef2f7;
+            color: #1f405d;
+            font-size: 0.85rem;
+            vertical-align: middle;
+        }
+        /* 车间进度条（烤漆 / 轮组 / 成品）：实际/计划换算为百分比 */
+        .workshop-progress-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.75rem;
+            min-width: 108px;
+        }
+        .ws-meta {
+            color: #37474f;
+            white-space: nowrap;
+        }
+        .ws-bar-bg {
+            height: 6px;
+            background: #e4eaef;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .ws-bar-fill {
+            height: 100%;
+            background: #2d6ea0;
+            border-radius: 3px;
+        }
+        .pagination {
+            margin-top: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        .page-btn {
+            background: white;
+            border: 1px solid #c1d4ea;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            color: #1f4a73;
+            cursor: pointer;
+            transition: background 0.1s;
+            min-width: 36px;
+            text-align: center;
+        }
+        .page-btn:hover {
+            background: #e1effa;
+            border-color: #2d6ea0;
+        }
+        .page-btn.active {
+            background: #2d6ea0;
+            color: white;
+            border-color: #2d6ea0;
+        }
+        .page-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .footer-stats {
+            margin-top: 24px;
+            display: flex;
+            justify-content: space-between;
+            color: #3d688b;
+            background: #e8f1fa;
+            padding: 12px 20px;
+            border: 1px solid #c1d4ea;
+            font-size: 0.85rem;
+        }
+        .product-model {
+            font-weight: 600;
+            color: #1f4a73;
+            font-size: 0.9rem;
+        }
+        .product-spec {
+            font-size: 0.7rem;
+            color: #6f95bd;
+            margin-top: 2px;
+        }
+        .clear-filter-hint {
+            margin-left: 12px;
+            font-size: 0.7rem;
+            color: #d32f2f;
+            cursor: pointer;
+            background: #ffe6e5;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .clear-filter-hint:hover {
+            background: #ffd4d1;
+        }
+        .right-header-stats {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <div class="header">
+        <h1>
+            <i class="fas fa-chart-line"></i> 
+            销售订单进度跟踪看板
+        </h1>
+        <div class="date-range-controls">
+            <button class="range-btn" id="rangeDay">日</button>
+            <button class="range-btn" id="rangeWeek">周</button>
+            <button class="range-btn" id="rangeMonth">月</button>
+            <div class="date-range-picker">
+                <input type="date" id="startDate" value="2026-02-01">
+                <span>至</span>
+                <input type="date" id="endDate" value="2026-03-31">
+                <button class="range-btn" id="customRangeBtn" style="margin-left: 4px; padding: 4px 12px;">筛选</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 四个卡片 -->
+    <div class="kpi-grid">
+        <!-- 交付率卡片 -->
+        <div class="kpi-card clickable-card" id="card-deliveryRate">
+            <div class="kpi-header">
+                <span class="kpi-title">交付率</span>
+                <span class="kpi-value"><span id="delivery-rate">0</span><span class="kpi-unit">%</span></span>
+            </div>
+            <div class="kpi-progress"><div class="kpi-progress-fill" id="delivery-progress-fill" style="width:0%"></div></div>
+            <div class="desc-text" id="delivery-desc">已交付 0 / 0</div>
+        </div>
+
+        <!-- 进行中订单：包含所有未出库的订单（无论是否延期） -->
+        <div class="kpi-card clickable-card" id="card-inprogress">
+            <div class="kpi-header">
+                <span class="kpi-title">进行中订单</span>
+                <span class="kpi-value"><span id="inprogress-count">0</span><span class="kpi-unit">个</span></span>
+            </div>
+            <div class="kpi-progress"><div class="kpi-progress-fill" id="inprogress-progress-fill" style="width:0%"></div></div>
+            <div class="desc-text" id="inprogress-avg">平均进度 --%</div>
+        </div>
+
+        <!-- 生产延期订单：从进行中订单里筛选出生产延期的 -->
+        <div class="kpi-card clickable-card" id="card-delayed">
+            <div class="kpi-header">
+                <span class="kpi-title">生产延期订单</span>
+                <span class="kpi-value"><span id="delayed-count">0</span><span class="kpi-unit">个</span></span>
+            </div>
+            <div class="delay-list" id="prodDelayList"></div>
+            <div class="sub-text">已超过预计开工未实际开工</div>
+        </div>
+
+        <!-- 交货延期订单：从进行中订单里筛选出交货延期的 -->
+        <div class="kpi-card clickable-card" id="card-deliveryDelay">
+            <div class="kpi-header">
+                <span class="kpi-title">交货延期订单</span>
+                <span class="kpi-value"><span id="deliveryDelay-count">0</span><span class="kpi-unit">个</span></span>
+            </div>
+            <div class="delay-list" id="deliveryDelayList"></div>
+            <div class="sub-text">已超过交货日期未完成</div>
+        </div>
+    </div>
+
+    <div class="orders-section">
+        <div class="section-header">
+            <h2><i class="fas fa-list-ul"></i> 销售订单列表</h2>
+            <div class="right-header-stats">
+                <span id="total-count" style="color:#2f6b9c; font-size:0.85rem;">共 0 个订单</span>
+                <span id="clearFilterHint" class="clear-filter-hint" style="display: none;">
+                    <i class="fas fa-times-circle"></i> 清除筛选
+                </span>
+            </div>
+        </div>
+        
+        <div class="filter-tags" id="filterTagsContainer"></div>
+        
+        <div class="table-wrapper" id="tableWrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th><div class="th-content">销售订单号<i class="fas fa-filter filter-icon" data-field="orderId"></i></div></th>
+                        <th><div class="th-content">客户<i class="fas fa-filter filter-icon" data-field="customer"></i></div></th>
+                        <th><div class="th-content">图号<i class="fas fa-filter filter-icon" data-field="drawingNo"></i></div></th>
+                        <th><div class="th-content">产品类别<i class="fas fa-filter filter-icon" data-field="productCategory"></i></div></th>
+                        <th><div class="th-content">产品名称<i class="fas fa-filter filter-icon" data-field="productName"></i></div></th>
+                        <th><div class="th-content">规格<i class="fas fa-filter filter-icon" data-field="spec"></i></div></th>
+                        <th>数量</th>
+                        <th><div class="th-content">下单日期<i class="fas fa-filter filter-icon" data-field="orderDate"></i></div></th>
+                        <th><div class="th-content">计划开始时间<i class="fas fa-filter filter-icon" data-field="planStart"></i></div></th>
+                        <th><div class="th-content">计划完成时间<i class="fas fa-filter filter-icon" data-field="planFinish"></i></div></th>
+                        <th><div class="th-content">实际开始时间<i class="fas fa-filter filter-icon" data-field="actualStart"></i></div></th>
+                        <th><div class="th-content">实际完成时间<i class="fas fa-filter filter-icon" data-field="actualFinish"></i></div></th>
+                        <th><div class="th-content">交货日期<i class="fas fa-filter filter-icon" data-field="deliveryDate"></i></div></th>
+                        <th>是否出库</th>
+                        <th>烤漆</th>
+                        <th>轮组</th>
+                        <th>成品</th>
+                    </tr>
+                </thead>
+                <tbody id="order-table-body"></tbody>
+            </table>
+        </div>
+
+        <div class="pagination" id="pagination">
+            <span class="page-btn" id="prev-page"><i class="fas fa-chevron-left"></i> 上一页</span>
+            <span id="page-numbers"></span>
+            <span class="page-btn" id="next-page">下一页 <i class="fas fa-chevron-right"></i></span>
+        </div>
+
+        <div class="footer-stats">
+            <div><i class="fas fa-file-invoice"></i> <span id="footer-total-orders">0</span> 个销售订单 | 进行中: <span id="footer-inprogress">0</span> | 生产延期: <span id="footer-delayed">0</span> | 交货延期: <span id="footer-deliveryDelay">0</span></div>
+            <div><i class="fas fa-exclamation-triangle" style="color:#b85c2a;"></i> 待出库: <span id="footer-pending-outbound">0</span></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const TODAY_STR = '2026-03-20';
+    
+    /* paint/wheel/final：{ actual, plan } 为该车间的实际完成数量与计划数量；成品进度仅在烤漆或轮组任一完工后才可有 */
+    function finalWorkshop(qty, paintActual, wheelActual, finalWant) {
+        const paintDone = paintActual >= qty;
+        const wheelDone = wheelActual >= qty;
+        if (!paintDone && !wheelDone) return { actual: 0, plan: qty };
+        return { actual: Math.min(finalWant, qty), plan: qty };
+    }
+
+    function mkOrder(o) {
+        const q = o.qty;
+        const paint = { actual: o.pa, plan: q };
+        const wheel = { actual: o.wa, plan: q };
+        const fin = finalWorkshop(q, o.pa, o.wa, o.fw);
+        return {
+            id: o.id,
+            customer: o.customer,
+            drawingNo: o.drawingNo,
+            productCategory: o.productCategory,
+            productName: o.productName,
+            spec: o.spec,
+            qty: q,
+            orderDate: o.orderDate,
+            planStart: o.planStart,
+            planFinish: o.planFinish,
+            actualStart: o.actualStart,
+            actualFinish: o.actualFinish,
+            deliveryDate: o.deliveryDate,
+            outbound: o.outbound,
+            paint,
+            wheel,
+            final: fin
+        };
+    }
+
+    const salesOrders = [
+        mkOrder({ id: 'SO-20260301', customer: 'A客户有限公司', drawingNo: 'R3-FC02', productCategory: 'SKD自行车', productName: '山地车', spec: '气压避震 / 行程100', qty: 520, orderDate: '2026-03-01', planStart: '2026-03-04', planFinish: '2026-03-18', actualStart: '2026-03-17', actualFinish: '', deliveryDate: '2026-03-20', outbound: false, pa: 520, wa: 416, fw: 312 }),
+        mkOrder({ id: 'SO-20260303', customer: 'B客户科技有限公司', drawingNo: 'KF-60B', productCategory: 'SKD电动车', productName: '山地车 KID-FLEX', spec: '弹簧款 / 行程60mm', qty: 380, orderDate: '2026-03-03', planStart: '2026-03-06', planFinish: '2026-03-19', actualStart: '', actualFinish: '', deliveryDate: '2026-03-22', outbound: false, pa: 152, wa: 76, fw: 200 }),
+        mkOrder({ id: 'SO-20260305', customer: 'C客户工业集团', drawingNo: 'AMP-140C', productCategory: 'CKD自行车', productName: '公路车', spec: '双气室 / 行程140mm', qty: 410, orderDate: '2026-03-05', planStart: '2026-03-08', planFinish: '2026-03-22', actualStart: '2026-03-12', actualFinish: '', deliveryDate: '2026-03-25', outbound: false, pa: 410, wa: 410, fw: 350 }),
+        mkOrder({ id: 'SO-20260308', customer: 'A客户有限公司', drawingNo: 'OIL-120S', productCategory: 'SKD自行车', productName: '电助力车', spec: '油簧结构 / 行程120mm', qty: 360, orderDate: '2026-03-08', planStart: '2026-03-11', planFinish: '2026-03-24', actualStart: '2026-03-18', actualFinish: '', deliveryDate: '2026-03-28', outbound: false, pa: 360, wa: 288, fw: 216 }),
+        mkOrder({ id: 'SO-20260220', customer: 'B客户科技有限公司', drawingNo: 'ULI-150', productCategory: '自行车车架', productName: '公路车', spec: '铝座版 / 行程150mm', qty: 290, orderDate: '2026-02-20', planStart: '2026-02-23', planFinish: '2026-03-06', actualStart: '2026-03-01', actualFinish: '2026-03-08', deliveryDate: '2026-03-10', outbound: false, pa: 290, wa: 290, fw: 290 }),
+        mkOrder({ id: 'SO-20260215', customer: 'C客户工业集团', drawingNo: 'RX-80', productCategory: '自行车车架', productName: '童车', spec: '竞技版 / 行程80mm', qty: 175, orderDate: '2026-02-15', planStart: '2026-02-18', planFinish: '2026-03-02', actualStart: '', actualFinish: '', deliveryDate: '2026-03-05', outbound: false, pa: 140, wa: 52, fw: 120 }),
+        mkOrder({ id: 'SO-20260210', customer: 'A客户有限公司', drawingNo: 'TR-110', productCategory: 'SKD高端车', productName: '越野车', spec: '锁死功能 / 行程110mm', qty: 440, orderDate: '2026-02-10', planStart: '2026-02-13', planFinish: '2026-02-26', actualStart: '2026-02-22', actualFinish: '', deliveryDate: '2026-03-01', outbound: false, pa: 440, wa: 352, fw: 264 }),
+        mkOrder({ id: 'SO-20260228', customer: '捷安特', drawingNo: 'CLT-100', productCategory: 'CKD电动车', productName: 'Classic-T', spec: '弹簧避震 / 行程100mm', qty: 800, orderDate: '2026-02-28', planStart: '2026-03-03', planFinish: '2026-03-16', actualStart: '2026-03-04', actualFinish: '2026-03-15', deliveryDate: '2026-03-18', outbound: true, pa: 800, wa: 800, fw: 800 }),
+        mkOrder({ id: 'SO-20260310', customer: 'SCOTT', drawingNo: 'EDX-160', productCategory: '电动车车架', productName: 'Enduro-X', spec: '双气室 / 行程160mm', qty: 180, orderDate: '2026-03-10', planStart: '2026-03-13', planFinish: '2026-03-26', actualStart: '', actualFinish: '', deliveryDate: '2026-04-02', outbound: false, pa: 36, wa: 18, fw: 90 }),
+        mkOrder({ id: 'SO-20260205', customer: 'BOSCH', drawingNo: 'EMT-130A', productCategory: 'SKD电动车', productName: 'E-MTB', spec: '电助力专用 / 行程130mm', qty: 320, orderDate: '2026-02-05', planStart: '2026-02-08', planFinish: '2026-02-26', actualStart: '2026-02-11', actualFinish: '', deliveryDate: '2026-03-02', outbound: false, pa: 320, wa: 192, fw: 160 }),
+        mkOrder({ id: 'SO-20260120', customer: '美利达', drawingNo: 'R3-CF02', productCategory: 'SKD自行车', productName: 'R3', spec: '碳纤维 / 轻量化', qty: 500, orderDate: '2026-01-20', planStart: '2026-01-22', planFinish: '2026-02-10', actualStart: '2026-01-23', actualFinish: '2026-02-09', deliveryDate: '2026-02-12', outbound: true, pa: 500, wa: 500, fw: 500 }),
+        mkOrder({ id: 'SO-20260201', customer: '喜德盛', drawingNo: 'TRX-120', productCategory: 'CKD自行车', productName: 'Trail-X', spec: '油簧 / 行程120mm', qty: 280, orderDate: '2026-02-01', planStart: '2026-02-04', planFinish: '2026-02-19', actualStart: '', actualFinish: '', deliveryDate: '2026-02-25', outbound: false, pa: 112, wa: 56, fw: 80 }),
+        mkOrder({ id: 'SO-20260208', customer: '崔克中国', drawingNo: 'FEX-130', productCategory: 'SKD自行车', productName: 'Fuel-EX', spec: '气压 / 行程130mm', qty: 350, orderDate: '2026-02-08', planStart: '2026-02-11', planFinish: '2026-02-26', actualStart: '', actualFinish: '', deliveryDate: '2026-03-05', outbound: false, pa: 350, wa: 105, fw: 210 })
+    ];
+
+    function workshopPct(ws) {
+        if (!ws || !ws.plan) return 0;
+        return Math.min(100, Math.max(0, Math.round((ws.actual / ws.plan) * 100)));
+    }
+
+    function orderOverall(order) {
+        return Math.round((workshopPct(order.paint) + workshopPct(order.wheel) + workshopPct(order.final)) / 3);
+    }
+
+    function workshopProgressHtml(ws) {
+        const pct = workshopPct(ws);
+        return `<div class="workshop-progress-item"><span class="ws-meta">${pct}%</span><div class="ws-bar-bg"><div class="ws-bar-fill" style="width:${pct}%"></div></div></div>`;
+    }
+
+    let currentFilter = 'all';  
+    let currentPage = 1;
+    const rowsPerPage = 8;
+    
+    let startDate = '2026-02-01';
+    let endDate = '2026-03-31';
+    
+    let textFilters = {
+        orderId: '', customer: '', drawingNo: '', productCategory: '', productName: '', spec: '',
+        orderDate: '', planStart: '', planFinish: '', actualStart: '', actualFinish: '', deliveryDate: ''
+    };
+    
+    let activePopup = null;
+
+    function diffDays(dateStr) {
+        const d1 = new Date(dateStr);
+        const d2 = new Date(TODAY_STR);
+        return Math.floor((d2 - d1) / (1000 * 3600 * 24));
+    }
+
+    function getDateFilteredOrders() {
+        return salesOrders.filter(order => order.orderDate >= startDate && order.orderDate <= endDate);
+    }
+    
+    // 进行中订单：所有未出库的订单（outbound === false）
+    function isInProgress(order) {
+        return order.outbound === false;
+    }
+    
+    // 生产延期：进行中 + 预计开工时间已过但实际未开工
+    function isProductionDelayed(order) {
+        if (!isInProgress(order)) return false;
+        if (order.actualStart && order.actualStart !== '') return false;
+        return order.planStart < TODAY_STR;
+    }
+    
+    // 交货延期：进行中 + 交货日期已过但实际未完成（实际完成时间为空）
+    function isDeliveryDelayed(order) {
+        if (!isInProgress(order)) return false;
+        if (order.actualFinish && order.actualFinish !== '') return false;
+        return order.deliveryDate < TODAY_STR;
+    }
+    
+    function getDisplayOrders() {
+        let filtered = salesOrders.filter(order => order.orderDate >= startDate && order.orderDate <= endDate);
+        
+        if (currentFilter === 'deliveryRate') {
+            filtered = filtered.filter(o => o.outbound === true);
+        } else if (currentFilter === 'inprogress') {
+            filtered = filtered.filter(o => isInProgress(o));
+        } else if (currentFilter === 'delayed') {
+            filtered = filtered.filter(o => isProductionDelayed(o));
+        } else if (currentFilter === 'deliveryDelayFilter') {
+            filtered = filtered.filter(o => isDeliveryDelayed(o));
+        }
+        
+        // 文本筛选
+        filtered = filtered.filter(order => {
+            if (textFilters.orderId && !order.id.toLowerCase().includes(textFilters.orderId.toLowerCase())) return false;
+            if (textFilters.customer && !order.customer.toLowerCase().includes(textFilters.customer.toLowerCase())) return false;
+            if (textFilters.drawingNo && !order.drawingNo.toLowerCase().includes(textFilters.drawingNo.toLowerCase())) return false;
+            if (textFilters.productCategory && !order.productCategory.includes(textFilters.productCategory)) return false;
+            if (textFilters.productName && !order.productName.toLowerCase().includes(textFilters.productName.toLowerCase())) return false;
+            if (textFilters.spec && !order.spec.toLowerCase().includes(textFilters.spec.toLowerCase())) return false;
+            if (textFilters.orderDate && order.orderDate !== textFilters.orderDate) return false;
+            if (textFilters.planStart && order.planStart !== textFilters.planStart) return false;
+            if (textFilters.planFinish && order.planFinish !== textFilters.planFinish) return false;
+            if (textFilters.actualStart && (order.actualStart || '') !== textFilters.actualStart) return false;
+            if (textFilters.actualFinish && (order.actualFinish || '') !== textFilters.actualFinish) return false;
+            if (textFilters.deliveryDate && order.deliveryDate !== textFilters.deliveryDate) return false;
+            return true;
+        });
+        return filtered;
+    }
+    
+    function clearCardFilter() {
+        if (currentFilter !== 'all') {
+            currentFilter = 'all';
+            currentPage = 1;
+            ['card-deliveryRate', 'card-inprogress', 'card-delayed', 'card-deliveryDelay'].forEach(id => document.getElementById(id).classList.remove('active'));
+            document.getElementById('clearFilterHint').style.display = 'none';
+            renderTable();
+        }
+    }
+    
+    function updateDelayCards() {
+        const dateFiltered = getDateFilteredOrders();
+        
+        // 进行中订单：所有未出库的
+        const inProgressOrders = dateFiltered.filter(o => isInProgress(o));
+        document.getElementById('inprogress-count').innerText = inProgressOrders.length;
+        const inprogressPercent = dateFiltered.length ? (inProgressOrders.length / dateFiltered.length * 100) : 0;
+        document.getElementById('inprogress-progress-fill').style.width = inprogressPercent + '%';
+        const avgProgress = inProgressOrders.length ? Math.round(inProgressOrders.reduce((sum, o) => sum + orderOverall(o), 0) / inProgressOrders.length) : 0;
+        document.getElementById('inprogress-avg').innerText = `平均进度 ${avgProgress}%`;
+        
+        // 生产延期订单（从进行中筛选）
+        const prodDelayed = inProgressOrders.filter(isProductionDelayed).map(o => ({ id: o.id, delayDays: diffDays(o.planStart) }));
+        prodDelayed.sort((a,b) => b.delayDays - a.delayDays);
+        const topProd = prodDelayed.slice(0,3);
+        const prodContainer = document.getElementById('prodDelayList');
+        prodContainer.innerHTML = topProd.length ? topProd.map(item => `<div class="delay-item"><span class="delay-order">${item.id}</span><span class="delay-days">延期 ${item.delayDays}天</span></div>`).join('') : '<div class="no-delay-tip">暂无生产延期订单</div>';
+        document.getElementById('delayed-count').innerText = prodDelayed.length;
+        
+        // 交货延期订单（从进行中筛选）
+        const deliveryDelayed = inProgressOrders.filter(isDeliveryDelayed).map(o => ({ id: o.id, delayDays: diffDays(o.deliveryDate) }));
+        deliveryDelayed.sort((a,b) => b.delayDays - a.delayDays);
+        const topDelivery = deliveryDelayed.slice(0,3);
+        const deliveryContainer = document.getElementById('deliveryDelayList');
+        deliveryContainer.innerHTML = topDelivery.length ? topDelivery.map(item => `<div class="delay-item"><span class="delay-order">${item.id}</span><span class="delay-days">延期 ${item.delayDays}天</span></div>`).join('') : '<div class="no-delay-tip">暂无交货延期订单</div>';
+        document.getElementById('deliveryDelay-count').innerText = deliveryDelayed.length;
+        
+        // 底部统计
+        const displayOrders = getDisplayOrders();
+        document.getElementById('footer-total-orders').innerText = displayOrders.length;
+        document.getElementById('footer-inprogress').innerText = displayOrders.filter(o => isInProgress(o)).length;
+        document.getElementById('footer-delayed').innerText = displayOrders.filter(o => isProductionDelayed(o)).length;
+        document.getElementById('footer-deliveryDelay').innerText = displayOrders.filter(o => isDeliveryDelayed(o)).length;
+        document.getElementById('footer-pending-outbound').innerText = displayOrders.filter(o => !o.outbound).length;
+    }
+    
+    function updateKPICards() {
+        const dateFilteredOrders = getDateFilteredOrders();
+        const completedOrders = dateFilteredOrders.filter(o => o.outbound === true);
+        const totalOrders = dateFilteredOrders.length;
+        const deliveryRate = totalOrders ? Math.round(completedOrders.length / totalOrders * 100) : 0;
+        document.getElementById('delivery-rate').innerText = deliveryRate;
+        document.getElementById('delivery-progress-fill').style.width = deliveryRate + '%';
+        document.getElementById('delivery-desc').innerText = `已交付 ${completedOrders.length} / ${totalOrders}`;
+        
+        updateDelayCards();
+        updateClearFilterHint();
+    }
+
+    function renderTable() {
+        const filtered = getDisplayOrders();
+        const totalPages = Math.ceil(filtered.length / rowsPerPage) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        const start = (currentPage - 1) * rowsPerPage;
+        const pageData = filtered.slice(start, start + rowsPerPage);
+        
+        const tbody = document.getElementById('order-table-body');
+        tbody.innerHTML = '';
+        pageData.forEach(order => {
+            const row = tbody.insertRow();
+            row.insertCell(0).textContent = order.id;
+            row.insertCell(1).textContent = order.customer;
+            row.insertCell(2).textContent = order.drawingNo;
+            row.insertCell(3).textContent = order.productCategory;
+            row.insertCell(4).textContent = order.productName;
+            row.insertCell(5).textContent = order.spec;
+            row.insertCell(6).textContent = String(order.qty);
+            row.insertCell(7).textContent = order.orderDate;
+            row.insertCell(8).textContent = order.planStart;
+            row.insertCell(9).textContent = order.planFinish;
+            row.insertCell(10).textContent = order.actualStart || '';
+            row.insertCell(11).textContent = order.actualFinish || '';
+            row.insertCell(12).textContent = order.deliveryDate;
+            row.insertCell(13).textContent = order.outbound ? '是' : '否';
+            row.insertCell(14).innerHTML = workshopProgressHtml(order.paint);
+            row.insertCell(15).innerHTML = workshopProgressHtml(order.wheel);
+            row.insertCell(16).innerHTML = workshopProgressHtml(order.final);
+        });
+        
+        document.getElementById('total-count').innerText = `共 ${filtered.length} 个订单`;
+        updatePagination(totalPages);
+        updateKPICards();
+    }
+    
+    function updatePagination(totalPages) {
+        const pageNumbersSpan = document.getElementById('page-numbers');
+        let buttonsHtml = '';
+        for (let i = 1; i <= totalPages; i++) {
+            buttonsHtml += `<span class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</span>`;
+        }
+        pageNumbersSpan.innerHTML = buttonsHtml;
+        document.querySelectorAll('.page-btn[data-page]').forEach(btn => {
+            btn.addEventListener('click', () => { currentPage = parseInt(btn.getAttribute('data-page')); renderTable(); });
+        });
+        document.getElementById('prev-page').classList.toggle('disabled', currentPage === 1);
+        document.getElementById('next-page').classList.toggle('disabled', currentPage === totalPages || totalPages === 0);
+    }
+    
+    function setFilter(filter, cardId) {
+        if (currentFilter === filter) clearCardFilter();
+        else {
+            currentFilter = filter;
+            currentPage = 1;
+            ['card-deliveryRate', 'card-inprogress', 'card-delayed', 'card-deliveryDelay'].forEach(id => document.getElementById(id).classList.remove('active'));
+            document.getElementById(cardId).classList.add('active');
+            renderTable();
+        }
+    }
+    
+    function refreshDateRange() { 
+        currentPage = 1; 
+        renderTable(); 
+    }
+    function setActiveRangeBtn(type) { ['rangeDay','rangeWeek','rangeMonth'].forEach(id => document.getElementById(id).classList.remove('active')); if(type) document.getElementById(`range${type.charAt(0).toUpperCase()+type.slice(1)}`).classList.add('active'); }
+    function updateClearFilterHint() { document.getElementById('clearFilterHint').style.display = currentFilter !== 'all' ? 'inline-flex' : 'none'; }
+    
+    document.getElementById('card-deliveryRate').addEventListener('click', () => setFilter('deliveryRate', 'card-deliveryRate'));
+    document.getElementById('card-inprogress').addEventListener('click', () => setFilter('inprogress', 'card-inprogress'));
+    document.getElementById('card-delayed').addEventListener('click', () => setFilter('delayed', 'card-delayed'));
+    document.getElementById('card-deliveryDelay').addEventListener('click', () => setFilter('deliveryDelayFilter', 'card-deliveryDelay'));
+    document.getElementById('clearFilterHint').addEventListener('click', clearCardFilter);
+    document.getElementById('prev-page').addEventListener('click', () => { if(currentPage>1){ currentPage--; renderTable(); } });
+    document.getElementById('next-page').addEventListener('click', () => { const total=Math.ceil(getDisplayOrders().length/rowsPerPage); if(currentPage<total){ currentPage++; renderTable(); } });
+    
+    document.getElementById('rangeDay').addEventListener('click', () => { const d=document.getElementById('startDate').value; startDate=d; endDate=d; setActiveRangeBtn('day'); refreshDateRange(); });
+    document.getElementById('rangeWeek').addEventListener('click', () => { const d=new Date(document.getElementById('startDate').value+'T00:00:00'); const day=d.getDay(); const mon=new Date(d); mon.setDate(d.getDate()-(day===0?6:day-1)); const sun=new Date(mon); sun.setDate(mon.getDate()+6); startDate=mon.toISOString().slice(0,10); endDate=sun.toISOString().slice(0,10); document.getElementById('startDate').value=startDate; document.getElementById('endDate').value=endDate; setActiveRangeBtn('week'); refreshDateRange(); });
+    document.getElementById('rangeMonth').addEventListener('click', () => { const d=new Date(document.getElementById('startDate').value+'T00:00:00'); startDate=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10); endDate=new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10); document.getElementById('startDate').value=startDate; document.getElementById('endDate').value=endDate; setActiveRangeBtn('month'); refreshDateRange(); });
+    document.getElementById('customRangeBtn').addEventListener('click', () => { startDate=document.getElementById('startDate').value; endDate=document.getElementById('endDate').value; setActiveRangeBtn(null); refreshDateRange(); });
+    
+    function showInlineFilter(iconElement, field) {
+        if(activePopup) activePopup.remove();
+        const isDateField = ['orderDate', 'planStart', 'planFinish', 'actualStart', 'actualFinish', 'deliveryDate'].includes(field);
+        const currentValue = textFilters[field] || '';
+        const popup = document.createElement('div');
+        popup.className = 'inline-filter-popup';
+        popup.innerHTML = `<input type="${isDateField ? 'date' : 'text'}" id="filterInput" value="${currentValue}" placeholder="${isDateField ? '选择日期' : '输入关键字...'}"><div class="filter-actions"><button class="btn-cancel">取消</button><button class="btn-confirm">确定</button></div>`;
+        const rect = iconElement.getBoundingClientRect();
+        const tableRect = document.querySelector('.table-wrapper').getBoundingClientRect();
+        popup.style.position = 'absolute';
+        popup.style.top = (rect.bottom - tableRect.top + 5) + 'px';
+        popup.style.left = (rect.left - tableRect.left) + 'px';
+        document.querySelector('.table-wrapper').style.position = 'relative';
+        document.querySelector('.table-wrapper').appendChild(popup);
+        activePopup = popup;
+        const input = popup.querySelector('#filterInput');
+        input.focus();
+        const applyFilter = () => {
+            textFilters[field] = input.value;
+            updateFilterTags();
+            updateFilterIcons();
+            currentPage = 1;
+            renderTable();
+            if(activePopup) activePopup.remove();
+            activePopup = null;
+        };
+        popup.querySelector('.btn-confirm').onclick = applyFilter;
+        popup.querySelector('.btn-cancel').onclick = () => { if(activePopup) activePopup.remove(); activePopup = null; };
+        if (!isDateField) input.onkeypress = (e) => { if (e.key === 'Enter') applyFilter(); };
+        setTimeout(() => {
+            document.addEventListener('click', function handler(e) {
+                if (popup && !popup.contains(e.target) && e.target !== iconElement) { if(activePopup) activePopup.remove(); activePopup = null; document.removeEventListener('click', handler); }
+            });
+        }, 0);
+    }
+    function updateFilterTags() {
+        const FILTER_LABELS = {
+            orderId: '销售订单号', customer: '客户', drawingNo: '图号', productCategory: '产品类别',
+            productName: '产品名称', spec: '规格', orderDate: '下单日期', planStart: '计划开始时间',
+            planFinish: '计划完成时间', actualStart: '实际开始时间', actualFinish: '实际完成时间', deliveryDate: '交货日期'
+        };
+        const container = document.getElementById('filterTagsContainer');
+        const tags = [];
+        for (const [field, val] of Object.entries(textFilters)) if (val) tags.push({ field, label: `${FILTER_LABELS[field] || field}: ${val}` });
+        if (tags.length === 0) { container.innerHTML = ''; return; }
+        container.innerHTML = tags.map(tag => `<span class="filter-tag">${tag.label}<i class="fas fa-times-circle" data-field="${tag.field}"></i></span>`).join('');
+        document.querySelectorAll('.filter-tag i').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                textFilters[icon.getAttribute('data-field')] = '';
+                updateFilterTags();
+                updateFilterIcons();
+                currentPage = 1;
+                renderTable();
+            });
+        });
+    }
+    function updateFilterIcons() {
+        document.querySelectorAll('.filter-icon').forEach(icon => {
+            const field = icon.getAttribute('data-field');
+            if (textFilters[field]) icon.classList.add('active');
+            else icon.classList.remove('active');
+        });
+    }
+    document.querySelectorAll('.filter-icon').forEach(icon => icon.addEventListener('click', (e) => { e.stopPropagation(); showInlineFilter(icon, icon.getAttribute('data-field')); }));
+    
+    updateFilterTags(); updateFilterIcons(); renderTable();
+</script>
+</body>
+</html>

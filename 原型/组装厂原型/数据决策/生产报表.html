@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>生产报表</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --sub: #6b7280;
+      --line: #e5e7eb;
+      --blue: #2f6bff;
+      --green: #18b26b;
+      --red: #e5484d;
+      --purple: #7f56d9;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page-header {
+      width: 100%;
+      background: #ffffff;
+      border-bottom: 1px solid #e8ebf1;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    }
+
+    .page-header-inner {
+      max-width: 1460px;
+      margin: 0 auto;
+      padding: 20px 16px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .page {
+      max-width: 1460px;
+      margin: 0 auto;
+      padding: 14px 16px 32px;
+    }
+
+    .title-wrap h1 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: 1px;
+    }
+
+    .title-wrap p {
+      margin: 6px 0 0;
+      color: var(--sub);
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin: 8px 0 0;
+    }
+
+    .tab-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #4b5563;
+      padding: 8px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all .2s ease;
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      border-color: var(--blue);
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.22);
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 10px;
+      border: 1px solid #e8ebf1;
+      box-shadow: 0 3px 12px rgba(15, 23, 42, 0.05);
+    }
+
+    .filter-bar {
+      margin-top: 14px;
+      padding: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .field {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #4b5563;
+      font-size: 13px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .field input,
+    .field select {
+      border: none;
+      outline: none;
+      color: #111827;
+      background: transparent;
+      min-width: 120px;
+      font-size: 13px;
+    }
+
+    .btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    button.action {
+      border: none;
+      border-radius: 8px;
+      padding: 9px 14px;
+      cursor: pointer;
+      color: #fff;
+      font-size: 13px;
+      transition: opacity .2s ease;
+    }
+
+    button.action:hover {
+      opacity: .9;
+    }
+
+    .search {
+      background: var(--blue);
+    }
+
+    .reset {
+      background: #6b7280;
+    }
+
+    .export {
+      background: var(--purple);
+    }
+
+    .section-title {
+      margin: 18px 0 10px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .kpi-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .kpi-grid-row {
+      display: grid;
+      gap: 12px;
+      align-items: stretch;
+      width: 100%;
+    }
+
+    .kpi-grid-row--plan {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    /* 除计划/实际外，其余 KPI 全部单行等高排列 */
+    .kpi-grid-row--metrics {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .kpi-grid-row--metrics > .kpi-card {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .kpi-card {
+      display: flex;
+      flex-direction: column;
+      padding: 14px 14px 12px;
+      border-radius: 12px;
+      border: 1px solid #e8ebf1;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.03);
+      min-height: 118px;
+      position: relative;
+      overflow: visible;
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      border-radius: 12px 0 0 12px;
+      background: transparent;
+    }
+
+    .kpi-card.has-breakdown {
+      min-height: 0;
+    }
+
+    .kpi-card.kpi-accent-plan::before {
+      background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+    }
+
+    .kpi-card.kpi-accent-actual::before {
+      background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+    }
+
+    /* 计划产量、实际产量：与大屏一行两卡并排占满整行 */
+    @media (min-width: 1201px) {
+      .kpi-card.kpi-grid-span-2 {
+        grid-column: span 2;
+      }
+
+      .kpi-card.kpi-grid-span-2.has-breakdown {
+        flex-direction: row;
+        align-items: stretch;
+        gap: 16px 20px;
+        min-height: 156px;
+        padding: 16px 20px 14px 18px;
+      }
+
+      .kpi-card.kpi-grid-span-2.has-breakdown .kpi-card-head {
+        flex: 0 0 176px;
+        width: 176px;
+        margin-bottom: 0;
+        padding-right: 20px;
+        border-right: 1px solid #eef2f6;
+        justify-content: center;
+      }
+
+      .kpi-card.kpi-grid-span-2.has-breakdown .kpi-name {
+        margin-bottom: 8px;
+      }
+
+      .kpi-card.kpi-grid-span-2.has-breakdown .kpi-value {
+        font-size: 24px;
+      }
+
+      .kpi-card.kpi-grid-span-2.has-breakdown .kpi-breakdown {
+        flex: 1;
+        min-width: 0;
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px 10px;
+        align-content: start;
+      }
+
+      .kpi-card.kpi-grid-span-2.has-breakdown .kpi-line {
+        padding: 7px 10px;
+        font-size: 12px;
+      }
+    }
+
+    .kpi-card-head {
+      flex-shrink: 0;
+    }
+
+    .kpi-card:not(.has-breakdown) .kpi-card-head {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    .kpi-card-foot {
+      flex-shrink: 0;
+      margin-top: auto;
+      padding-top: 8px;
+    }
+
+    .kpi-card:not(.has-breakdown) .kpi-card-foot:empty {
+      display: none;
+      padding-top: 0;
+      margin-top: 0;
+    }
+
+    .kpi-breakdown {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #eef2f6;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 8px;
+    }
+
+    .kpi-line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      column-gap: 10px;
+      row-gap: 4px;
+      min-width: 0;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #fafbfd 0%, #f4f6fa 100%);
+      border: 1px solid #eceff5;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .kpi-line-label {
+      color: #64748b;
+      min-width: 0;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .kpi-line-val {
+      justify-self: end;
+      font-weight: 600;
+      color: #1e293b;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+      padding-top: 1px;
+      white-space: nowrap;
+    }
+
+    .kpi-card.good {
+      background: linear-gradient(165deg, #ecfbf2 0%, #f6fdf9 55%, #ffffff 100%);
+      border-color: #c8eedd;
+    }
+
+    .kpi-card.good .kpi-line {
+      background: rgba(255, 255, 255, 0.72);
+      border-color: #d1fae5;
+    }
+
+    .kpi-card.warn {
+      background: linear-gradient(165deg, #fff5f5 0%, #fffdfb 50%, #ffffff 100%);
+      border-color: #ffd0d0;
+    }
+
+    .kpi-card.warn .kpi-line {
+      background: rgba(255, 255, 255, 0.85);
+      border-color: #fecaca;
+    }
+
+    .kpi-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    .kpi-card.has-breakdown .kpi-name {
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #0f172a;
+      display: flex;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      line-height: 1.15;
+    }
+
+    .kpi-card.has-breakdown .kpi-value {
+      font-size: 22px;
+    }
+
+    .kpi-unit {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 2px;
+      font-weight: 600;
+    }
+
+    .kpi-delta {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.35;
+    }
+
+    .charts-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 12px;
+    }
+
+    .block {
+      padding: 14px;
+    }
+
+    .block h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .chart {
+      width: 100%;
+      height: 320px;
+    }
+
+    .chart.small {
+      height: 280px;
+    }
+
+    .chart.tiny {
+      height: 220px;
+    }
+
+    .stats-table-wrap {
+      overflow: auto;
+      margin-top: 8px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 1180px;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 9px 8px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #eef2f6;
+      color: #2f3b4b;
+      font-weight: 600;
+    }
+
+    #statsTable tbody tr:nth-child(odd) {
+      background: #ffffff;
+    }
+
+    #statsTable tbody tr:nth-child(even) {
+      background: #f7f9fc;
+    }
+
+    #statsTable tbody tr.row-risk {
+      background: #fdf0f2 !important;
+    }
+
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 66px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-tag.status-effective {
+      background: #eaf5ff;
+      color: #1565c0;
+    }
+
+    .status-tag.status-running {
+      background: #fff5db;
+      color: #8a5a00;
+    }
+
+    .status-tag.status-done {
+      background: #e9f9ef;
+      color: #1f7a42;
+    }
+
+    .table-pager {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 12px;
+      color: #475569;
+      font-size: 13px;
+    }
+
+    .page-btn {
+      border: 1px solid #d8dee8;
+      background: #fff;
+      color: #334155;
+      border-radius: 6px;
+      height: 30px;
+      padding: 0 12px;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+
+    .page-btn:disabled {
+      color: #9ca3af;
+      background: #f8fafc;
+      cursor: not-allowed;
+    }
+
+    .page-num {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #2f6bff;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .gantt-wrap {
+      margin-top: 10px;
+      overflow: auto;
+      padding-bottom: 4px;
+    }
+
+    .gantt {
+      min-width: 760px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .gantt-head,
+    .gantt-row {
+      display: grid;
+      grid-template-columns: 110px repeat(12, 1fr);
+    }
+
+    .gantt-head div {
+      background: #f8fafc;
+      border-right: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 12px;
+      color: #64748b;
+      text-align: center;
+      padding: 6px 2px;
+    }
+
+    .gantt-row div {
+      border-right: 1px solid #edf2f7;
+      border-bottom: 1px solid #edf2f7;
+      min-height: 32px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #475569;
+    }
+
+    .gantt-row .line-name {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .bar {
+      width: 88%;
+      height: 18px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #60a5fa, #22c55e);
+      color: #fff;
+      font-size: 11px;
+      line-height: 18px;
+      text-align: center;
+    }
+
+    @media (max-width: 1200px) {
+      .kpi-grid-row--plan {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .charts-grid,
+      .analysis-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .title-wrap h1 {
+        font-size: 24px;
+      }
+
+      .kpi-grid-row--plan {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid-row--metrics {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+        scrollbar-gutter: stable;
+      }
+
+      .kpi-grid-row--metrics > .kpi-card {
+        flex: 1 0 min(148px, 42vw);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <div class="page-header-inner">
+      <div class="title-wrap">
+        <h1>生产报表</h1>
+        <p id="reportDateText">日期：-- | 每小时更新</p>
+        <div class="tabs">
+          <button class="tab-btn active" data-type="daily">日报</button>
+          <button class="tab-btn" data-type="weekly">周报</button>
+          <button class="tab-btn" data-type="monthly">月报</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="page">
+    <section class="panel filter-bar">
+      <div class="filters">
+        <label class="field">开始日期 <input id="startDate" type="date" /></label>
+        <label class="field">结束日期 <input id="endDate" type="date" /></label>
+        <label class="field">车间
+          <select id="lineSelect">
+            <option value="全部">全部</option>
+            <option value="A线">烤漆</option>
+            <option value="B线">轮组</option>
+            <option value="C线">成品</option>
+          </select>
+        </label>
+        <label class="field">销售单号 <input id="salesOrderInput" type="text" placeholder="请输入销售单号" /></label>
+        <label class="field">图号 <input id="drawingNoInput" type="text" placeholder="请输入图号" /></label>
+      </div>
+      <div class="btns">
+        <button class="action search" id="searchBtn">搜索</button>
+        <button class="action reset" id="resetBtn">重置</button>
+        <button class="action export" id="exportBtn">导出</button>
+      </div>
+    </section>
+
+    <h2 class="section-title">核心指标概述</h2>
+    <section class="kpi-grid" id="kpiGrid"></section>
+
+    <section class="panel block" style="margin-top: 12px;">
+      <h3>现场生产数据统计表</h3>
+      <div class="stats-table-wrap">
+        <table id="statsTable">
+          <thead>
+            <tr>
+              <th>销售单号</th>
+              <th>生产订单号</th>
+              <th>图号</th>
+              <th>产品类型</th>
+              <th>状态</th>
+              <th>计划数量</th>
+              <th>完成数量</th>
+              <th>直通率</th>
+              <th>停线时长(分钟)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-pager" id="tablePager">
+        <button class="page-btn" id="tablePrevBtn">上一页</button>
+        <span class="page-num" id="tableCurrentPage">1</span>
+        <button class="page-btn" id="tableNextBtn">下一页</button>
+        <span id="tablePageInfo">第 1 / 1 页</span>
+      </div>
+    </section>
+
+    <section class="charts-grid">
+      <div class="panel block">
+        <h3>小时产出趋势</h3>
+        <div id="hourlyTrendChart" class="chart"></div>
+      </div>
+      <div class="panel block">
+        <h3>异常分析</h3>
+        <div id="anomalyChart" class="chart"></div>
+      </div>
+    </section>
+
+    <div id="blockDailyGantt">
+      <section class="panel block" style="margin-top: 12px;">
+        <h3>日投产甘特图（投产状态）</h3>
+        <div class="gantt-wrap">
+          <div class="gantt">
+            <div class="gantt-head" id="ganttHead"></div>
+            <div id="ganttBody"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="blockDispatchAchieve">
+      <h2 class="section-title">排产下发达成率</h2>
+      <section class="panel block">
+        <div class="kpi-grid" id="dispatchKpiGrid" style="margin-bottom: 12px;"></div>
+        <div id="dispatchTrendChart" class="chart small"></div>
+      </section>
+    </div>
+
+    <section class="panel block" style="margin-top: 12px;">
+      <h3>停线时长分布图</h3>
+      <div id="stopLineDistributionChart" class="chart small"></div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script>
+    const PRODUCT_TYPES = ["SKD自行车", "SKD电动车", "SKD高端车", "CKD自行车", "CKD电动车", "自行车车架", "电动车车架"];
+
+    function kpiTypeLines(qtys) {
+      return PRODUCT_TYPES.map((label, i) => ({ label, value: qtys[i] }));
+    }
+
+    const reportData = {
+      daily: {
+        dateText: "日期：2025-10-11 | 每小时更新",
+        kpi: [
+          { name: "计划产量", value: 12000, unit: "PCS", delta: "", cls: "", lines: kpiTypeLines([3400, 2800, 1200, 1800, 1400, 900, 700]) },
+          { name: "实际产量", value: 11007, unit: "PCS", delta: "", cls: "", lines: kpiTypeLines([3069, 2528, 1091, 1621, 1260, 811, 627]) },
+          { name: "达成率", value: 96.7, unit: "%", delta: "+7.0% 昨日", cls: "good" },
+          { name: "直通率", value: 96.7, unit: "%", delta: "+7.0% 昨日", cls: "good" },
+          { name: "停线时长", value: 120, unit: "分钟", delta: "", cls: "" },
+          { name: "异常次数", value: 5, unit: "次", delta: "主要设备故障", cls: "" },
+          { name: "生产延期单据数", value: 26, unit: "单", delta: "需重点跟踪", cls: "warn" }
+        ],
+        hourlyX: ["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"],
+        actualHourly: [74,81,78,85,70,82,88,79,84,80],
+        anomaly: { names: ["设备故障","质量异常","物料异常","人员异常","工艺切换"], values: [150,140,95,63,48] },
+        table: [
+          ["A线", 3600, 3510, "97.5%", "98.1%", 35, 1, 1],
+          ["B线", 3000, 2810, "93.7%", "96.9%", 45, 2, 1],
+          ["C线", 2800, 2578, "92.1%", "95.8%", 40, 1, 2],
+          ["D线", 2600, 2109, "81.1%", "94.5%", 60, 1, 1]
+        ],
+        lineNames: ["A线","B线","C线","D线","E线","F线","G线"],
+        taskIssue: [122,50,72,182,196,145,108],
+        goodRate: [96,94,97,95,93,96,95],
+        lineRate: [98,94,97,96,92,95,94],
+        productNames: PRODUCT_TYPES.slice(),
+        productPlan: [120, 160, 180, 220, 240, 200, 170],
+        productActual: [126, 170, 130, 232, 215, 198, 180],
+        productRate: [95, 96, 94, 98, 93, 95, 97],
+        dispatchKpi: [
+          { name: "当前完成率", value: "99.12%" },
+          { name: "关联单据", value: "1347" },
+          { name: "生产延期单据数", value: "26" }
+        ],
+        dispatchTrendX: ["10/01","10/02","10/03","10/04","10/05","10/06","10/07","10/08","10/09","10/10"],
+        dispatchTrendY: [32,48,77,89,87,71,63,68,81,90],
+        reasonNames: ["设备保养","换模等待","工艺调整","物料齐套","质量复检","计划变更"],
+        reasonValues: [34,28,22,18,14,11],
+        stopLineDist: [
+          { value: 39, name: "设备故障" },
+          { value: 24, name: "换型等待" },
+          { value: 18, name: "品质处理" },
+          { value: 12, name: "缺料待料" },
+          { value: 7, name: "其他" }
+        ],
+        gantt: [
+          { line: "A线", segments: [[1,4,"A100"], [6,9,"A101"]] },
+          { line: "B线", segments: [[2,5,"B210"], [8,11,"B211"]] },
+          { line: "C线", segments: [[1,3,"C300"], [5,8,"C301"], [10,12,"C302"]] },
+          { line: "D线", segments: [[3,6,"D140"], [7,10,"D141"]] }
+        ]
+      },
+      weekly: {
+        dateText: "日期：2025-W41 | 每日汇总",
+        kpi: [
+          { name: "计划产量", value: 76000, unit: "PCS", delta: "", cls: "", lines: kpiTypeLines([21500, 17800, 7600, 11400, 8900, 5700, 3100]) },
+          { name: "实际产量", value: 73580, unit: "PCS", delta: "", cls: "", lines: kpiTypeLines([20816, 17234, 7365, 11033, 8617, 5517, 2998]) },
+          { name: "达成率", value: 96.8, unit: "%", delta: "+1.1% 上周", cls: "good" },
+          { name: "直通率", value: 97.4, unit: "%", delta: "+0.8% 上周", cls: "good" },
+          { name: "停线时长", value: 668, unit: "分钟", delta: "", cls: "" },
+          { name: "异常次数", value: 26, unit: "次", delta: "主要质量异常", cls: "" },
+          { name: "生产延期单据数", value: 103, unit: "单", delta: "可控范围", cls: "" }
+        ],
+        hourlyX: ["周一","周二","周三","周四","周五","周六","周日"],
+        actualHourly: [9900,10120,10950,11060,11320,10200,10030],
+        anomaly: { names: ["设备故障","质量异常","物料异常","人员异常","工艺切换"], values: [490,560,345,211,185] },
+        table: [
+          ["A线", 22500, 22080, "98.1%", "98.4%", 125, 6, 7],
+          ["B线", 18900, 18100, "95.8%", "97.1%", 160, 7, 9],
+          ["C线", 17500, 16890, "96.5%", "96.2%", 188, 8, 10],
+          ["D线", 17100, 16510, "96.5%", "95.8%", 195, 5, 5]
+        ],
+        lineNames: ["A线","B线","C线","D线","E线","F线","G线"],
+        taskIssue: [780,620,640,900,860,720,690],
+        goodRate: [97.1,96.7,97.4,96.9,95.8,96.4,96.6],
+        lineRate: [98.5,95.7,96.8,95.9,94.8,95.3,95.1],
+        productNames: PRODUCT_TYPES.slice(),
+        productPlan: [770, 960, 1150, 1280, 1360, 1240, 1100],
+        productActual: [800, 920, 1090, 1330, 1310, 1205, 1120],
+        productRate: [96.8, 95.1, 94.7, 97.9, 96.3, 95.2, 97.1],
+        dispatchKpi: [
+          { name: "当前完成率", value: "97.64%" },
+          { name: "关联单据", value: "8620" },
+          { name: "生产延期单据数", value: "103" }
+        ],
+        dispatchTrendX: ["W1","W2","W3","W4","W5","W6","W7","W8","W9","W10"],
+        dispatchTrendY: [74,78,81,84,82,79,85,87,90,93],
+        reasonNames: ["设备保养","换模等待","工艺调整","物料齐套","质量复检","计划变更"],
+        reasonValues: [95,88,72,60,52,46],
+        stopLineDist: [
+          { value: 34, name: "设备故障" },
+          { value: 22, name: "换型等待" },
+          { value: 19, name: "品质处理" },
+          { value: 15, name: "缺料待料" },
+          { value: 10, name: "其他" }
+        ],
+        gantt: [
+          { line: "A线", segments: [[1,5,"A周任务1"], [7,11,"A周任务2"]] },
+          { line: "B线", segments: [[2,6,"B周任务1"], [8,12,"B周任务2"]] },
+          { line: "C线", segments: [[1,4,"C周任务1"], [5,9,"C周任务2"], [10,12,"C周任务3"]] },
+          { line: "D线", segments: [[3,7,"D周任务1"], [8,11,"D周任务2"]] }
+        ]
+      },
+      monthly: {
+        dateText: "日期：2025-10 | 每日汇总",
+        kpi: [
+          { name: "计划产量", value: 318000, unit: "PCS", delta: "", cls: "", lines: kpiTypeLines([90000, 75000, 32000, 48000, 38000, 24000, 11000]) },
+          { name: "实际产量", value: 303780, unit: "PCS", delta: "", cls: "", lines: kpiTypeLines([86000, 71600, 30600, 45900, 36300, 22900, 10480]) },
+          { name: "达成率", value: 95.5, unit: "%", delta: "+1.9% 上月", cls: "good" },
+          { name: "直通率", value: 96.6, unit: "%", delta: "+1.2% 上月", cls: "good" },
+          { name: "停线时长", value: 2860, unit: "分钟", delta: "", cls: "" },
+          { name: "异常次数", value: 112, unit: "次", delta: "质量类偏高", cls: "" },
+          { name: "生产延期单据数", value: 388, unit: "单", delta: "排程优化中", cls: "warn" }
+        ],
+        hourlyX: ["第1周","第2周","第3周","第4周"],
+        actualHourly: [73300,80100,76800,83580],
+        anomaly: { names: ["设备故障","质量异常","物料异常","人员异常","工艺切换"], values: [1990,2320,1545,1080,920] },
+        table: [
+          ["A线", 95000, 92100, "96.9%", "98.0%", 560, 28, 30],
+          ["B线", 78000, 73620, "94.4%", "96.7%", 770, 31, 40],
+          ["C线", 74000, 69580, "94.0%", "95.8%", 810, 29, 35],
+          ["D线", 71000, 68480, "96.4%", "95.1%", 720, 24, 31]
+        ],
+        lineNames: ["A线","B线","C线","D线","E线","F线","G线"],
+        taskIssue: [3020,2810,2650,3200,3380,2990,2770],
+        goodRate: [97.8,96.5,96.1,96.9,95.6,96.7,96.3],
+        lineRate: [97.4,94.8,95.1,96.2,94.0,95.4,95.0],
+        productNames: PRODUCT_TYPES.slice(),
+        productPlan: [3020, 3660, 3980, 4200, 4500, 4300, 3900],
+        productActual: [3120, 3510, 3820, 4380, 4320, 4220, 4010],
+        productRate: [97.9, 95.5, 95.1, 98.2, 96.0, 96.2, 97.4],
+        dispatchKpi: [
+          { name: "当前完成率", value: "96.83%" },
+          { name: "关联单据", value: "36742" },
+          { name: "生产延期单据数", value: "388" }
+        ],
+        dispatchTrendX: ["第1周","第2周","第3周","第4周","第5周"],
+        dispatchTrendY: [72,81,76,84,89],
+        reasonNames: ["设备保养","换模等待","工艺调整","物料齐套","质量复检","计划变更"],
+        reasonValues: [360,340,290,248,211,183],
+        stopLineDist: [
+          { value: 36, name: "设备故障" },
+          { value: 23, name: "换型等待" },
+          { value: 17, name: "品质处理" },
+          { value: 14, name: "缺料待料" },
+          { value: 10, name: "其他" }
+        ],
+        gantt: [
+          { line: "A线", segments: [[1,6,"A月任务1"], [7,12,"A月任务2"]] },
+          { line: "B线", segments: [[2,5,"B月任务1"], [6,10,"B月任务2"], [11,12,"B月任务3"]] },
+          { line: "C线", segments: [[1,4,"C月任务1"], [5,8,"C月任务2"], [9,12,"C月任务3"]] },
+          { line: "D线", segments: [[3,7,"D月任务1"], [8,12,"D月任务2"]] }
+        ]
+      }
+    };
+
+    const chartInstances = {};
+    const kpiGrid = document.getElementById("kpiGrid");
+    const dispatchKpiGrid = document.getElementById("dispatchKpiGrid");
+    const reportDateText = document.getElementById("reportDateText");
+    const statsTBody = document.querySelector("#statsTable tbody");
+    const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
+    const tablePrevBtn = document.getElementById("tablePrevBtn");
+    const tableNextBtn = document.getElementById("tableNextBtn");
+    const tableCurrentPage = document.getElementById("tableCurrentPage");
+    const tablePageInfo = document.getElementById("tablePageInfo");
+    const tablePageSize = 6;
+    let currentTableRows = [];
+    let currentTablePage = 1;
+
+    function mountCharts() {
+      const ids = [
+        "hourlyTrendChart",
+        "anomalyChart",
+        "dispatchTrendChart",
+        "stopLineDistributionChart"
+      ];
+      ids.forEach((id) => {
+        chartInstances[id] = echarts.init(document.getElementById(id));
+      });
+      window.addEventListener("resize", () => {
+        Object.values(chartInstances).forEach((chart) => chart.resize());
+      });
+    }
+
+    function formatKpiNumber(v) {
+      if (typeof v === "number" && Number.isFinite(v)) return v.toLocaleString("zh-CN");
+      return v;
+    }
+
+    function renderKpis(items, target) {
+      const noDeltaNames = new Set(["计划产量", "实际产量", "停线时长"]);
+
+      function buildKpiCardHtml(item) {
+        const hasBreakdown = item.lines && item.lines.length;
+        const accent =
+          item.name === "计划产量" ? " kpi-accent-plan" : item.name === "实际产量" ? " kpi-accent-actual" : "";
+        const rowSpanPair =
+          item.name === "计划产量" || item.name === "实际产量" ? " kpi-grid-span-2" : "";
+        const breakdown = hasBreakdown
+          ? `<div class="kpi-breakdown" aria-label="按产品类型分解">${item.lines
+              .map(
+                (l) =>
+                  `<div class="kpi-line"><span class="kpi-line-label">${l.label}</span><span class="kpi-line-val">${formatKpiNumber(l.value)}</span></div>`
+              )
+              .join("")}</div>`
+          : "";
+        const showDelta = item.delta && !noDeltaNames.has(item.name);
+        const deltaHtml = showDelta ? `<div class="kpi-delta">${item.delta}</div>` : "";
+        const cardClass = `kpi-card ${item.cls || ""}${accent}${hasBreakdown ? " has-breakdown" : ""}${rowSpanPair}`.trim();
+        return `
+        <div class="${cardClass}">
+          <div class="kpi-card-head">
+            <div class="kpi-name">${item.name}</div>
+            <div class="kpi-value">${formatKpiNumber(item.value)}<span class="kpi-unit">${item.unit || ""}</span></div>
+          </div>
+          ${breakdown}
+          ${showDelta ? `<div class="kpi-card-foot">${deltaHtml}</div>` : ""}
+        </div>`;
+      }
+
+      const planActual = items.filter((i) => i.name === "计划产量" || i.name === "实际产量");
+      const otherKpis = items.filter((i) => i.name !== "计划产量" && i.name !== "实际产量");
+
+      const sections = [];
+      if (planActual.length) {
+        sections.push(`<div class="kpi-grid-row kpi-grid-row--plan">${planActual.map(buildKpiCardHtml).join("")}</div>`);
+      }
+      if (otherKpis.length) {
+        sections.push(
+          `<div class="kpi-grid-row kpi-grid-row--metrics">${otherKpis.map(buildKpiCardHtml).join("")}</div>`
+        );
+      }
+
+      target.innerHTML = sections.join("");
+    }
+
+    function getStatusClass(status) {
+      if (status === "生效") return "status-effective";
+      if (status === "生产中") return "status-running";
+      return "status-done";
+    }
+
+    function renderTablePage() {
+      const totalPages = Math.max(1, Math.ceil(currentTableRows.length / tablePageSize));
+      currentTablePage = clamp(currentTablePage, 1, totalPages);
+      const start = (currentTablePage - 1) * tablePageSize;
+      const pageRows = currentTableRows.slice(start, start + tablePageSize);
+
+      statsTBody.innerHTML = pageRows.map((row) => {
+        const pace = row.planQty > 0 ? row.actualQty / row.planQty : 1;
+        const risk = row.status === "生产中" && row.planQty > 0 && pace < 0.85;
+        const fpyCell = row.actualQty <= 0 ? "—" : `${row.firstPassRate.toFixed(1)}%`;
+        return `
+        <tr class="${risk ? "row-risk" : ""}">
+          <td>${row.salesOrderNo}</td>
+          <td>${row.productionOrderNo}</td>
+          <td>${row.drawingNo}</td>
+          <td>${row.productCategory}</td>
+          <td><span class="status-tag ${getStatusClass(row.status)}">${row.status}</span></td>
+          <td>${row.planQty}</td>
+          <td>${row.actualQty}</td>
+          <td>${fpyCell}</td>
+          <td>${row.downtimeMinutes}</td>
+        </tr>`;
+      }).join("");
+
+      tableCurrentPage.textContent = String(currentTablePage);
+      tablePageInfo.textContent = `第 ${currentTablePage} / ${totalPages} 页`;
+      tablePrevBtn.disabled = currentTablePage <= 1;
+      tableNextBtn.disabled = currentTablePage >= totalPages;
+    }
+
+    function renderTable(rows) {
+      currentTableRows = rows;
+      currentTablePage = 1;
+      renderTablePage();
+    }
+
+    function renderGantt(data) {
+      const ganttHead = document.getElementById("ganttHead");
+      const ganttBody = document.getElementById("ganttBody");
+      ganttHead.innerHTML = `<div>产线</div>${Array.from({ length: 12 }).map((_, i) => `<div>${i + 1}时</div>`).join("")}`;
+
+      ganttBody.innerHTML = data.map(item => {
+        const cells = Array.from({ length: 12 }).map((_, index) => {
+          const time = index + 1;
+          const segment = item.segments.find(([s, e]) => time >= s && time <= e);
+          if (!segment) return "<div></div>";
+          const isStart = time === segment[0];
+          return `<div>${isStart ? `<div class="bar">${segment[2]}</div>` : ""}</div>`;
+        }).join("");
+        return `<div class="gantt-row"><div class="line-name">${item.line}</div>${cells}</div>`;
+      }).join("");
+    }
+
+    function setChartOptions(data) {
+      chartInstances.hourlyTrendChart.setOption({
+        tooltip: { trigger: "axis" },
+        grid: { left: 40, right: 20, top: 28, bottom: 35 },
+        xAxis: { type: "category", data: data.hourlyX },
+        yAxis: { type: "value", name: "产量(台)" },
+        series: [{
+          name: "实际产出",
+          type: "line",
+          smooth: true,
+          symbolSize: 8,
+          data: data.actualHourly,
+          areaStyle: { opacity: 0.18, color: "rgba(24,178,107,0.35)" },
+          lineStyle: { width: 3, color: "#18b26b" }
+        }]
+      });
+
+      chartInstances.anomalyChart.setOption({
+        tooltip: { trigger: "axis" },
+        grid: { left: 85, right: 20, top: 20, bottom: 28 },
+        xAxis: { type: "value" },
+        yAxis: { type: "category", data: data.anomaly.names },
+        series: [{ type: "bar", data: data.anomaly.values, barWidth: 20, itemStyle: { color: "#4f7fff", borderRadius: [0, 8, 8, 0] } }]
+      });
+
+      chartInstances.dispatchTrendChart.setOption({
+        tooltip: { trigger: "axis" },
+        grid: { left: 45, right: 30, top: 24, bottom: 30 },
+        xAxis: { type: "category", data: data.dispatchTrendX },
+        yAxis: { type: "value", name: "完成率指数" },
+        series: [{
+          type: "line",
+          data: data.dispatchTrendY,
+          smooth: true,
+          symbolSize: 7,
+          lineStyle: { width: 3, color: "#9ab6ff" },
+          areaStyle: { color: "rgba(129,169,255,0.12)" }
+        }]
+      });
+
+      chartInstances.stopLineDistributionChart.setOption({
+        tooltip: { trigger: "item" },
+        legend: { bottom: 0, left: "center" },
+        series: [{
+          type: "pie",
+          radius: ["45%", "70%"],
+          center: ["50%", "46%"],
+          itemStyle: { borderRadius: 6, borderColor: "#fff", borderWidth: 2 },
+          label: { formatter: "{b}\n{d}%" },
+          data: data.stopLineDist
+        }]
+      });
+    }
+
+    function getActiveType() {
+      const active = document.querySelector(".tab-btn.active");
+      return active ? active.dataset.type : "daily";
+    }
+
+    function formatDateInput(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function setDefaultDateRange(type) {
+      const start = new Date();
+      const end = new Date(start);
+      if (type === "weekly") {
+        end.setDate(end.getDate() + 7);
+      } else if (type === "monthly") {
+        end.setMonth(end.getMonth() + 1);
+      }
+      document.getElementById("startDate").value = formatDateInput(start);
+      document.getElementById("endDate").value = formatDateInput(end);
+    }
+
+    function getFilterState() {
+      return {
+        startDate: document.getElementById("startDate").value,
+        endDate: document.getElementById("endDate").value,
+        line: document.getElementById("lineSelect").value,
+        salesOrder: document.getElementById("salesOrderInput").value.trim(),
+        drawingNo: document.getElementById("drawingNoInput").value.trim()
+      };
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function roundNum(value, digits = 0) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return value;
+      return Number(n.toFixed(digits));
+    }
+
+    function parsePercent(value) {
+      if (typeof value === "number") return value;
+      return Number(String(value).replace("%", "")) || 0;
+    }
+
+    function calcDateFactor(type, startDate, endDate) {
+      if (!startDate || !endDate) return 1;
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const ms = end - start;
+      if (!Number.isFinite(ms) || ms < 0) return 1;
+      const days = Math.floor(ms / (24 * 60 * 60 * 1000)) + 1;
+      const baseline = type === "daily" ? 1 : type === "weekly" ? 8 : 31;
+      return clamp(days / baseline, 0.75, 1.35);
+    }
+
+    function scaleArray(arr, factor, min = 0) {
+      return arr.map((v) => Math.max(min, Math.round(v * factor)));
+    }
+
+    function selectLineSlice(data, lineValue) {
+      if (lineValue === "全部") return data;
+      const idx = data.lineNames.indexOf(lineValue);
+      if (idx < 0) return data;
+      const result = JSON.parse(JSON.stringify(data));
+      result.lineNames = [data.lineNames[idx]];
+      result.taskIssue = [data.taskIssue[idx]];
+      result.lineRate = [data.lineRate[idx]];
+      result.table = data.table.filter((row) => row[0] === lineValue);
+      result.gantt = data.gantt.filter((row) => row.line === lineValue);
+      return result;
+    }
+
+    function hashFactor(str) {
+      if (!str) return 1;
+      let hash = 0;
+      for (let i = 0; i < str.length; i += 1) {
+        hash = (hash * 31 + str.charCodeAt(i)) % 997;
+      }
+      return 0.9 + ((hash % 25) / 100);
+    }
+
+    function getSceneTableSeeds(type) {
+      const day = [
+        ["SO-2301", "MO-2301-01", "TH-A31", "SKD自行车", "生效", 220, 0, 97.0, 0, "A线"],
+        ["SO-2301", "MO-2301-02", "TH-A31", "SKD自行车", "生产中", 220, 146, 95.2, 25, "A线"],
+        ["SO-2302", "MO-2302-01", "TH-B12", "SKD电动车", "已完成", 180, 180, 97.8, 10, "B线"],
+        ["SO-2302", "MO-2302-02", "TH-B12", "SKD电动车", "已完成", 180, 176, 96.5, 12, "B线"],
+        ["SO-2399", "MO-2399-01", "TH-H88", "SKD高端车", "生产中", 160, 98, 96.0, 22, "B线"],
+        ["SO-2303", "MO-2303-01", "TH-C77", "CKD自行车", "生产中", 200, 132, 94.1, 36, "C线"],
+        ["SO-2303", "MO-2303-02", "TH-C77", "CKD自行车", "生效", 200, 0, 96.8, 0, "C线"],
+        ["SO-2304", "MO-2304-01", "TH-D05", "CKD电动车", "已完成", 150, 149, 98.2, 8, "A线"],
+        ["SO-2304", "MO-2304-02", "TH-D05", "CKD电动车", "生产中", 150, 95, 93.6, 42, "A线"],
+        ["SO-2398", "MO-2398-01", "TH-J01", "自行车车架", "已完成", 140, 138, 97.5, 11, "C线"],
+        ["SO-2397", "MO-2397-01", "TH-K02", "电动车车架", "生产中", 120, 72, 94.8, 30, "A线"],
+        ["SO-2305", "MO-2305-01", "TH-E28", "SKD自行车", "已完成", 210, 205, 97.4, 14, "B线"],
+        ["SO-2305", "MO-2305-02", "TH-E28", "SKD电动车", "生产中", 210, 120, 92.0, 58, "B线"],
+        ["SO-2306", "MO-2306-01", "TH-F19", "CKD自行车", "生效", 130, 0, 96.5, 0, "C线"],
+        ["SO-2306", "MO-2306-02", "TH-F19", "CKD电动车", "已完成", 130, 128, 98.9, 9, "C线"]
+      ];
+      const week = day.map((r, i) => [
+        r[0],
+        r[1].replace("MO", "WO"),
+        r[2],
+        r[3],
+        i % 4 === 0 ? "生产中" : r[4],
+        r[5] * 4,
+        Math.round(r[6] * 3.7),
+        r[7],
+        r[8] * 2,
+        r[9]
+      ]);
+      const month = day.map((r, i) => [
+        r[0],
+        r[1].replace("MO", "MM"),
+        r[2],
+        r[3],
+        i % 5 === 0 ? "生产中" : "已完成",
+        r[5] * 12,
+        Math.round(r[6] * 11.3),
+        r[7],
+        r[8] * 5,
+        r[9]
+      ]);
+      return (type === "daily" ? day : type === "weekly" ? week : month).map((item) => ({
+        salesOrderNo: item[0],
+        productionOrderNo: item[1],
+        drawingNo: item[2],
+        productCategory: item[3],
+        status: item[4],
+        planQty: item[5],
+        actualQty: item[6],
+        baseFpy: item[7],
+        downtimeMinutes: item[8],
+        line: item[9]
+      }));
+    }
+
+    function buildSceneTable(type, filters, outputFactor, issueFactor) {
+      const textFactor = hashFactor(`${filters.salesOrder}-${filters.drawingNo}`);
+      const mixedOutput = clamp(outputFactor * textFactor, 0.7, 1.45);
+      const mixedIssue = clamp(issueFactor * (1.06 - (textFactor - 1) * 0.7), 0.68, 1.4);
+      return getSceneTableSeeds(type)
+        .map((row) => {
+          const planQty = Math.max(1, Math.round(row.planQty * mixedOutput));
+          const actualQtyRaw = Math.round(row.actualQty * mixedOutput * clamp(0.96 + (mixedOutput - 1) * 0.3, 0.86, 1.12));
+          const actualQty = row.status === "生效" ? 0 : Math.max(0, Math.min(planQty, actualQtyRaw));
+          const downtimeMinutes = row.status === "已完成"
+            ? Math.max(0, Math.round(row.downtimeMinutes * mixedIssue * 0.8))
+            : Math.max(0, Math.round(row.downtimeMinutes * mixedIssue));
+          const firstPassRate = clamp(roundNum(row.baseFpy * clamp(0.92 + (mixedIssue - 1) * 0.25, 0.88, 1.06), 1), 85, 99.9);
+          const { baseFpy, ...rest } = row;
+          return {
+            ...rest,
+            planQty,
+            actualQty,
+            firstPassRate,
+            downtimeMinutes
+          };
+        })
+        .filter((row) => (filters.line === "全部" ? true : row.line === filters.line))
+        .filter((row) => (filters.salesOrder ? row.salesOrderNo.toLowerCase().includes(filters.salesOrder.toLowerCase()) : true))
+        .filter((row) => (filters.drawingNo ? row.drawingNo.toLowerCase().includes(filters.drawingNo.toLowerCase()) : true));
+    }
+
+    function getFilteredData(type, filters) {
+      let data = JSON.parse(JSON.stringify(reportData[type]));
+      data = selectLineSlice(data, filters.line);
+
+      const lineFactorMap = { "全部": 1, "A线": 1.03, "B线": 0.98, "C线": 0.95 };
+      const textFactor = hashFactor(`${filters.salesOrder}${filters.drawingNo}`);
+
+      const outputFactor = clamp(
+        calcDateFactor(type, filters.startDate, filters.endDate) *
+        (lineFactorMap[filters.line] || 1) *
+        textFactor,
+        0.72,
+        1.4
+      );
+      const issueFactor = clamp(2 - outputFactor, 0.7, 1.28);
+      const rateShift = (outputFactor - 1) * 4;
+
+      data.hourlyX = data.hourlyX;
+      data.actualHourly = scaleArray(data.actualHourly, outputFactor * clamp(0.98 + rateShift / 80, 0.9, 1.06));
+      data.anomaly.values = scaleArray(data.anomaly.values, issueFactor);
+      data.taskIssue = scaleArray(data.taskIssue, outputFactor);
+      data.productPlan = scaleArray(data.productPlan, outputFactor);
+      data.productActual = scaleArray(data.productActual, outputFactor * clamp(0.98 + rateShift / 90, 0.9, 1.06));
+      data.dispatchTrendY = data.dispatchTrendY.map((v) => clamp(roundNum(v + rateShift * 2, 0), 20, 99));
+      data.stopLineDist = data.stopLineDist.map((item) => ({
+        ...item,
+        value: Math.max(1, Math.round(item.value * issueFactor))
+      }));
+      data.lineRate = data.lineRate.map((v) => clamp(roundNum(v + rateShift, 1), 80, 99.9));
+      data.productRate = data.productRate.map((v) => clamp(roundNum(v + rateShift * 0.8, 1), 80, 99.9));
+
+      data.table = buildSceneTable(type, filters, outputFactor, issueFactor);
+
+      const actualLineFactor = outputFactor * clamp(0.98 + rateShift / 90, 0.9, 1.06);
+      data.kpi = data.kpi.map((item) => {
+        const next = { ...item };
+        const name = item.name;
+        if (item.lines && item.lines.length) {
+          const lineFactor = name === "实际产量" ? actualLineFactor : outputFactor;
+          next.lines = item.lines.map((l) => ({
+            ...l,
+            value: Math.max(0, Math.round(Number(l.value) * lineFactor))
+          }));
+          next.value = next.lines.reduce((s, l) => s + l.value, 0);
+          return next;
+        }
+        if (item.unit === "%") {
+          next.value = clamp(roundNum(Number(item.value) + rateShift, 1), 60, 99.9);
+          return next;
+        }
+        if (name.includes("停线时长") || name.includes("异常次数") || name.includes("延期")) {
+          next.value = Math.max(0, Math.round(Number(item.value) * issueFactor));
+        } else {
+          next.value = Math.max(0, Math.round(Number(item.value) * outputFactor));
+        }
+        return next;
+      });
+
+      data.dispatchKpi = data.dispatchKpi.map((item) => {
+        const name = item.name;
+        if (name.includes("完成率")) {
+          const base = parsePercent(item.value);
+          return { ...item, value: `${clamp(roundNum(base + rateShift * 0.8, 2), 70, 99.99)}%` };
+        }
+        if (name.includes("延期") || name.includes("生产延期")) {
+          return { ...item, value: String(Math.max(0, Math.round(Number(item.value) * issueFactor))) };
+        }
+        return { ...item, value: String(Math.max(0, Math.round(Number(item.value) * outputFactor))) };
+      });
+
+      return data;
+    }
+
+    function renderReport(type) {
+      const filters = getFilterState();
+      const data = getFilteredData(type, filters);
+      const ganttBlock = document.getElementById("blockDailyGantt");
+      const dispatchBlock = document.getElementById("blockDispatchAchieve");
+      const showDailyGantt = type === "daily";
+      if (ganttBlock) ganttBlock.style.display = showDailyGantt ? "" : "none";
+      if (dispatchBlock) dispatchBlock.style.display = showDailyGantt ? "none" : "";
+
+      reportDateText.textContent = `日期：${filters.startDate} 至 ${filters.endDate} | 每小时更新`;
+      renderKpis(data.kpi, kpiGrid);
+      if (!showDailyGantt) {
+        renderKpis(
+          data.dispatchKpi.map(item => ({ ...item, unit: "", delta: "", cls: "" })),
+          dispatchKpiGrid
+        );
+      }
+      renderTable(data.table);
+      if (showDailyGantt) {
+        renderGantt(data.gantt);
+      }
+      setChartOptions(data);
+      requestAnimationFrame(() => {
+        chartInstances.hourlyTrendChart.resize();
+        chartInstances.anomalyChart.resize();
+        if (!showDailyGantt && chartInstances.dispatchTrendChart) {
+          chartInstances.dispatchTrendChart.resize();
+        }
+      });
+    }
+
+    function bindEvents() {
+      tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          tabButtons.forEach(item => item.classList.remove("active"));
+          btn.classList.add("active");
+          setDefaultDateRange(btn.dataset.type);
+          renderReport(btn.dataset.type);
+        });
+      });
+
+      document.getElementById("searchBtn").addEventListener("click", () => {
+        renderReport(getActiveType());
+      });
+
+      document.getElementById("resetBtn").addEventListener("click", () => {
+        document.getElementById("lineSelect").value = "全部";
+        document.getElementById("salesOrderInput").value = "";
+        document.getElementById("drawingNoInput").value = "";
+        setDefaultDateRange(getActiveType());
+        renderReport(getActiveType());
+      });
+
+      tablePrevBtn.addEventListener("click", () => {
+        currentTablePage -= 1;
+        renderTablePage();
+      });
+
+      tableNextBtn.addEventListener("click", () => {
+        currentTablePage += 1;
+        renderTablePage();
+      });
+
+      document.getElementById("exportBtn").addEventListener("click", () => {
+        const stamp = new Date().toLocaleString();
+        alert("导出成功（示例）\n生成时间：" + stamp);
+      });
+    }
+
+    mountCharts();
+    bindEvents();
+    setDefaultDateRange("daily");
+    renderReport("daily");
+  </script>
+</body>
+</html>

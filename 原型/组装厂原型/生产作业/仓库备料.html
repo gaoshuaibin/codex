@@ -1,0 +1,1333 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>仓库备料</title>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --card-bg: #ffffff;
+      --text: #1f2937;
+      --text-secondary: #6b7280;
+      --border: #e5e7eb;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --radius-lg: 12px;
+      --radius-pill: 999px;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--page-bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .page {
+      flex: 1;
+      width: 100%;
+      max-width: 100%;
+      min-height: 0;
+      margin: 0 auto;
+      padding: clamp(12px, 2vw, 24px);
+      padding-bottom: clamp(16px, 3vw, 40px);
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    .shell {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: clamp(16px, 2.2vw, 24px) clamp(14px, 2vw, 24px) clamp(14px, 2vw, 20px);
+      box-sizing: border-box;
+    }
+
+    .shell-main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .shell-head {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .shell-head-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .shell-head h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .shell-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 10px 12px;
+      width: 100%;
+    }
+
+    .combo-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      flex: 1 1 140px;
+    }
+
+    .combo-field span {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .combo-field input,
+    .combo-field select {
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fafafa;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      min-width: 0;
+    }
+
+    .combo-field input:focus,
+    .combo-field select:focus {
+      border-color: #93c5fd;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .combo-actions {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      flex: 0 0 auto;
+      margin-left: auto;
+    }
+
+    .shell-tools .btn-text {
+      height: 36px;
+      padding: 0 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .shell-tools .btn-text:hover {
+      background: #f9fafb;
+      border-color: #d1d5db;
+    }
+
+    .shell-tools .btn-text.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .shell-tools .btn-text.primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    .stats-row {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(10px, 2vw, 14px);
+      margin-bottom: 22px;
+    }
+
+    @media (max-width: 720px) {
+      .stats-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .stat-card {
+      border-radius: var(--radius-lg);
+      padding: 16px 16px 14px;
+      position: relative;
+      min-height: 0;
+    }
+
+    .stat-card .stat-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    .stat-card .stat-num {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #111827;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+
+    .stat-card.c-orange.js-stat-filter {
+      background: #fff;
+      border: 1px solid #d7d7d7;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+    }
+
+    .stat-card.c-orange.js-stat-filter .stat-title {
+      flex-shrink: 0;
+    }
+
+    .stat-card.c-orange.js-stat-filter .stat-num {
+      margin-bottom: 0;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .stat-card.js-stat-filter {
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.12s;
+    }
+
+    .stat-card.js-stat-filter:hover {
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    .stat-card.js-stat-filter.is-active {
+      background: #dbeafe;
+      border-color: #d7d7d7;
+    }
+
+    .table-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      margin: 0 -4px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table.task-table {
+      width: 100%;
+      min-width: 960px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    table.task-table .col-material {
+      word-break: break-word;
+    }
+
+    table.task-table th,
+    table.task-table td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    table.task-table th {
+      background: #fafafa;
+      font-weight: 600;
+      color: #6b7280;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    table.task-table tbody tr:hover {
+      background: #f9fafb;
+    }
+
+    table.task-table td {
+      color: #374151;
+    }
+
+    .material-cell .name {
+      font-weight: 500;
+      color: #111827;
+    }
+
+    .badge-prio {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-prio.urgent {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .badge-prio.normal {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+
+    .badge-status {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-status.pending {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+
+    .badge-status.delivery {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .badge-status.done {
+      background: #d1fae5;
+      color: #047857;
+    }
+
+    .badge-status.progress {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .progress-cell {
+      font-variant-numeric: tabular-nums;
+      color: #374151;
+    }
+
+    .actions .link-btn {
+      display: inline-block;
+      margin-right: 10px;
+      padding: 0;
+      border: none;
+      background: none;
+      color: var(--primary);
+      font-weight: 500;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .actions .link-btn:hover:not(:disabled) {
+      text-decoration: underline;
+      color: var(--primary-hover);
+    }
+
+    .actions .link-btn:disabled {
+      color: #c4c9d4;
+      cursor: not-allowed;
+      text-decoration: none;
+    }
+
+    .actions a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      margin-right: 12px;
+    }
+
+    .actions a:hover {
+      text-decoration: underline;
+      color: var(--primary-hover);
+    }
+
+    .pagination-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-top: 16px;
+      margin-top: 4px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .pagination-bar-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .page-size-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .page-size-control select {
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    #totalCountLabel {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pagination button {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .pagination button:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .pagination button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .pagination button.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .empty-row td {
+      text-align: center;
+      color: #9ca3af;
+      padding: 32px !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="shell">
+      <header class="shell-head">
+        <div class="shell-head-title-row">
+          <h1>仓库备料任务</h1>
+        </div>
+        <div class="shell-tools" role="search" aria-label="组合筛选">
+          <label class="combo-field">
+            <span>生产订单号</span>
+            <input type="search" id="filterProdOrder" placeholder="MO…" autocomplete="off" />
+          </label>
+          <label class="combo-field">
+            <span>图号</span>
+            <input type="search" id="filterDrawingNo" placeholder="TH-…" autocomplete="off" />
+          </label>
+          <label class="combo-field">
+            <span>产线</span>
+            <select id="filterProdLine" title="产线">
+              <option value="">全部</option>
+            </select>
+          </label>
+          <label class="combo-field">
+            <span>优先级</span>
+            <select id="filterPrio" title="优先级">
+              <option value="">全部</option>
+              <option value="紧急">紧急</option>
+              <option value="一般">一般</option>
+            </select>
+          </label>
+          <label class="combo-field">
+            <span>备料状态</span>
+            <select id="filterPrepStatus" title="备料状态">
+              <option value="">全部</option>
+              <option value="待备料">待备料</option>
+              <option value="部分备料">部分备料</option>
+              <option value="备料完成">备料完成</option>
+              <option value="配送中">配送中</option>
+              <option value="配送完成">配送完成</option>
+            </select>
+          </label>
+          <label class="combo-field">
+            <span>生产状态</span>
+            <select id="filterProdStatus" title="生产状态">
+              <option value="">全部</option>
+              <option value="生效">生效</option>
+              <option value="生产中">生产中</option>
+              <option value="已完成">已完成</option>
+            </select>
+          </label>
+          <div class="combo-actions">
+            <button type="button" class="btn-text primary" id="btnFilter" title="按条件组合筛选">筛选</button>
+            <button type="button" class="btn-text" id="btnResetSearch" title="清空条件并显示全部">重置</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="stats-row" aria-label="统计概览">
+        <div
+          class="stat-card c-orange js-stat-filter"
+          data-filter="unfinished"
+          tabindex="0"
+          role="button"
+          aria-pressed="false"
+          title="点击筛选未完成备料订单"
+        >
+          <span class="stat-title">未完成订单</span>
+          <span class="stat-num" id="statUnfinished">0</span>
+        </div>
+        <div
+          class="stat-card c-orange js-stat-filter"
+          data-filter="currentPrep"
+          tabindex="0"
+          role="button"
+          aria-pressed="false"
+          title="点击筛选计划开始时间为今天的订单"
+        >
+          <span class="stat-title">今日订单</span>
+          <span class="stat-num" id="statCurrentPrep">0</span>
+        </div>
+        <div
+          class="stat-card c-orange js-stat-filter"
+          data-filter="futurePrep"
+          tabindex="0"
+          role="button"
+          aria-pressed="false"
+          title="点击筛选计划开始时间晚于今天的订单"
+        >
+          <span class="stat-title">计划订单</span>
+          <span class="stat-num" id="statFuturePrep">0</span>
+        </div>
+      </section>
+
+      <div class="shell-main">
+        <div class="table-wrap">
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th>销售订单号</th>
+                <th>生产订单号</th>
+                <th>图号</th>
+                <th class="col-material">产品名称</th>
+                <th>数量</th>
+                <th style="min-width:110px">计划开始时间</th>
+                <th>优先级</th>
+                <th>备料状态</th>
+                <th>进度</th>
+                <th style="min-width:100px">产线</th>
+                <th style="min-width:88px">生产状态</th>
+                <th style="min-width:140px">叫料时间</th>
+                <th style="min-width:160px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="taskBody"></tbody>
+          </table>
+        </div>
+
+        <footer class="pagination-bar">
+          <div class="pagination-bar-meta">
+            <span id="totalCountLabel">共 0 条数据</span>
+            <span class="page-size-control">
+              <span>每页展示</span>
+              <select id="pageSizeSelect" title="每页条数" aria-label="每页展示条数">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+              <span>条</span>
+            </span>
+            <span id="pageInfo">显示 0–0 条</span>
+          </div>
+          <div class="pagination" id="pagination"></div>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var STORAGE_KEY = "warehouse_prep_orders_v4";
+      var PRODUCTION_TASK_SNAPSHOT_KEY = "production_tasks_snapshot_v1";
+      var PROD_LINE_FALLBACK = "普车组装1线";
+      var prodSnapshotCache = null;
+
+      function pad2(n) {
+        return String(n).padStart(2, "0");
+      }
+
+      function localDateStr(d) {
+        return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+      }
+
+      function localTodayStr() {
+        return localDateStr(new Date());
+      }
+
+      function dateOffsetDaysStr(delta) {
+        var d = new Date();
+        d.setDate(d.getDate() + delta);
+        return localDateStr(d);
+      }
+
+      function loadProdSnapshot() {
+        if (prodSnapshotCache) return prodSnapshotCache;
+        try {
+          var raw = localStorage.getItem(PRODUCTION_TASK_SNAPSHOT_KEY);
+          if (!raw) {
+            prodSnapshotCache = { line: PROD_LINE_FALLBACK, byWo: {}, byMo: {} };
+            return prodSnapshotCache;
+          }
+          var data = JSON.parse(raw);
+          var line = data.line || PROD_LINE_FALLBACK;
+          var byWo = {};
+          var byMo = {};
+          (data.tasks || []).forEach(function (t) {
+            if (t.warehouseOrderId) byWo[t.warehouseOrderId] = t.status;
+            if (t.productionOrderNo) byMo[t.productionOrderNo] = t.status;
+          });
+          prodSnapshotCache = { line: line, byWo: byWo, byMo: byMo };
+          return prodSnapshotCache;
+        } catch (e) {
+          prodSnapshotCache = { line: PROD_LINE_FALLBACK, byWo: {}, byMo: {} };
+          return prodSnapshotCache;
+        }
+      }
+
+      function invalidateProdSnapshot() {
+        prodSnapshotCache = null;
+      }
+
+      function prodLineForOrder(o) {
+        var s = loadProdSnapshot();
+        return s.line || PROD_LINE_FALLBACK;
+      }
+
+      function fallbackProdTaskStatus(o) {
+        var m = /^wo-(\d+)$/.exec(String(o.id || ""));
+        if (!m) return "—";
+        var idx = parseInt(m[1], 10) - 1;
+        if (idx < 0 || idx >= 36) return "—";
+        var pool = ["生效", "生产中", "已完成", "生效", "生产中"];
+        return pool[idx % pool.length];
+      }
+
+      function prodTaskStatusForOrder(o) {
+        var s = loadProdSnapshot();
+        var st = s.byWo[o.id];
+        if (st) return st;
+        st = s.byMo[o.prodOrderNo];
+        if (st) return st;
+        return fallbackProdTaskStatus(o);
+      }
+
+      function fillProdLineSelect() {
+        var sel = document.getElementById("filterProdLine");
+        if (!sel) return;
+        var line = loadProdSnapshot().line || PROD_LINE_FALLBACK;
+        var opts = sel.querySelectorAll("option:not([value=''])");
+        for (var i = 0; i < opts.length; i++) {
+          opts[i].remove();
+        }
+        var o = document.createElement("option");
+        o.value = line;
+        o.textContent = line;
+        sel.appendChild(o);
+      }
+
+      function loadStore() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function saveStore(data) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+
+      function matProgress(o) {
+        var mats = o.materials || [];
+        var n = mats.length;
+        if (!n) return { text: "0/0", done: 0, total: 0 };
+        var done = mats.filter(function (m) {
+          return m.pickStatus === "领料完成" || m.pickStatus === "备料完成";
+        }).length;
+        return { text: done + "/" + n, done: done, total: n };
+      }
+
+      function parseNumLike(v) {
+        if (v === "" || v === null || v === undefined) return NaN;
+        var n = Number(v);
+        return isFinite(n) ? n : NaN;
+      }
+
+      function materialPrepStatusFromMaterials(o) {
+        var mats = o.materials || [];
+        if (!mats.length) return "待备料";
+        var allDone = mats.every(function (m) {
+          return m.pickStatus === "领料完成" || m.pickStatus === "备料完成";
+        });
+        if (allDone) return "备料完成";
+        var anyProgress = mats.some(function (m) {
+          if (m.pickStatus === "部分领料" || m.pickStatus === "部分备料") return true;
+          var cur = m.currentPickQty != null ? parseNumLike(m.currentPickQty) : parseNumLike(m.currentPickInput);
+          return isFinite(cur) && cur > 0;
+        });
+        return anyProgress ? "部分备料" : "待备料";
+      }
+
+      function deliveryStatusFromCallRecords(o) {
+        var list = Array.isArray(o.callRecords) ? o.callRecords : [];
+        if (!list.length) return "";
+        var allDone = list.every(function (r) {
+          return String(r.status || "") === "备料完成";
+        });
+        return allDone ? "配送完成" : "配送中";
+      }
+
+      function refreshPrepStatusFromMaterials(o) {
+        var deliveryStatus = deliveryStatusFromCallRecords(o);
+        if (deliveryStatus) {
+          o.prepStatus = deliveryStatus;
+          return;
+        }
+        o.prepStatus = materialPrepStatusFromMaterials(o);
+      }
+
+      function isPrepFinishedStatus(s) {
+        return s === "备料完成" || s === "配送完成";
+      }
+
+      function padWhId(n) {
+        var s = String(n);
+        while (s.length < 3) s = "0" + s;
+        return s;
+      }
+
+      function buildMockCallRecords(idx) {
+        if (idx % 4 !== 0) return [];
+        var baseDate = dateOffsetDaysStr(-((idx % 3) + 1));
+        var records = [
+          {
+            time: baseDate + " 08:3" + (idx % 6),
+            line: PROD_LINE_FALLBACK,
+            materialName: "补料-轴承组件",
+            callQty: 2 + (idx % 4),
+            reason: "生产缺料",
+            caller: "张工",
+            status: "待备料",
+            currentPrepQty: 0,
+            currentPrepInput: "",
+          }
+        ];
+        if (idx % 8 === 0) {
+          records.push({
+            time: baseDate + " 14:1" + (idx % 5),
+            line: PROD_LINE_FALLBACK,
+            materialName: "补料-紧固件包",
+            callQty: 1 + (idx % 3),
+            reason: "其他原因",
+            caller: "李工",
+            status: "部分备料",
+            currentPrepQty: 1,
+            currentPrepInput: "1",
+          });
+        }
+        return records;
+      }
+
+      function latestCallTime(order) {
+        var list = Array.isArray(order.callRecords) ? order.callRecords : [];
+        if (!list.length) return "—";
+        var latest = "";
+        var latestTs = -Infinity;
+        list.forEach(function (r) {
+          var text = String(r.time || "").trim();
+          if (!text) return;
+          var ts = Date.parse(text.replace(/-/g, "/"));
+          if (!isNaN(ts)) {
+            if (ts > latestTs) {
+              latestTs = ts;
+              latest = text;
+            }
+            return;
+          }
+          if (!latest || text > latest) latest = text;
+        });
+        return latest || "—";
+      }
+
+      /** 与「生产作业」36 条任务一致：销售/生产订单号、图号、零件名、计划数量 */
+      function buildAlignedWarehouseOrders36() {
+        var out = [];
+        var pickRot = ["待领料", "部分领料", "领料完成"];
+        var i;
+        for (i = 0; i < 36; i++) {
+          var num = i + 1;
+          var wid = "wo-" + padWhId(num);
+          var planQty = 30 + (i % 6) * 10;
+          var planPrepTime = dateOffsetDaysStr((i % 9) - 4);
+          var mats = [];
+          var j;
+          for (j = 0; j < 3; j++) {
+            var ps = pickRot[(i + j) % 3];
+            var req = 5 + j * 4 + (i % 8);
+            var cq = null;
+            var ci = "";
+            if (ps === "领料完成") {
+              cq = req;
+            } else if (ps === "部分领料") {
+              cq = Math.max(1, Math.floor(req / 2));
+              ci = String(cq);
+            }
+            mats.push({
+              code: "M-" + padWhId(num) + "-" + (j + 1),
+              name: "物料-" + (j + 1),
+              spec: "SPEC-" + num + "-" + (j + 1),
+              unit: ["PCS", "SET", "M"][j % 3],
+              pickStatus: ps,
+              stockQty: 100 + ((i * 17 + j * 11) % 500),
+              reqQty: req,
+              currentPickQty: cq,
+              currentPickInput: ci,
+            });
+          }
+          out.push({
+            id: wid,
+            salesOrderNo: "SO202604" + padWhId(100 + i),
+            prodOrderNo: "MO202604" + padWhId(200 + i),
+            drawingNo: "TH-" + (3100 + (i % 14)),
+            productName: "零件-" + ((i % 9) + 1),
+            qty: planQty,
+            prio: i % 7 === 0 ? "紧急" : "一般",
+            prepStatus: ["待备料", "部分备料", "备料完成"][i % 3],
+            planPrepTime: planPrepTime,
+            planStart: planPrepTime,
+            materials: mats,
+            callRecords: buildMockCallRecords(i),
+          });
+        }
+        return out;
+      }
+
+      var DEFAULT_ORDERS = buildAlignedWarehouseOrders36();
+
+      function planStartCalendarDay(v) {
+        var s = String(v == null ? "" : v).trim();
+        var m = /^(\d{4}-\d{2}-\d{2})/.exec(s.replace(/\//g, "-"));
+        return m ? m[1] : "";
+      }
+
+      function planStartByProdOrderFromSnapshot() {
+        try {
+          var raw = localStorage.getItem(PRODUCTION_TASK_SNAPSHOT_KEY);
+          if (!raw) return {};
+          var data = JSON.parse(raw);
+          var map = {};
+          (data.tasks || []).forEach(function (t) {
+            if (t.productionOrderNo) map[String(t.productionOrderNo)] = t.planStart;
+          });
+          return map;
+        } catch (e) {
+          return {};
+        }
+      }
+
+      function ensureOrders() {
+        var st = loadStore();
+        if (st && st.orders && st.orders.length) {
+          var byMo = planStartByProdOrderFromSnapshot();
+          st.orders.forEach(function (o, idx) {
+            if (!o.planPrepTime || !/^\d{4}-\d{2}-\d{2}$/.test(String(o.planPrepTime))) {
+              o.planPrepTime = dateOffsetDaysStr((idx % 9) - 4);
+            }
+            var mo = String(o.prodOrderNo || "");
+            if (byMo[mo] != null && byMo[mo] !== "") o.planStart = byMo[mo];
+            else if (!o.planStart || !/^\d{4}-\d{2}-\d{2}/.test(String(o.planStart || ""))) {
+              o.planStart = o.planPrepTime || dateOffsetDaysStr((idx % 9) - 4);
+            }
+            if (!Array.isArray(o.callRecords)) {
+              o.callRecords = buildMockCallRecords(idx);
+            }
+            refreshPrepStatusFromMaterials(o);
+          });
+          saveStore(st);
+          return st.orders;
+        }
+        var fresh = JSON.parse(JSON.stringify(DEFAULT_ORDERS));
+        fresh.forEach(function (o) {
+          refreshPrepStatusFromMaterials(o);
+        });
+        saveStore({ orders: fresh });
+        return fresh;
+      }
+
+      var allOrders = ensureOrders();
+
+      function countUnfinishedPrep() {
+        return allOrders.filter(function (o) {
+          return !isPrepFinishedStatus(String(o.prepStatus || ""));
+        }).length;
+      }
+
+      function countPlanPrepToday() {
+        var today = localTodayStr();
+        return allOrders.filter(function (o) {
+          return planStartCalendarDay(o.planStart) === today;
+        }).length;
+      }
+
+      function countPlanPrepFuture() {
+        var today = localTodayStr();
+        return allOrders.filter(function (o) {
+          var d = planStartCalendarDay(o.planStart);
+          return d && d > today;
+        }).length;
+      }
+
+      function refreshStatCards() {
+        var unf = countUnfinishedPrep();
+        var cur = countPlanPrepToday();
+        var fut = countPlanPrepFuture();
+
+        var sf = document.getElementById("statUnfinished");
+        var sc = document.getElementById("statCurrentPrep");
+        var sfp = document.getElementById("statFuturePrep");
+        if (sf) sf.textContent = String(unf);
+        if (sc) sc.textContent = String(cur);
+        if (sfp) sfp.textContent = String(fut);
+      }
+
+      function prioClass(p) {
+        return p === "紧急" ? "urgent" : "normal";
+      }
+
+      function prepStatusClass(s) {
+        if (s === "待备料") return "pending";
+        if (s === "部分备料") return "progress";
+        if (s === "配送中") return "delivery";
+        if (s === "备料完成" || s === "配送完成") return "done";
+        return "pending";
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function pickUrl(id, mode) {
+        return "订单备料.html?id=" + encodeURIComponent(id) + "&mode=" + encodeURIComponent(mode);
+      }
+
+      var state = {
+        filtered: allOrders.slice(),
+        page: 1,
+        statFilter: null,
+        combo: {
+          prodOrderNo: "",
+          drawingNo: "",
+          prodLine: "",
+          prio: "",
+          prepStatus: "",
+          prodStatus: "",
+        },
+        pageSize: 20,
+      };
+
+      function readComboFromDom() {
+        state.combo.prodOrderNo = String(document.getElementById("filterProdOrder").value || "").trim();
+        state.combo.drawingNo = String(document.getElementById("filterDrawingNo").value || "").trim();
+        state.combo.prodLine = String(document.getElementById("filterProdLine").value || "").trim();
+        state.combo.prio = String(document.getElementById("filterPrio").value || "").trim();
+        state.combo.prepStatus = String(document.getElementById("filterPrepStatus").value || "").trim();
+        state.combo.prodStatus = String(document.getElementById("filterProdStatus").value || "").trim();
+      }
+
+      function applyComboFilter(list) {
+        var c = state.combo;
+        var po = c.prodOrderNo.toLowerCase();
+        var dr = c.drawingNo.toLowerCase();
+        return list.filter(function (t) {
+          if (po && String(t.prodOrderNo || "").toLowerCase().indexOf(po) === -1) return false;
+          if (dr && String(t.drawingNo || "").toLowerCase().indexOf(dr) === -1) return false;
+          if (c.prodLine && prodLineForOrder(t) !== c.prodLine) return false;
+          if (c.prio && String(t.prio || "") !== c.prio) return false;
+          if (c.prepStatus && String(t.prepStatus || "") !== c.prepStatus) return false;
+          if (c.prodStatus) {
+            var pst = prodTaskStatusForOrder(t);
+            if (pst !== c.prodStatus) return false;
+          }
+          return true;
+        });
+      }
+
+      function applyStatAndSearch(resetPage) {
+        var base = allOrders.slice();
+        var today = localTodayStr();
+
+        if (state.statFilter === "unfinished") {
+          base = base.filter(function (o) {
+            return !isPrepFinishedStatus(String(o.prepStatus || ""));
+          });
+        } else if (state.statFilter === "currentPrep") {
+          base = base.filter(function (o) {
+            return planStartCalendarDay(o.planStart) === today;
+          });
+        } else if (state.statFilter === "futurePrep") {
+          base = base.filter(function (o) {
+            var d = planStartCalendarDay(o.planStart);
+            return d && d > today;
+          });
+        }
+
+        base = applyComboFilter(base);
+        state.filtered = base;
+        if (resetPage !== false) state.page = 1;
+        renderInner();
+      }
+
+      function applySearchFilterClick() {
+        readComboFromDom();
+        applyStatAndSearch(true);
+      }
+
+      function resetSearchAndTable() {
+        document.getElementById("filterProdOrder").value = "";
+        document.getElementById("filterDrawingNo").value = "";
+        document.getElementById("filterProdLine").value = "";
+        document.getElementById("filterPrio").value = "";
+        document.getElementById("filterPrepStatus").value = "";
+        document.getElementById("filterProdStatus").value = "";
+        readComboFromDom();
+        state.statFilter = null;
+        state.page = 1;
+        document.querySelectorAll(".js-stat-filter").forEach(function (el) {
+          el.classList.remove("is-active");
+          el.setAttribute("aria-pressed", "false");
+        });
+        applyStatAndSearch(true);
+      }
+
+      function setStatFilter(filterId) {
+        if (state.statFilter === filterId) {
+          state.statFilter = null;
+        } else {
+          state.statFilter = filterId;
+        }
+        document.querySelectorAll(".js-stat-filter").forEach(function (el) {
+          var id = el.getAttribute("data-filter");
+          var on = state.statFilter && id === state.statFilter;
+          el.classList.toggle("is-active", !!on);
+          el.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        readComboFromDom();
+        applyStatAndSearch();
+      }
+
+      function initStatCardFilters() {
+        document.querySelectorAll(".js-stat-filter").forEach(function (card) {
+          card.addEventListener("click", function () {
+            setStatFilter(card.getAttribute("data-filter"));
+          });
+          card.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setStatFilter(card.getAttribute("data-filter"));
+            }
+          });
+        });
+      }
+
+      function pageSizeNow() {
+        var n = Number(state.pageSize);
+        if (!n || n < 1) return 20;
+        return n;
+      }
+
+      function slicePage() {
+        var ps = pageSizeNow();
+        var start = (state.page - 1) * ps;
+        return state.filtered.slice(start, start + ps);
+      }
+
+      function renderTable() {
+        var tbody = document.getElementById("taskBody");
+        var rows = slicePage();
+        tbody.innerHTML = "";
+
+        if (!rows.length) {
+          var tr = document.createElement("tr");
+          tr.className = "empty-row";
+          tr.innerHTML = '<td colspan="13">未找到匹配的订单</td>';
+          tbody.appendChild(tr);
+          return;
+        }
+
+        rows.forEach(function (t) {
+          refreshPrepStatusFromMaterials(t);
+          var prog = matProgress(t);
+          var actionsHtml = "";
+
+          if (t.prepStatus === "待备料") {
+            actionsHtml +=
+              '<button type="button" class="link-btn js-start" data-id="' +
+              escapeHtml(t.id) +
+              '">开始</button>';
+          } else {
+            actionsHtml +=
+              '<button type="button" class="link-btn js-edit" data-id="' +
+              escapeHtml(t.id) +
+              '">编辑</button>';
+          }
+
+          actionsHtml +=
+            '<button type="button" class="link-btn js-detail" data-id="' +
+            escapeHtml(t.id) +
+            '">详情</button>';
+
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" +
+            escapeHtml(t.salesOrderNo || "") +
+            "</td>" +
+            "<td>" +
+            escapeHtml(t.prodOrderNo || "") +
+            "</td>" +
+            "<td>" +
+            escapeHtml(t.drawingNo || "") +
+            "</td>" +
+            '<td class="material-cell col-material"><span class="name">' +
+            escapeHtml(t.productName || "") +
+            "</span></td>" +
+            "<td>" +
+            escapeHtml(String(t.qty !== undefined && t.qty !== null ? t.qty : "")) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(String(t.planStart || t.planPrepTime || "")) +
+            "</td>" +
+            '<td><span class="badge-prio ' +
+            prioClass(t.prio) +
+            '">' +
+            escapeHtml(t.prio || "") +
+            "</span></td>" +
+            '<td><span class="badge-status ' +
+            prepStatusClass(t.prepStatus) +
+            '">' +
+            escapeHtml(t.prepStatus || "") +
+            "</span></td>" +
+            '<td class="progress-cell">' +
+            escapeHtml(prog.text) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(prodLineForOrder(t)) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(prodTaskStatusForOrder(t)) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(latestCallTime(t)) +
+            "</td>" +
+            '<td class="actions">' +
+            actionsHtml +
+            "</td>";
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll(".js-start").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var id = btn.getAttribute("data-id");
+            var o = allOrders.filter(function (x) {
+              return x.id === id;
+            })[0];
+            if (!o) return;
+            location.href = pickUrl(id, "edit");
+          });
+        });
+
+        tbody.querySelectorAll(".js-edit").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var id = btn.getAttribute("data-id");
+            location.href = pickUrl(id, "edit");
+          });
+        });
+
+        tbody.querySelectorAll(".js-detail").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var id = btn.getAttribute("data-id");
+            location.href = pickUrl(id, "detail");
+          });
+        });
+      }
+
+      function renderPagination() {
+        var total = state.filtered.length;
+        var ps = pageSizeNow();
+        var pages = Math.max(1, Math.ceil(total / ps));
+        if (state.page > pages) state.page = pages;
+        if (state.page < 1) state.page = 1;
+
+        var start = total === 0 ? 0 : (state.page - 1) * ps + 1;
+        var end = Math.min(state.page * ps, total);
+
+        var tc = document.getElementById("totalCountLabel");
+        if (tc) tc.textContent = "共 " + total + " 条数据";
+
+        var pi = document.getElementById("pageInfo");
+        if (pi) {
+          pi.textContent =
+            total === 0 ? "显示 0–0 条" : "显示 " + start + "–" + end + " 条";
+        }
+
+        var sel = document.getElementById("pageSizeSelect");
+        if (sel && String(sel.value) !== String(state.pageSize)) {
+          sel.value = String(state.pageSize);
+        }
+
+        var pag = document.getElementById("pagination");
+        pag.innerHTML = "";
+
+        var prev = document.createElement("button");
+        prev.type = "button";
+        prev.textContent = "‹";
+        prev.disabled = pages <= 1 || state.page <= 1;
+        prev.addEventListener("click", function () {
+          if (state.page > 1) {
+            state.page--;
+            renderInner();
+          }
+        });
+        pag.appendChild(prev);
+
+        for (var i = 1; i <= pages; i++) {
+          (function (p) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.textContent = String(p);
+            if (p === state.page) b.classList.add("active");
+            b.addEventListener("click", function () {
+              state.page = p;
+              renderInner();
+            });
+            pag.appendChild(b);
+          })(i);
+        }
+
+        var next = document.createElement("button");
+        next.type = "button";
+        next.textContent = "›";
+        next.disabled = state.page >= pages;
+        next.addEventListener("click", function () {
+          if (state.page < pages) {
+            state.page++;
+            renderInner();
+          }
+        });
+        pag.appendChild(next);
+      }
+
+      function renderInner() {
+        invalidateProdSnapshot();
+        refreshStatCards();
+        renderTable();
+        renderPagination();
+      }
+
+      function comboEnterFilter(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          applySearchFilterClick();
+        }
+      }
+
+      document.getElementById("filterProdOrder").addEventListener("keydown", comboEnterFilter);
+      document.getElementById("filterDrawingNo").addEventListener("keydown", comboEnterFilter);
+
+      document.getElementById("btnFilter").addEventListener("click", applySearchFilterClick);
+
+      document.getElementById("btnResetSearch").addEventListener("click", resetSearchAndTable);
+
+      document.getElementById("pageSizeSelect").addEventListener("change", function () {
+        state.pageSize = parseInt(this.value, 10) || 20;
+        state.page = 1;
+        renderInner();
+      });
+
+      fillProdLineSelect();
+      readComboFromDom();
+      initStatCardFilters();
+      applyStatAndSearch(false);
+    })();
+  </script>
+</body>
+</html>

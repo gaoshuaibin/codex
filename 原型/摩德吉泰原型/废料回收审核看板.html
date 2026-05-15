@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>废料回收单据系统 | 预设实际重量 · 简化审核</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #f0f4fa;
+            font-family: 'Segoe UI', 'Roboto', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            padding: 1.5rem;
+            color: #0f172a;
+        }
+        .dashboard {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            border-radius: 28px;
+            padding: 0.8rem 2rem;
+            margin-bottom: 1.8rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        .title h1 { font-size: 1.7rem; font-weight: 700; color: #1e3a5f; }
+        .title p { color: #4b6b8f; font-size: 0.8rem; }
+        .filter-area {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: #f8fafd;
+            padding: 0.4rem 1rem;
+            border-radius: 60px;
+            flex-wrap: wrap;
+        }
+        .filter-date {
+            border: 1px solid #cbd5e1;
+            border-radius: 40px;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.75rem;
+            background: white;
+        }
+        .btn-filter {
+            background: #2c6e9e;
+            border: none;
+            padding: 0.3rem 1rem;
+            border-radius: 60px;
+            color: white;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .btn-filter.reset { background: #6c757d; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 24px;
+            padding: 0.9rem 1.2rem;
+            border: 1px solid #eef2f8;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+        .stat-title { font-size: 0.7rem; font-weight: 600; color: #5b7a9a; letter-spacing: 0.5px; }
+        .stat-value { font-size: 1.6rem; font-weight: 800; color: #0f2b3d; margin-top: 4px; }
+        .stat-sub { font-size: 0.7rem; color: #7e95b0; }
+        .table-container {
+            background: white;
+            border-radius: 28px;
+            overflow-x: auto;
+            border: 1px solid #eef2f6;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            min-width: 1400px;
+        }
+        .data-table th {
+            background: #f8fafd;
+            padding: 0.9rem 0.5rem;
+            font-weight: 600;
+            color: #1e3a5f;
+            border-bottom: 1.5px solid #e2e8f0;
+            text-align: center;
+        }
+        .data-table td {
+            padding: 0.8rem 0.4rem;
+            border-bottom: 1px solid #eff3f8;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .waste-type-badge {
+            font-weight: 700;
+            background: #fef3e8;
+            display: inline-block;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+        }
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.25rem 0.9rem;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.7rem;
+        }
+        .status-pending { background: #ffedd5; color: #b45309; }
+        .status-approved { background: #dff9e6; color: #2b6e3c; }
+        .status-rejected { background: #ffe6e5; color: #b91c1c; }
+        .audit-btn {
+            background: #2c6e9e;
+            border: none;
+            padding: 0.3rem 0.9rem;
+            border-radius: 30px;
+            color: white;
+            font-weight: 500;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .audit-btn:disabled { background: #b9c7d4; cursor: not-allowed; }
+        .amount-number { font-family: monospace; font-weight: 600; }
+        .diff-positive { color: #2b6e3c; font-weight: 700; }
+        .diff-negative { color: #b91c1c; font-weight: 700; }
+        .diff-zero { color: #5e6f8d; }
+        /* 简化审核模态框 */
+        .modal-mask {
+            position: fixed;
+            top:0;left:0;width:100%;height:100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .modal-mask.active { visibility: visible; opacity: 1; }
+        .modal-container {
+            background: white;
+            width: 400px;
+            max-width: 90%;
+            border-radius: 32px;
+            overflow: hidden;
+        }
+        .modal-header {
+            padding: 1rem 1.5rem;
+            background: #fefaf5;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #f0e4d0;
+        }
+        .modal-body { padding: 1.5rem; text-align: center; }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 1.8rem;
+        }
+        .btn-confirm { background: #2b6e3c; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 40px; cursor: pointer; }
+        .btn-reject { background: #b91c1c; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 40px; cursor: pointer; }
+        .btn-cancel { background: #e2e8f0; border: none; padding: 0.5rem 1.2rem; border-radius: 40px; cursor: pointer; }
+        .toast {
+            position: fixed; bottom: 20px; right: 20px;
+            background: #1f2a3e; color: white;
+            padding: 12px 20px; border-radius: 40px;
+            z-index: 1100; font-size: 0.8rem;
+        }
+        footer { margin-top: 1.5rem; text-align: center; font-size: 0.7rem; color: #6b85a2; }
+        i { margin-right: 4px; }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <div class="header">
+        <div class="title">
+            <h1><i class="fas fa-receipt"></i> 废料回收单据 · 差额核算工作台</h1>
+            <p>实际重量预设数据 | 差额自动正负标识 | 审核弹窗仅确认/驳回</p>
+        </div>
+        <div class="filter-area">
+            <i class="fas fa-calendar-alt"></i>
+            <label>提交时间筛选：</label>
+            <input type="date" id="startDate" class="filter-date">
+            <span>—</span>
+            <input type="date" id="endDate" class="filter-date">
+            <button class="btn-filter" id="applyFilterBtn"><i class="fas fa-search"></i> 筛选</button>
+            <button class="btn-filter reset" id="resetFilterBtn"><i class="fas fa-undo-alt"></i> 重置</button>
+        </div>
+    </div>
+
+    <!-- 卡片汇总：仅实际重量/实际金额 -->
+    <div class="stats-grid" id="statsCards"></div>
+
+    <!-- 单据列表：完整列序 + 差额列 -->
+    <div class="table-container">
+        <table class="data-table" id="dataTable">
+            <thead>
+                <tr>
+                    <th>单据编号</th><th>提交时间</th><th>提交人</th><th>回收商</th>
+                    <th>废料类型</th><th>单价(元/吨)</th><th>理论重量(t)</th><th>理论金额(元)</th>
+                    <th>实际重量(t)</th><th>实际金额(元)</th>
+                    <th>理论总金额(元)</th><th>实际总金额(元)</th><th>差值(元)</th>
+                    <th>审核状态</th><th>审核时间</th><th>审核人</th><th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+    <footer><i class="fas fa-calculator"></i> 差值为实际总金额 - 理论总金额，正值显示“+¥”，负值显示“-¥”。审核仅更改状态，不修改重量金额。</footer>
+</div>
+
+<!-- 简化审核模态框（无数量输入） -->
+<div id="auditModal" class="modal-mask">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3><i class="fas fa-gavel"></i> 单据审核</h3>
+            <button class="closeModalBtn" style="background:none; border:none; font-size:1.8rem; cursor:pointer;">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom:8px;"><strong>单据编号：</strong><span id="modalBillNo"></span></div>
+            <div><span id="modalSubmitter"></span></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancelAuditBtn">取消</button>
+                <button class="btn-reject" id="rejectAuditBtn"><i class="fas fa-times"></i> 驳回</button>
+                <button class="btn-confirm" id="confirmAuditBtn"><i class="fas fa-check"></i> 确认审核</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ----------------------------- 常量 & 预设数据 -----------------------------
+    // 单价常量
+    const PRICES = { block: 18200, wire: 16800, scrap: 13500 };
+    
+    // 生成随机实际重量(保留两位小数，范围在一定合理区间内，避免全为0)
+    const getRandomActual = (theoWeight) => {
+        // 实际重量可能是理论重量的 0.5 ~ 1.2 倍左右，但不会偏离太远且非负
+        let factor = 0.7 + Math.random() * 0.8; // 0.7~1.5
+        let weight = theoWeight * factor;
+        // 确保不超过理论2倍且不小于0
+        weight = Math.min(theoWeight * 1.8, weight);
+        weight = Math.max(0.1, weight); // 至少有一点重量
+        return Math.round(weight * 100) / 100;
+    };
+
+    // 废料模板（固定理论重量）
+    const getWasteItems = (typeSuffix) => {
+        const baseItems = [
+            { type: "铝块", key: "block", theoWeight: 1.6, price: PRICES.block, actualWeight: 0, actualAmount: 0 },
+            { type: "铝丝", key: "wire", theoWeight: 0.3, price: PRICES.wire, actualWeight: 0, actualAmount: 0 },
+            { type: "铝渣", key: "scrap", theoWeight: 0.2, price: PRICES.scrap, actualWeight: 0, actualAmount: 0 }
+        ];
+        // 为每个废料生成随机实际重量
+        baseItems.forEach(item => {
+            item.actualWeight = getRandomActual(item.theoWeight);
+            item.actualAmount = item.actualWeight * item.price;
+        });
+        return baseItems;
+    };
+
+    // 可选第二笔单据使用不同理论重量（铝块2.0,铝丝0.5,铝渣0.4）也需要生成实际重量
+    const getSecondBillItems = () => {
+        const items = [
+            { type: "铝块", key: "block", theoWeight: 2.0, price: PRICES.block, actualWeight: 0, actualAmount: 0 },
+            { type: "铝丝", key: "wire", theoWeight: 0.5, price: PRICES.wire, actualWeight: 0, actualAmount: 0 },
+            { type: "铝渣", key: "scrap", theoWeight: 0.4, price: PRICES.scrap, actualWeight: 0, actualAmount: 0 }
+        ];
+        items.forEach(item => {
+            item.actualWeight = getRandomActual(item.theoWeight);
+            item.actualAmount = item.actualWeight * item.price;
+        });
+        return items;
+    };
+
+    // 单据库 (预设两笔，带实际重量)
+    let billsStore = [
+        {
+            id: "RE-20260507-001",
+            submitTime: "2026-05-07 09:26:46",
+            submitter: "张明",
+            recycler: "鑫源铝业回收公司",
+            auditStatus: "待审核",
+            auditTime: null,
+            auditor: null,
+            items: getWasteItems()
+        },
+        {
+            id: "RE-20260501-002",
+            submitTime: "2026-05-01 14:20:15",
+            submitter: "李芳",
+            recycler: "恒源再生资源有限公司",
+            auditStatus: "待审核",
+            auditTime: null,
+            auditor: null,
+            items: getSecondBillItems()
+        }
+    ];
+
+    let currentAuditBill = null;
+    let startFilter = "", endFilter = "";
+
+    // 辅助函数
+    const formatMoney = (val) => '¥' + val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const parseDateFromStr = (dateStr) => dateStr.split(' ')[0];
+
+    // 计算单据理论总金额
+    const getBillTheoreticalTotal = (bill) => {
+        return bill.items.reduce((sum, item) => sum + (item.theoWeight * item.price), 0);
+    };
+    // 实际总金额
+    const getBillActualTotal = (bill) => {
+        return bill.items.reduce((sum, item) => sum + (item.actualWeight * item.price), 0);
+    };
+    // 差值 + 格式化展示带正负号
+    const getDiffFormatted = (bill) => {
+        const totalActual = getBillActualTotal(bill);
+        const totalTheo = getBillTheoreticalTotal(bill);
+        const diff = totalActual - totalTheo;
+        const sign = diff > 0 ? '+' : (diff < 0 ? '-' : '');
+        return sign + formatMoney(Math.abs(diff));
+    };
+    const getDiffValue = (bill) => getBillActualTotal(bill) - getBillTheoreticalTotal(bill);
+    
+    // 审核通过 (仅改状态，不改重量)
+    const setBillApproved = (bill, auditorName = "审核专员·王敏") => {
+        bill.auditStatus = "已审核";
+        const now = new Date();
+        const formatted = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        bill.auditTime = formatted;
+        bill.auditor = auditorName;
+    };
+    const setBillRejected = (bill, auditorName = "审核专员·王敏") => {
+        bill.auditStatus = "驳回";
+        const now = new Date();
+        const formatted = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        bill.auditTime = formatted;
+        bill.auditor = auditorName + "(驳回)";
+    };
+
+    // 筛选
+    const getFilteredBills = () => {
+        if (!startFilter && !endFilter) return [...billsStore];
+        return billsStore.filter(bill => {
+            const billDate = parseDateFromStr(bill.submitTime);
+            if (startFilter && billDate < startFilter) return false;
+            if (endFilter && billDate > endFilter) return false;
+            return true;
+        });
+    };
+
+    // 卡片汇总（只展示实际重量&实际金额）
+    const renderStatsCards = (filteredBills) => {
+        let totalBlockActualWt = 0, totalWireActualWt = 0, totalScrapActualWt = 0;
+        let totalBlockAmount = 0, totalWireAmount = 0, totalScrapAmount = 0;
+        let grandActualTotal = 0;
+        filteredBills.forEach(bill => {
+            bill.items.forEach(item => {
+                if (item.type === "铝块") {
+                    totalBlockActualWt += item.actualWeight;
+                    totalBlockAmount += item.actualAmount;
+                } else if (item.type === "铝丝") {
+                    totalWireActualWt += item.actualWeight;
+                    totalWireAmount += item.actualAmount;
+                } else if (item.type === "铝渣") {
+                    totalScrapActualWt += item.actualWeight;
+                    totalScrapAmount += item.actualAmount;
+                }
+                grandActualTotal += item.actualAmount;
+            });
+        });
+        const container = document.getElementById('statsCards');
+        container.innerHTML = `
+            <div class="stat-card"><div class="stat-title"><i class="fas fa-cube"></i> 铝块实际</div>
+                <div class="stat-value">${totalBlockActualWt.toFixed(2)} t</div>
+                <div class="stat-sub">金额: ${formatMoney(totalBlockAmount)}</div>
+            </div>
+            <div class="stat-card"><div class="stat-title"><i class="fas fa-wire"></i> 铝丝实际</div>
+                <div class="stat-value">${totalWireActualWt.toFixed(2)} t</div>
+                <div class="stat-sub">金额: ${formatMoney(totalWireAmount)}</div>
+            </div>
+            <div class="stat-card"><div class="stat-title"><i class="fas fa-chunk"></i> 铝渣实际</div>
+                <div class="stat-value">${totalScrapActualWt.toFixed(2)} t</div>
+                <div class="stat-sub">金额: ${formatMoney(totalScrapAmount)}</div>
+            </div>
+            <div class="stat-card"><div class="stat-title"><i class="fas fa-coins"></i> 总实际金额</div>
+                <div class="stat-value">${formatMoney(grandActualTotal)}</div>
+                <div class="stat-sub">所有单据实际结算汇总</div>
+            </div>
+        `;
+    };
+
+    // 渲染表格 (每个单据三行明细，整单合并差额)
+    const renderTable = () => {
+        const filtered = getFilteredBills();
+        renderStatsCards(filtered);
+        const tbody = document.getElementById('tableBody');
+        if (!tbody) return;
+        let htmlRows = '';
+
+        filtered.forEach(bill => {
+            const statusClass = bill.auditStatus === '待审核' ? 'status-pending' : (bill.auditStatus === '已审核' ? 'status-approved' : 'status-rejected');
+            const statusIcon = bill.auditStatus === '待审核' ? 'fa-hourglass-half' : (bill.auditStatus === '已审核' ? 'fa-check-circle' : 'fa-ban');
+            const auditTimeShow = bill.auditTime ? bill.auditTime : '—';
+            const auditorShow = bill.auditor ? bill.auditor : '—';
+            const isDisabled = bill.auditStatus === '已审核';
+            const btnDisabled = isDisabled ? 'disabled' : '';
+
+            const totalTheoretical = getBillTheoreticalTotal(bill);
+            const totalActual = getBillActualTotal(bill);
+            const diffValue = totalActual - totalTheoretical;
+            const diffClass = diffValue > 0 ? 'diff-positive' : (diffValue < 0 ? 'diff-negative' : 'diff-zero');
+            const diffDisplay = getDiffFormatted(bill);
+
+            const rowsMarkup = bill.items.map((item, idx) => {
+                const wasteIcon = item.type === '铝块' ? '🧱' : (item.type === '铝丝' ? '〰️' : '🧪');
+                const theoAmount = item.theoWeight * item.price;
+                if (idx === 0) {
+                    return `<tr>
+                        <td rowspan="3" style="vertical-align:middle;">${bill.id}</td>
+                        <td rowspan="3" style="vertical-align:middle;">${bill.submitTime}</td>
+                        <td rowspan="3" style="vertical-align:middle;">${bill.submitter}</td>
+                        <td rowspan="3" style="vertical-align:middle;">${bill.recycler}</td>
+                        <td><span class="waste-type-badge">${wasteIcon} ${item.type}</span></td>
+                        <td>${item.price.toLocaleString()}</td>
+                        <td>${item.theoWeight.toFixed(2)} t</td>
+                        <td class="amount-number">${formatMoney(theoAmount)}</td>
+                        <td><strong>${item.actualWeight.toFixed(2)} t</strong></td>
+                        <td class="amount-number">${formatMoney(item.actualAmount)}</td>
+                        <td rowspan="3" style="vertical-align:middle; background:#fefcf5;">${formatMoney(totalTheoretical)}</td>
+                        <td rowspan="3" style="vertical-align:middle; background:#fefcf5;">${formatMoney(totalActual)}</td>
+                        <td rowspan="3" style="vertical-align:middle; background:#fefcf5;" class="${diffClass}">${diffDisplay}</td>
+                        <td rowspan="3" style="vertical-align:middle;"><span class="badge-status ${statusClass}"><i class="fas ${statusIcon}"></i> ${bill.auditStatus}</span></td>
+                        <td rowspan="3" style="vertical-align:middle; font-size:0.75rem;">${auditTimeShow}</td>
+                        <td rowspan="3" style="vertical-align:middle; font-size:0.75rem;">${auditorShow}</td>
+                        <td rowspan="3" style="vertical-align:middle;"><button class="audit-btn" data-bill-id="${bill.id}" ${btnDisabled}><i class="fas fa-check-double"></i> 审核</button></td>
+                    </tr>`;
+                } else {
+                    return `<tr>
+                        <td><span class="waste-type-badge">${wasteIcon} ${item.type}</span></td>
+                        <td>${item.price.toLocaleString()}</td>
+                        <td>${item.theoWeight.toFixed(2)} t</td>
+                        <td class="amount-number">${formatMoney(theoAmount)}</td>
+                        <td><strong>${item.actualWeight.toFixed(2)} t</strong></td>
+                        <td class="amount-number">${formatMoney(item.actualAmount)}</td>
+                    </tr>`;
+                }
+            });
+            htmlRows += rowsMarkup.join('');
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding:2rem;">暂无符合筛选的单据</td></tr>`;
+        } else {
+            tbody.innerHTML = htmlRows;
+        }
+
+        // 绑定审核按钮事件
+        document.querySelectorAll('.audit-btn').forEach(btn => {
+            if (btn.disabled) return;
+            btn.addEventListener('click', (e) => {
+                const billId = btn.getAttribute('data-bill-id');
+                const bill = billsStore.find(b => b.id === billId);
+                if (bill && bill.auditStatus !== '已审核') openAuditModal(bill);
+                else showToast("提示", "该单据已完成审核，不可重复操作");
+            });
+        });
+    };
+
+    // 打开简化模态框
+    const openAuditModal = (bill) => {
+        currentAuditBill = bill;
+        document.getElementById('modalBillNo').innerText = bill.id;
+        document.getElementById('modalSubmitter').innerHTML = `<i class="fas fa-user"></i> ${bill.submitter} (${bill.recycler})`;
+        document.getElementById('auditModal').classList.add('active');
+    };
+    const closeModal = () => {
+        document.getElementById('auditModal').classList.remove('active');
+        currentAuditBill = null;
+    };
+
+    // 确认审核（只改状态，不改重量）
+    const handleConfirmAudit = () => {
+        if (!currentAuditBill) return;
+        if (currentAuditBill.auditStatus === '已审核') {
+            showToast("警告", "单据已审核，无法重复审核");
+            closeModal();
+            return;
+        }
+        setBillApproved(currentAuditBill);
+        closeModal();
+        renderTable();
+        showToast("审核通过", `单据 ${currentAuditBill.id} 状态已更新为【已审核】，实际重量/金额保持不变。`);
+    };
+    const handleRejectAudit = () => {
+        if (!currentAuditBill) return;
+        if (currentAuditBill.auditStatus === '已审核') {
+            showToast("错误", "已审核单据无法驳回");
+            closeModal();
+            return;
+        }
+        setBillRejected(currentAuditBill);
+        closeModal();
+        renderTable();
+        showToast("驳回成功", `单据 ${currentAuditBill.id} 状态变更为【驳回】`);
+    };
+
+    // 筛选逻辑
+    const applyFilter = () => {
+        startFilter = document.getElementById('startDate').value;
+        endFilter = document.getElementById('endDate').value;
+        renderTable();
+    };
+    const resetFilter = () => {
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+        startFilter = '';
+        endFilter = '';
+        renderTable();
+    };
+
+    const showToast = (title, msg) => {
+        const toastDiv = document.createElement('div');
+        toastDiv.className = 'toast';
+        toastDiv.innerHTML = `<strong>${title}</strong><br>${msg}`;
+        document.body.appendChild(toastDiv);
+        setTimeout(() => toastDiv.remove(), 2800);
+    };
+
+    // 模态框事件
+    const bindModalEvents = () => {
+        const modal = document.getElementById('auditModal');
+        const closeBtn = modal.querySelector('.closeModalBtn');
+        const cancelBtn = document.getElementById('cancelAuditBtn');
+        const confirmBtn = document.getElementById('confirmAuditBtn');
+        const rejectBtn = document.getElementById('rejectAuditBtn');
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        confirmBtn.addEventListener('click', handleConfirmAudit);
+        rejectBtn.addEventListener('click', handleRejectAudit);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    };
+
+    // 初始化
+    const init = () => {
+        bindModalEvents();
+        renderTable();
+        document.getElementById('applyFilterBtn').addEventListener('click', applyFilter);
+        document.getElementById('resetFilterBtn').addEventListener('click', resetFilter);
+    };
+    init();
+</script>
+</body>
+</html>

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>车间生产进度大屏 | 工单状态深度看板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a1a2f;
+            font-family: 'Inter', 'Segoe UI', 'Roboto', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* 主容器 - 蓝底工业风 */
+        .industrial-dashboard {
+            max-width: 1920px;
+            margin: 0 auto;
+            background: #0c2140;
+            background: linear-gradient(145deg, #0b1e3a 0%, #0a1a30 100%);
+            border: 1px solid #2c5a7a;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
+            padding: 24px 28px 32px;
+            position: relative;
+        }
+        /* 极简工业角标 */
+        .industrial-dashboard::before {
+            content: "";
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            width: 32px;
+            height: 32px;
+            border-top: 2px solid #3a7ca5;
+            border-left: 2px solid #3a7ca5;
+            pointer-events: none;
+        }
+        .industrial-dashboard::after {
+            content: "";
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            border-bottom: 2px solid #3a7ca5;
+            border-right: 2px solid #3a7ca5;
+            pointer-events: none;
+        }
+
+        /* 头部区域 */
+        .header-industrial {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 20px;
+            border-bottom: 2px solid #2c5a78;
+            padding-bottom: 18px;
+        }
+        .title-area h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #eef4ff;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #ffffff, #9fc7e0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 4px rgba(50,120,200,0.3);
+        }
+        .date-gauge {
+            background: #0e2642;
+            padding: 6px 22px;
+            border-left: 4px solid #3f8ab3;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #cde4ff;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        /* 三车间卡片 — 增强工单状态明细 */
+        .shop-grid-industrial {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+        .shop-card-industrial {
+            background: #0f2942;
+            border: 1px solid #2d6582;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+            padding: 22px 20px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .shop-card-industrial:hover {
+            border-color: #4c9ac9;
+            transform: translateY(-2px);
+            background: #123153;
+            box-shadow: 0 10px 18px rgba(0,0,0,0.5);
+        }
+        .shop-header-industrial {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #2b6685;
+            padding-bottom: 10px;
+        }
+        .shop-name-industrial {
+            font-size: 1.8rem;
+            font-weight: 800;
+            font-family: 'Inter', monospace;
+            color: #e2f0ff;
+            letter-spacing: 1px;
+        }
+        /* 核心KPI三指标 (计划/完成/不良) */
+        .kpi-grid-industrial {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .kpi-tile {
+            flex: 1;
+            background: #071a2c;
+            padding: 12px 6px;
+            text-align: center;
+            border-bottom: 2px solid #2a6c8c;
+        }
+        .kpi-label-industrial {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #9bbfd9;
+            letter-spacing: 1px;
+        }
+        .kpi-value-industrial {
+            font-size: 1.9rem;
+            font-weight: 800;
+            font-family: 'Courier New', monospace;
+            color: #f0f7ff;
+            line-height: 1.2;
+        }
+        .defect-industrial {
+            color: #ff9f7a;
+        }
+        /* 工单状态明细行 (未开始/进行中/已完成/延期) */
+        .order-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 16px 0 14px;
+            background: #071a2c;
+            padding: 12px 10px;
+            border-radius: 4px;
+        }
+        .order-stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-bottom: 1px dashed #2c6280;
+            padding-bottom: 5px;
+        }
+        .order-stat-label {
+            color: #b0d0e8;
+            letter-spacing: 0.5px;
+        }
+        .order-stat-number {
+            font-family: 'Courier New', monospace;
+            font-weight: 800;
+            font-size: 1rem;
+            color: #ffd89a;
+        }
+        .delayed-number {
+            color: #ff8a6f;
+        }
+        .progress-industrial {
+            margin-top: 6px;
+        }
+        .progress-label-industrial {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #b8d6f0;
+            margin-bottom: 6px;
+        }
+        .progress-bg-industrial {
+            background: #0b2a3b;
+            height: 10px;
+            border-radius: 2px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 2px #00000044;
+        }
+        .progress-fill-industrial {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3f8ab3, #6eb3d9);
+            border-radius: 2px;
+            transition: width 0.4s ease;
+        }
+        .defect-stats {
+            margin-top: 12px;
+            text-align: right;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #85b9db;
+            font-family: monospace;
+        }
+
+        /* 工单明细区域 */
+        .workorder-panel-industrial {
+            background: #0a1e33;
+            border: 1px solid #2a607d;
+            padding: 20px 20px 18px;
+            margin-top: 12px;
+        }
+        .panel-header-industrial h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Inter', monospace;
+            color: #e2ebf5;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border-left: 4px solid #4688b0;
+            padding-left: 16px;
+            margin-bottom: 20px;
+        }
+        .stats-bar-industrial {
+            display: flex;
+            gap: 32px;
+            background: #051a2c;
+            padding: 8px 22px;
+            width: fit-content;
+            margin-bottom: 24px;
+            border-left: 3px solid #4c92b9;
+            font-family: monospace;
+        }
+        .stats-bar-industrial span {
+            color: #bfdef5;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .stats-bar-industrial strong {
+            color: #f2bc7a;
+            margin-left: 8px;
+            font-size: 1rem;
+        }
+        .table-industrial {
+            overflow-x: auto;
+            border: 1px solid #235e7c;
+        }
+        .work-table-industrial {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            font-family: 'Inter', monospace;
+            min-width: 1300px;
+        }
+        .work-table-industrial th {
+            text-align: left;
+            padding: 14px 10px;
+            background: #0c2842;
+            color: #d9ecff;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #367c9e;
+        }
+        .work-table-industrial td {
+            padding: 11px 10px;
+            border-bottom: 1px solid #204f6b;
+            color: #cce2f5;
+        }
+        .work-table-industrial tr:hover td {
+            background: #103e5a;
+        }
+        .status-badge-industrial {
+            display: inline-block;
+            padding: 4px 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 0px;
+            font-family: monospace;
+        }
+        .status-done-industrial {
+            background: #1e6a4a;
+            color: #e0ffe6;
+            border-left: 3px solid #7fdb9a;
+        }
+        .status-progress-industrial {
+            background: #b45f2b;
+            color: #fff2e0;
+            border-left: 3px solid #ffb86b;
+        }
+        .status-pending-industrial {
+            background: #2b5775;
+            color: #e2f0ff;
+            border-left: 3px solid #8bb3cc;
+        }
+        .order-number-industrial {
+            color: #ffbf7a;
+            font-weight: 700;
+        }
+        .product-name-industrial {
+            color: #9dc7e5;
+            margin-left: 8px;
+        }
+        .defect-cell-industrial {
+            color: #ffa37a;
+            font-weight: 700;
+        }
+        i, .fas, .far {
+            display: none;
+        }
+        @media (max-width: 1000px) {
+            .shop-grid-industrial { grid-template-columns: 1fr; }
+            .industrial-dashboard { padding: 16px; }
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f2a3a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4688b0;
+            border-radius: 0px;
+        }
+    </style>
+</head>
+<body>
+<div class="industrial-dashboard">
+    <div class="header-industrial">
+        <div class="title-area">
+            <h1>车间生产进度大屏</h1>
+        </div>
+        <div class="date-gauge" id="industrialDateDisplay">
+            生产基准日：加载中...
+        </div>
+    </div>
+
+    <!-- 三车间卡片（含工单状态统计：未开始/进行中/已完成/延期） -->
+    <div class="shop-grid-industrial" id="industrialShopGrid"></div>
+
+    <!-- 工单明细 -->
+    <div class="workorder-panel-industrial">
+        <div class="panel-header-industrial">
+            <h2>当日生产工单明细</h2>
+        </div>
+        <div class="stats-bar-industrial" id="industrialStatsBar">
+            <span>总工单数: <strong id="totalOrdersInd">0</strong></span>
+            <span>已完成工单: <strong id="finishedOrdersInd">0</strong></span>
+            <span>累计不良品: <strong id="totalDefectsInd">0</strong></span>
+        </div>
+        <div class="table-industrial">
+            <table class="work-table-industrial">
+                <thead>
+                    <tr>
+                        <th>订单号 / 产品图号</th>
+                        <th>计划数量</th>
+                        <th>工单号</th>
+                        <th>车间</th>
+                        <th>计划开始</th>
+                        <th>计划完成</th>
+                        <th>实际开始</th>
+                        <th>实际完成</th>
+                        <th>完成数量</th>
+                        <th>不良数量</th>
+                        <th>完成率</th>
+                        <th>生产状态</th>
+                    </tr>
+                </thead>
+                <tbody id="industrialWorkbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ======================= 生产数据（包含完整日期、工单、计划/实际日期，用于延期判断） =======================
+        const productionData = [
+            { date: '2026-03-10', orderNo: 'PO-1001', product: 'XC32', shop: '备料', wo: 'WO-1001-01', plan: 200, actual: 200, defect: 2, planStartDate: '2026-03-10', planFinishDate: '2026-03-12', actualStartDate: '2026-03-10', actualFinishDate: '2026-03-12', status: 'done' },
+            { date: '2026-03-10', orderNo: 'PO-1001', product: 'XC32', shop: '焊接', wo: 'WO-1001-02', plan: 200, actual: 195, defect: 1, planStartDate: '2026-03-12', planFinishDate: '2026-03-14', actualStartDate: '2026-03-12', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-10', orderNo: 'PO-1001', product: 'XC32', shop: '组装', wo: 'WO-1001-03', plan: 200, actual: 180, defect: 0, planStartDate: '2026-03-14', planFinishDate: '2026-03-16', actualStartDate: '2026-03-14', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-10', orderNo: 'PO-1002', product: 'R3', shop: '备料', wo: 'WO-1002-01', plan: 150, actual: 150, defect: 0, planStartDate: '2026-03-10', planFinishDate: '2026-03-11', actualStartDate: '2026-03-10', actualFinishDate: '2026-03-11', status: 'done' },
+            { date: '2026-03-10', orderNo: 'PO-1002', product: 'R3', shop: '焊接', wo: 'WO-1002-02', plan: 150, actual: 120, defect: 1, planStartDate: '2026-03-11', planFinishDate: '2026-03-13', actualStartDate: '2026-03-11', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-10', orderNo: 'PO-1002', product: 'R3', shop: '组装', wo: 'WO-1002-03', plan: 150, actual: 0, defect: 0, planStartDate: '2026-03-13', planFinishDate: '2026-03-15', actualStartDate: '', actualFinishDate: '', status: 'pending' },
+            { date: '2026-03-11', orderNo: 'PO-1003', product: 'KID-FLEX', shop: '备料', wo: 'WO-1003-01', plan: 180, actual: 180, defect: 1, planStartDate: '2026-03-11', planFinishDate: '2026-03-12', actualStartDate: '2026-03-11', actualFinishDate: '2026-03-12', status: 'done' },
+            { date: '2026-03-11', orderNo: 'PO-1003', product: 'KID-FLEX', shop: '焊接', wo: 'WO-1003-02', plan: 180, actual: 0, defect: 0, planStartDate: '2026-03-13', planFinishDate: '2026-03-15', actualStartDate: '', actualFinishDate: '', status: 'pending' },
+            { date: '2026-03-11', orderNo: 'PO-1003', product: 'KID-FLEX', shop: '组装', wo: 'WO-1003-03', plan: 180, actual: 0, defect: 0, planStartDate: '2026-03-15', planFinishDate: '2026-03-17', actualStartDate: '', actualFinishDate: '', status: 'pending' },
+            { date: '2026-03-11', orderNo: 'PO-1004', product: 'AM-Pro', shop: '备料', wo: 'WO-1004-01', plan: 220, actual: 220, defect: 0, planStartDate: '2026-03-11', planFinishDate: '2026-03-12', actualStartDate: '2026-03-11', actualFinishDate: '2026-03-12', status: 'done' },
+            { date: '2026-03-11', orderNo: 'PO-1004', product: 'AM-Pro', shop: '焊接', wo: 'WO-1004-02', plan: 220, actual: 220, defect: 1, planStartDate: '2026-03-12', planFinishDate: '2026-03-14', actualStartDate: '2026-03-12', actualFinishDate: '2026-03-14', status: 'done' },
+            { date: '2026-03-11', orderNo: 'PO-1004', product: 'AM-Pro', shop: '组装', wo: 'WO-1004-03', plan: 220, actual: 218, defect: 0, planStartDate: '2026-03-14', planFinishDate: '2026-03-16', actualStartDate: '2026-03-14', actualFinishDate: '2026-03-16', status: 'done' },
+            { date: '2026-03-12', orderNo: 'PO-1005', product: 'Oil-DL', shop: '备料', wo: 'WO-1005-01', plan: 250, actual: 180, defect: 2, planStartDate: '2026-03-12', planFinishDate: '2026-03-14', actualStartDate: '2026-03-12', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-12', orderNo: 'PO-1005', product: 'Oil-DL', shop: '焊接', wo: 'WO-1005-02', plan: 250, actual: 0, defect: 0, planStartDate: '2026-03-14', planFinishDate: '2026-03-16', actualStartDate: '', actualFinishDate: '', status: 'pending' },
+            { date: '2026-03-12', orderNo: 'PO-1005', product: 'Oil-DL', shop: '组装', wo: 'WO-1005-03', plan: 250, actual: 0, defect: 0, planStartDate: '2026-03-16', planFinishDate: '2026-03-18', actualStartDate: '', actualFinishDate: '', status: 'pending' },
+            { date: '2026-03-12', orderNo: 'PO-1006', product: 'Ultra-S', shop: '备料', wo: 'WO-1006-01', plan: 300, actual: 280, defect: 2, planStartDate: '2026-03-12', planFinishDate: '2026-03-14', actualStartDate: '2026-03-12', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-12', orderNo: 'PO-1006', product: 'Ultra-S', shop: '焊接', wo: 'WO-1006-02', plan: 300, actual: 260, defect: 1, planStartDate: '2026-03-13', planFinishDate: '2026-03-15', actualStartDate: '2026-03-13', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-12', orderNo: 'PO-1006', product: 'Ultra-S', shop: '组装', wo: 'WO-1006-03', plan: 300, actual: 240, defect: 0, planStartDate: '2026-03-14', planFinishDate: '2026-03-16', actualStartDate: '2026-03-14', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-16', orderNo: 'PO-2001', product: 'Race-X', shop: '备料', wo: 'WO-2001-01', plan: 160, actual: 160, defect: 0, planStartDate: '2026-03-16', planFinishDate: '2026-03-17', actualStartDate: '2026-03-16', actualFinishDate: '2026-03-17', status: 'done' },
+            { date: '2026-03-16', orderNo: 'PO-2001', product: 'Race-X', shop: '焊接', wo: 'WO-2001-02', plan: 160, actual: 160, defect: 1, planStartDate: '2026-03-17', planFinishDate: '2026-03-18', actualStartDate: '2026-03-17', actualFinishDate: '2026-03-18', status: 'done' },
+            { date: '2026-03-16', orderNo: 'PO-2001', product: 'Race-X', shop: '组装', wo: 'WO-2001-03', plan: 160, actual: 145, defect: 1, planStartDate: '2026-03-18', planFinishDate: '2026-03-19', actualStartDate: '2026-03-18', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-16', orderNo: 'PO-2002', product: 'Classic-T', shop: '备料', wo: 'WO-2002-01', plan: 140, actual: 100, defect: 1, planStartDate: '2026-03-16', planFinishDate: '2026-03-18', actualStartDate: '2026-03-16', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-16', orderNo: 'PO-2002', product: 'Classic-T', shop: '焊接', wo: 'WO-2002-02', plan: 140, actual: 0, defect: 0, planStartDate: '2026-03-18', planFinishDate: '2026-03-20', actualStartDate: '', actualFinishDate: '', status: 'pending' },
+            { date: '2026-03-16', orderNo: 'PO-2002', product: 'Classic-T', shop: '组装', wo: 'WO-2002-03', plan: 140, actual: 0, defect: 0, planStartDate: '2026-03-20', planFinishDate: '2026-03-22', actualStartDate: '', actualFinishDate: '', status: 'pending' },
+            { date: '2026-03-17', orderNo: 'PO-2003', product: 'Enduro-X', shop: '备料', wo: 'WO-2003-01', plan: 190, actual: 190, defect: 0, planStartDate: '2026-03-17', planFinishDate: '2026-03-18', actualStartDate: '2026-03-17', actualFinishDate: '2026-03-18', status: 'done' },
+            { date: '2026-03-17', orderNo: 'PO-2003', product: 'Enduro-X', shop: '焊接', wo: 'WO-2003-02', plan: 190, actual: 190, defect: 0, planStartDate: '2026-03-18', planFinishDate: '2026-03-19', actualStartDate: '2026-03-18', actualFinishDate: '2026-03-19', status: 'done' },
+            { date: '2026-03-17', orderNo: 'PO-2003', product: 'Enduro-X', shop: '组装', wo: 'WO-2003-03', plan: 190, actual: 188, defect: 0, planStartDate: '2026-03-19', planFinishDate: '2026-03-20', actualStartDate: '2026-03-19', actualFinishDate: '2026-03-20', status: 'done' },
+            { date: '2026-03-17', orderNo: 'PO-2004', product: 'E-MTB', shop: '备料', wo: 'WO-2004-01', plan: 170, actual: 170, defect: 0, planStartDate: '2026-03-17', planFinishDate: '2026-03-18', actualStartDate: '2026-03-17', actualFinishDate: '2026-03-18', status: 'done' },
+            { date: '2026-03-17', orderNo: 'PO-2004', product: 'E-MTB', shop: '焊接', wo: 'WO-2004-02', plan: 170, actual: 150, defect: 2, planStartDate: '2026-03-18', planFinishDate: '2026-03-20', actualStartDate: '2026-03-18', actualFinishDate: '', status: 'progress' },
+            { date: '2026-03-17', orderNo: 'PO-2004', product: 'E-MTB', shop: '组装', wo: 'WO-2004-03', plan: 170, actual: 0, defect: 0, planStartDate: '2026-03-20', planFinishDate: '2026-03-22', actualStartDate: '', actualFinishDate: '', status: 'pending' }
+        ];
+
+        // 获取最新日期作为大屏“当日”
+        const allDates = [...new Set(productionData.map(d => d.date))].sort();
+        const TODAY = allDates[allDates.length - 1]; // 2026-03-17
+
+        function getTodayData() {
+            return productionData.filter(item => item.date === TODAY);
+        }
+
+        // 判断工单是否延期：未完成 且 计划完成日期 < 当日（基准日）
+        function isDelayed(item, todayStr) {
+            if (item.actual >= item.plan && item.plan > 0) return false; // 已完成不算延期
+            // 计划完成日期小于今日（且工单未完成状态）
+            return item.planFinishDate < todayStr;
+        }
+
+        // 获取每个车间的工单状态细分（未开始/进行中/已完成/延期）
+        function getShopOrderBreakdown(todayItems, todayStr) {
+            const shops = ['备料', '焊接', '组装'];
+            const breakdown = {};
+            shops.forEach(shop => {
+                breakdown[shop] = {
+                    notStarted: 0,    // 未开始（actual = 0 且 未完成）
+                    inProgress: 0,    // 进行中（actual > 0 且 actual < plan）
+                    completed: 0,     // 已完成（actual >= plan）
+                    delayed: 0        // 延期（未完成且计划完成日期 < 今日）
+                };
+            });
+
+            todayItems.forEach(item => {
+                const shop = item.shop;
+                if (!breakdown[shop]) return;
+                const isCompleted = (item.actual >= item.plan && item.plan > 0);
+                const isInProgress = (!isCompleted && item.actual > 0 && item.actual < item.plan);
+                const isNotStarted = (item.actual === 0 && !isCompleted);
+                
+                if (isCompleted) {
+                    breakdown[shop].completed += 1;
+                } else if (isInProgress) {
+                    breakdown[shop].inProgress += 1;
+                } else if (isNotStarted) {
+                    breakdown[shop].notStarted += 1;
+                }
+                
+                // 延期统计：未完成工单（未开始或进行中）且计划完成日期小于今日
+                if (!isCompleted && isDelayed(item, todayStr)) {
+                    breakdown[shop].delayed += 1;
+                }
+            });
+            return breakdown;
+        }
+
+        function computeShopSummary(todayItems) {
+            const shops = ['备料', '焊接', '组装'];
+            const map = {};
+            shops.forEach(s => { map[s] = { plan: 0, actual: 0, defect: 0, orderCount: 0 }; });
+            todayItems.forEach(item => {
+                if (map[item.shop]) {
+                    map[item.shop].plan += item.plan;
+                    map[item.shop].actual += item.actual;
+                    map[item.shop].defect += item.defect;
+                    map[item.shop].orderCount += 1;
+                }
+            });
+            return map;
+        }
+
+        function renderShopCards(todayData) {
+            const summary = computeShopSummary(todayData);
+            const breakdown = getShopOrderBreakdown(todayData, TODAY);
+            const shopList = ['备料', '焊接', '组装'];
+            const container = document.getElementById('industrialShopGrid');
+            container.innerHTML = '';
+            
+            for (let shop of shopList) {
+                const stat = summary[shop];
+                const plan = stat.plan;
+                const actual = stat.actual;
+                const defect = stat.defect;
+                const completion = plan > 0 ? (actual / plan * 100).toFixed(1) : '0.0';
+                const defectRate = actual > 0 ? (defect / actual * 100).toFixed(1) : '0.0';
+                const orderStats = breakdown[shop];
+                
+                const card = document.createElement('div');
+                card.className = 'shop-card-industrial';
+                card.innerHTML = `
+                    <div class="shop-header-industrial">
+                        <span class="shop-name-industrial">${shop}车间</span>
+                    </div>
+                    <div class="kpi-grid-industrial">
+                        <div class="kpi-tile"><div class="kpi-label-industrial">计划数</div><div class="kpi-value-industrial">${plan.toLocaleString()}</div></div>
+                        <div class="kpi-tile"><div class="kpi-label-industrial">完成数</div><div class="kpi-value-industrial">${actual.toLocaleString()}</div></div>
+                        <div class="kpi-tile"><div class="kpi-label-industrial">不良数</div><div class="kpi-value-industrial defect-industrial">${defect}</div></div>
+                    </div>
+                    <div class="order-stats-grid">
+                        <div class="order-stat-item"><span class="order-stat-label">未开始工单</span><span class="order-stat-number">${orderStats.notStarted}</span></div>
+                        <div class="order-stat-item"><span class="order-stat-label">进行中工单</span><span class="order-stat-number">${orderStats.inProgress}</span></div>
+                        <div class="order-stat-item"><span class="order-stat-label">已完成工单</span><span class="order-stat-number">${orderStats.completed}</span></div>
+                        <div class="order-stat-item"><span class="order-stat-label">延期工单</span><span class="order-stat-number delayed-number">${orderStats.delayed}</span></div>
+                    </div>
+                    <div class="progress-industrial">
+                        <div class="progress-label-industrial"><span>完成率</span><span>${completion}%</span></div>
+                        <div class="progress-bg-industrial"><div class="progress-fill-industrial" style="width: ${completion}%;"></div></div>
+                        <div class="defect-stats">不良率 ${defectRate}%  |  总工单 ${stat.orderCount}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        function renderWorkTable(todayData) {
+            const tbody = document.getElementById('industrialWorkbody');
+            const totalSpan = document.getElementById('totalOrdersInd');
+            const finishedSpan = document.getElementById('finishedOrdersInd');
+            const defectsSpan = document.getElementById('totalDefectsInd');
+            let totalDefect = 0, finishedCount = 0;
+            todayData.forEach(item => {
+                totalDefect += item.defect;
+                if (item.actual >= item.plan && item.plan > 0) finishedCount++;
+            });
+            totalSpan.innerText = todayData.length;
+            finishedSpan.innerText = finishedCount;
+            defectsSpan.innerText = totalDefect;
+            
+            if (todayData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:36px;">今日无工单记录</td></tr>';
+                return;
+            }
+            let rows = '';
+            for (let item of todayData) {
+                let statusText = '', statusClass = '';
+                if (item.actual >= item.plan && item.plan > 0) { statusText = '已完成'; statusClass = 'status-done-industrial'; }
+                else if (item.actual > 0 && item.actual < item.plan) { statusText = '进行中'; statusClass = 'status-progress-industrial'; }
+                else { statusText = '未开始'; statusClass = 'status-pending-industrial'; }
+                const rate = item.plan > 0 ? (item.actual / item.plan * 100).toFixed(1) : '0.0';
+                const actualStart = item.actualStartDate || '—';
+                const actualFinish = item.actualFinishDate || '—';
+                rows += `<tr>
+                    <td><span class="order-number-industrial">${item.orderNo}</span> <span class="product-name-industrial">${item.product}</span></td>
+                    <td>${item.plan.toLocaleString()}</td>
+                    <td>${item.wo}</td>
+                    <td>${item.shop}</td>
+                    <td>${item.planStartDate}</td>
+                    <td>${item.planFinishDate}</td>
+                    <td>${actualStart}</td>
+                    <td>${actualFinish}</td>
+                    <td>${item.actual.toLocaleString()}</td>
+                    <td class="defect-cell-industrial">${item.defect}</td>
+                    <td>${rate}%</td>
+                    <td><span class="status-badge-industrial ${statusClass}">${statusText}</span></td>
+                </tr>`;
+            }
+            tbody.innerHTML = rows;
+        }
+
+        function setHeaderDate() {
+            const elem = document.getElementById('industrialDateDisplay');
+            const d = new Date(TODAY + 'T12:00:00');
+            const weekDay = d.toLocaleDateString('zh-CN', { weekday: 'short' });
+            elem.innerText = `生产基准日：${TODAY} (${weekDay})`;
+        }
+
+        function init() {
+            const todayItems = getTodayData();
+            renderShopCards(todayItems);
+            renderWorkTable(todayItems);
+            setHeaderDate();
+        }
+        init();
+    })();
+</script>
+</body>
+</html>

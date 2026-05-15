@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>生产订单详情</title>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --card-bg: #ffffff;
+      --text: #303133;
+      --text-secondary: #909399;
+      --border: #ebeef5;
+      --primary: #409eff;
+      --primary-hover: #66b1ff;
+      --radius: 4px;
+      --shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+    * { box-sizing: border-box; }
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+    body {
+      min-height: 100dvh;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--page-bg);
+      line-height: 1.5;
+    }
+    .page {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      margin: 0;
+      padding: clamp(12px, 2vw, 20px);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 0 16px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      font-size: 14px;
+      cursor: pointer;
+      font-family: inherit;
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      text-decoration: none;
+    }
+    .btn:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+      flex-shrink: 0;
+    }
+    .panel.panel-grow {
+      flex: 1;
+      min-height: 0;
+      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-title { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px 20px;
+    }
+    @media (max-width: 900px) { .form-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .form-grid { grid-template-columns: 1fr; } }
+    .field label {
+      display: block;
+      font-size: 13px;
+      color: #606266;
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      background: #f5f7fa;
+      color: #909399;
+    }
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .tab {
+      padding: 10px 18px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-secondary);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      background: none;
+      border: none;
+      font-family: inherit;
+    }
+    .tab:hover { color: var(--primary); }
+    .tab.is-active {
+      color: var(--primary);
+      font-weight: 600;
+      border-bottom-color: var(--primary);
+    }
+    .tab-panel { display: none; flex-direction: column; min-height: 0; flex: 1; }
+    .tab-panel.is-active { display: flex; }
+    .table-wrap { overflow: auto; margin: 0 -4px; }
+    table.data-table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.data-table th,
+    table.data-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: middle;
+    }
+    table.data-table th {
+      background: #f5f7fa;
+      font-weight: 600;
+      color: #606266;
+      white-space: nowrap;
+    }
+    .cell-center { text-align: center; }
+    .num-input {
+      width: 100%;
+      max-width: 120px;
+      height: 30px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+    }
+    select.reason-sel {
+      height: 30px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+      min-width: 120px;
+    }
+    .call-table-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: auto;
+      margin-bottom: 14px;
+      flex: 1;
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    #panelReport .table-wrap,
+    #panelCall .table-wrap {
+      flex: 1;
+      min-height: 0;
+    }
+    .btn-row {
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+    .empty-tip { text-align: center; color: #909399; padding: 24px !important; }
+    .report-worker-cell {
+      max-width: 0;
+    }
+    .report-worker-ellipsis {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width: 100%;
+    }
+    .report-edit-input {
+      width: 100%;
+      max-width: 120px;
+      height: 30px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .report-row-actions {
+      display: inline-flex;
+      gap: 6px;
+    }
+    .report-row-btn {
+      height: 26px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .report-row-btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .report-row-btn:disabled,
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .badge-pick {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-pick.wait { background: #fdf6ec; color: #e6a23c; }
+    .badge-pick.partial { background: #ecf5ff; color: #409eff; }
+    .badge-pick.done { background: #f0f9eb; color: #67c23a; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-actions">
+      <a class="btn" id="btnBack" href="生产作业.html">返回</a>
+    </div>
+
+    <section class="panel" id="basicPanel">
+      <h2 class="panel-title">基本信息</h2>
+      <div class="form-grid">
+        <div class="field"><label>产线</label><input type="text" id="fLine" readonly /></div>
+        <div class="field"><label>销售订单号</label><input type="text" id="fSales" readonly /></div>
+        <div class="field"><label>生产订单号</label><input type="text" id="fMo" readonly /></div>
+        <div class="field"><label>图号</label><input type="text" id="fDraw" readonly /></div>
+        <div class="field"><label>产品类型</label><input type="text" id="fProductType" readonly /></div>
+        <div class="field"><label>产品名称</label><input type="text" id="fProduct" readonly /></div>
+        <div class="field"><label>计划数量</label><input type="text" id="fPlanQty" readonly /></div>
+        <div class="field"><label>状态</label><input type="text" id="fStatus" readonly /></div>
+        <div class="field"><label>计划开始时间</label><input type="text" id="fPlanStart" readonly /></div>
+        <div class="field"><label>计划结束时间</label><input type="text" id="fPlanEnd" readonly /></div>
+        <div class="field"><label>实际开始时间</label><input type="text" id="fActStart" readonly /></div>
+        <div class="field"><label>实际完工时间</label><input type="text" id="fActEnd" readonly /></div>
+        <div class="field"><label>完成数量</label><input type="text" id="fDoneQty" readonly /></div>
+        <div class="field"><label>操作员</label><input type="text" id="fOp" readonly /></div>
+        <div class="field"><label>优先级</label><input type="text" id="fPrio" readonly /></div>
+      </div>
+    </section>
+
+    <section class="panel panel-grow">
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab is-active" data-tab="mat" role="tab">物料清单</button>
+        <button type="button" class="tab" data-tab="report" role="tab">报工记录</button>
+        <button type="button" class="tab" data-tab="call" role="tab">叫料记录</button>
+      </div>
+
+      <div class="tab-panel is-active" id="panelMat" role="tabpanel">
+        <div class="call-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="cell-center" style="width:44px">
+                  <input type="checkbox" id="chkAllMat" title="全选" aria-label="全选物料" />
+                </th>
+                <th>物料编码</th>
+                <th>物料名称</th>
+                <th>状态</th>
+                <th>当前备料数量</th>
+                <th>叫料数量</th>
+                <th>叫料原因</th>
+                <th>单位</th>
+              </tr>
+            </thead>
+            <tbody id="matBody"></tbody>
+          </table>
+        </div>
+        <p id="matHint" class="empty-tip" style="display:none;padding:16px!important;margin:0"></p>
+        <div class="btn-row">
+          <button type="button" class="btn" id="btnProdCall">生产叫料</button>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="panelReport" role="tabpanel">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>报工时间</th>
+                <th>报工数量</th>
+                <th>操作员</th>
+                <th>生产人员</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="reportBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="panelCall" role="tabpanel">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>叫料物料名称</th>
+                <th>叫料数量</th>
+                <th>叫料原因</th>
+                <th>叫料人</th>
+                <th>备料状态</th>
+                <th>当前备料数量</th>
+              </tr>
+            </thead>
+            <tbody id="callBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      var OPERATOR = "张三";
+      var WH_STORAGE_KEY = "warehouse_prep_orders_v4";
+      var SNAPSHOT_KEY = "production_tasks_snapshot_v1";
+      var CALL_REASON_STATS_KEY = "call_material_reason_distribution_v1";
+      var PRODUCTION_LINES = ["普车组装1线", "普车组装2线", "电助力组装", "高端车组装线", "半成品组装线"];
+      var PRODUCT_TYPES = ["SKD自行车", "SKD电动车", "SKD高端车", "CKD自行车", "CKD电动车", "自行车车架", "电动车车架"];
+
+      function pad3(n) {
+        var s = String(n);
+        while (s.length < 3) s = "0" + s;
+        return s;
+      }
+
+      function dateOffset(days) {
+        var d = new Date();
+        d.setDate(d.getDate() + days);
+        return d.toISOString().slice(0, 10);
+      }
+
+      var todayString = new Date().toISOString().slice(0, 10);
+
+      function nowText() {
+        var d = new Date();
+        var pad = function (n) { return String(n).padStart(2, "0"); };
+        return d.getFullYear() + "/" + pad(d.getMonth() + 1) + "/" + pad(d.getDate()) + " " +
+          pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+      }
+
+      function buildSeed() {
+        return Array.from({ length: 36 }, function (_, i) {
+          var statusPool = ["生效", "生产中", "已完成", "生效", "生产中"];
+          var status = statusPool[i % statusPool.length];
+          var planStart = dateOffset((i % 9) - 4);
+          var planEnd = dateOffset(1 + (i % 4));
+          var actualStart = status === "生效" ? "" : todayString;
+          var actualEnd = status === "已完成" ? dateOffset(i % 2) : "";
+          var planQty = 30 + (i % 6) * 10;
+          var doneQty = status === "已完成" ? planQty : status === "生产中" ? Math.floor(planQty * 0.35) : 0;
+          return {
+            id: i + 1,
+            prodLine: PRODUCTION_LINES[i % PRODUCTION_LINES.length],
+            warehouseOrderId: "wo-" + pad3(i + 1),
+            salesOrderNo: "SO202604" + pad3(100 + i),
+            productionOrderNo: "MO202604" + pad3(200 + i),
+            drawingNo: "TH-" + (3100 + (i % 14)),
+            productType: PRODUCT_TYPES[i % PRODUCT_TYPES.length],
+            productName: "零件-" + ((i % 9) + 1),
+            planQty: planQty,
+            doneQty: doneQty,
+            status: status,
+            planStart: planStart,
+            planEnd: planEnd,
+            actualStart: actualStart,
+            actualEnd: actualEnd,
+            priority: ["高", "中", "低"][i % 3],
+            operator: OPERATOR,
+            startMode: status === "生效" ? "idle" : "running",
+            reportRecords: status === "已完成"
+              ? [{ operator: OPERATOR, qty: planQty, time: nowText() }]
+              : status === "生产中"
+                ? [{ operator: OPERATOR, qty: Math.floor(planQty * 0.35), time: nowText() }]
+                : [],
+            productionCallRecords: []
+          };
+        });
+      }
+
+      function hydrate(seed, stored) {
+        if (!Array.isArray(stored) || stored.length !== seed.length) return seed.slice();
+        return seed.map(function (s, idx) {
+          var st = stored[idx];
+          if (st && st.id === s.id) {
+            return Object.assign({}, s, st, {
+              prodLine: st.prodLine || s.prodLine,
+              productionCallRecords: Array.isArray(st.productionCallRecords) ? st.productionCallRecords : [],
+              reportRecords: Array.isArray(st.reportRecords) ? st.reportRecords : s.reportRecords
+            });
+          }
+          return Object.assign({}, s, { productionCallRecords: [] });
+        });
+      }
+
+      function loadAllTasks() {
+        try {
+          var raw = localStorage.getItem(SNAPSHOT_KEY);
+          if (!raw) return buildSeed();
+          var data = JSON.parse(raw);
+          if (Array.isArray(data.tasks) && data.tasks.length && data.tasks[0].productionOrderNo) {
+            if (data.tasks.length === 36) return hydrate(buildSeed(), data.tasks);
+            return data.tasks.slice();
+          }
+        } catch (e) {}
+        return buildSeed();
+      }
+
+      function persistSnapshot(allTasks, line) {
+        try {
+          localStorage.setItem(
+            SNAPSHOT_KEY,
+            JSON.stringify({
+              line: line,
+              tasks: allTasks.map(function (t) {
+                return {
+                  id: t.id,
+                  prodLine: t.prodLine,
+                  warehouseOrderId: t.warehouseOrderId,
+                  salesOrderNo: t.salesOrderNo,
+                  productionOrderNo: t.productionOrderNo,
+                  drawingNo: t.drawingNo,
+                  productType: t.productType,
+                  productName: t.productName,
+                  planQty: t.planQty,
+                  doneQty: t.doneQty,
+                  status: t.status,
+                  planStart: t.planStart,
+                  planEnd: t.planEnd,
+                  actualStart: t.actualStart,
+                  actualEnd: t.actualEnd,
+                  priority: t.priority,
+                  operator: t.operator,
+                  startMode: t.startMode,
+                  reportRecords: t.reportRecords,
+                  productionCallRecords: t.productionCallRecords || []
+                };
+              })
+            })
+          );
+        } catch (e) {}
+      }
+
+      function getQuery() {
+        var q = {};
+        location.search.replace(/^\?/, "").split("&").forEach(function (pair) {
+          var p = pair.split("=");
+          if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || "");
+        });
+        return q;
+      }
+
+      var qs = getQuery();
+      var taskId = parseInt(qs.id || "", 10);
+      var currentLine = qs.line && PRODUCTION_LINES.indexOf(qs.line) >= 0 ? qs.line : PRODUCTION_LINES[0];
+      var initialTab =
+        qs.tab === "report"
+          ? "report"
+          : qs.tab === "call"
+            ? "call"
+            : "mat";
+
+      var allTasks = loadAllTasks();
+      var task = allTasks.filter(function (t) { return t.id === taskId; })[0];
+      var reportEditIndex = null;
+
+      function loadWarehouseOrders() {
+        try {
+          var raw = localStorage.getItem(WH_STORAGE_KEY);
+          if (!raw) return [];
+          var data = JSON.parse(raw);
+          return Array.isArray(data.orders) ? data.orders : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function resolveWarehouseOrder(t) {
+        var orders = loadWarehouseOrders();
+        if (!t || !t.warehouseOrderId) return null;
+        return orders.filter(function (o) { return String(o.id) === String(t.warehouseOrderId); })[0] || null;
+      }
+
+      function warehouseCurrentPrepQtyDisplay(m) {
+        if (!m) return "—";
+        if (m.pickStatus === "领料完成" || m.pickStatus === "备料完成") {
+          var q = m.currentPickQty != null ? Number(m.currentPickQty) : Number(m.reqQty);
+          return isFinite(q) ? String(q) : "—";
+        }
+        if (m.currentPickQty != null && m.currentPickQty !== "") {
+          var q2 = Number(m.currentPickQty);
+          return isFinite(q2) ? String(q2) : "—";
+        }
+        var inp = parseFloat(String(m.currentPickInput || "").trim());
+        if (isFinite(inp)) return String(inp);
+        return "—";
+      }
+
+      function mapCallReasonDropdownToBucket(v) {
+        var s = String(v || "");
+        if (s === "生产缺料") return "短缺不足";
+        if (s === "生产损坏") return "生产损坏";
+        if (s === "来料不良") return "来料不良";
+        return "其他原因";
+      }
+
+      function incrementCallReasonStats(canonicalKey, n) {
+        var buckets = ["短缺不足", "生产损坏", "来料不良", "其他原因"];
+        var keySafe = buckets.indexOf(canonicalKey) >= 0 ? canonicalKey : "其他原因";
+        var counts = { 短缺不足: 0, 生产损坏: 0, 来料不良: 0, 其他原因: 0 };
+        try {
+          var raw = localStorage.getItem(CALL_REASON_STATS_KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            var src = parsed.counts || parsed;
+            buckets.forEach(function (k) {
+              var v = Number(src[k]);
+              if (isFinite(v)) counts[k] = v;
+            });
+          }
+        } catch (e) {}
+        counts[keySafe] = (counts[keySafe] || 0) + Math.max(1, Number(n) || 1);
+        localStorage.setItem(CALL_REASON_STATS_KEY, JSON.stringify({ counts: counts, updatedAt: Date.now() }));
+      }
+
+      function markWarehouseOrderUrgentByCall(t) {
+        if (!t || !t.warehouseOrderId) return;
+        try {
+          var raw = localStorage.getItem(WH_STORAGE_KEY);
+          if (!raw) return;
+          var data = JSON.parse(raw);
+          if (!data.orders || !Array.isArray(data.orders)) return;
+          var ord = data.orders.filter(function (o) { return String(o.id) === String(t.warehouseOrderId); })[0];
+          if (ord) {
+            ord.prio = "紧急";
+            localStorage.setItem(WH_STORAGE_KEY, JSON.stringify(data));
+          }
+        } catch (e) {}
+      }
+
+      function appendWarehouseCallRecords(t, callRows, lineName) {
+        if (!t || !t.warehouseOrderId || !Array.isArray(callRows) || !callRows.length) return;
+        try {
+          var raw = localStorage.getItem(WH_STORAGE_KEY);
+          if (!raw) return;
+          var data = JSON.parse(raw);
+          if (!data.orders || !Array.isArray(data.orders)) return;
+          var ord = data.orders.filter(function (o) { return String(o.id) === String(t.warehouseOrderId); })[0];
+          if (!ord) return;
+          if (!Array.isArray(ord.callRecords)) ord.callRecords = [];
+          var now = nowText();
+          callRows.forEach(function (row) {
+            ord.callRecords.push({
+              time: now,
+              line: lineName,
+              materialName: row.materialName || "",
+              callQty: row.callQty,
+              reason: row.reason || "",
+              caller: row.caller || OPERATOR,
+              currentPrepQty: row.callQty,
+              currentPrepInput: String(row.callQty),
+              status: "待备料"
+            });
+          });
+          localStorage.setItem(WH_STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {}
+      }
+
+      function escapeHtml(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function escapeAttr(s) {
+        return escapeHtml(s).replace(/`/g, "&#96;");
+      }
+
+      function badgeClass(st) {
+        if (st === "待备料") return "wait";
+        if (st === "部分备料") return "partial";
+        if (st === "备料完成") return "done";
+        return "wait";
+      }
+
+      function renderBasic() {
+        if (!task) return;
+        document.getElementById("fLine").value = currentLine;
+        document.getElementById("fSales").value = task.salesOrderNo || "";
+        document.getElementById("fMo").value = task.productionOrderNo || "";
+        document.getElementById("fDraw").value = task.drawingNo || "";
+        document.getElementById("fProductType").value = task.productType || "";
+        document.getElementById("fProduct").value = task.productName || "";
+        document.getElementById("fPlanQty").value = task.planQty != null ? String(task.planQty) : "";
+        document.getElementById("fStatus").value = task.status || "";
+        document.getElementById("fPlanStart").value = task.planStart || "";
+        document.getElementById("fPlanEnd").value = task.planEnd || "";
+        document.getElementById("fActStart").value = task.actualStart || "";
+        document.getElementById("fActEnd").value = task.actualEnd || "";
+        document.getElementById("fDoneQty").value = task.doneQty != null ? String(task.doneQty) : "";
+        document.getElementById("fOp").value = task.operator || "";
+        document.getElementById("fPrio").value = task.priority || "";
+      }
+
+      function normalizeReportRecords() {
+        if (!task) return;
+        if (!Array.isArray(task.reportRecords)) task.reportRecords = [];
+        task.reportRecords = task.reportRecords.map(function (r) {
+          return {
+            operator: r && r.operator ? String(r.operator) : (task.operator || OPERATOR),
+            qty: Number(r && r.qty) || 0,
+            time: r && r.time ? String(r.time) : nowText(),
+            workersText: r && r.workersText ? String(r.workersText) : ""
+          };
+        });
+      }
+
+      var reasonOptionsHtml =
+        "<option value=\"生产缺料\" selected>生产缺料</option>" +
+        "<option value=\"生产损坏\">生产损坏</option>" +
+        "<option value=\"来料不良\">来料不良</option>" +
+        "<option value=\"其他原因\">其他原因</option>";
+
+      function matRowReadyForCheck(tr) {
+        var qtyInput = tr.querySelector(".call-qty");
+        var sel = tr.querySelector(".reason-sel");
+        var raw = qtyInput ? String(qtyInput.value).trim() : "";
+        if (raw === "") return false;
+        var q = Number(raw);
+        if (!isFinite(q) || q < 0) return false;
+        var reason = sel ? String(sel.value || "").trim() : "";
+        return reason !== "";
+      }
+
+      function syncMatRowAutoCheck(tr) {
+        var cb = tr.querySelector(".mat-row-chk");
+        if (!cb) return;
+        cb.checked = matRowReadyForCheck(tr);
+      }
+
+      function syncChkAllMatState() {
+        var rows = document.querySelectorAll("#matBody tr");
+        var all = document.getElementById("chkAllMat");
+        if (!all) return;
+        if (!rows.length) {
+          all.checked = false;
+          all.indeterminate = false;
+          return;
+        }
+        var every = true;
+        var some = false;
+        for (var i = 0; i < rows.length; i++) {
+          var c = rows[i].querySelector(".mat-row-chk");
+          if (!c) continue;
+          if (c.checked) some = true;
+          else every = false;
+        }
+        all.checked = every && rows.length > 0;
+        all.indeterminate = some && !every;
+      }
+
+      function setupMatTableDelegationOnce() {
+        var tbody = document.getElementById("matBody");
+        var all = document.getElementById("chkAllMat");
+        if (!tbody || tbody.dataset.delegBound === "1") return;
+        tbody.dataset.delegBound = "1";
+        tbody.addEventListener("input", function (e) {
+          if (e.target && e.target.classList && e.target.classList.contains("call-qty")) {
+            var tr = e.target.closest("tr");
+            if (tr) syncMatRowAutoCheck(tr);
+            syncChkAllMatState();
+          }
+        });
+        tbody.addEventListener("change", function (e) {
+          var t = e.target;
+          if (!t) return;
+          if (t.classList.contains("reason-sel")) {
+            var tr = t.closest("tr");
+            if (tr) syncMatRowAutoCheck(tr);
+            syncChkAllMatState();
+          }
+          if (t.classList.contains("mat-row-chk")) {
+            syncChkAllMatState();
+          }
+        });
+        if (all && all.dataset.bound !== "1") {
+          all.dataset.bound = "1";
+          all.addEventListener("change", function () {
+            var tb = document.getElementById("matBody");
+            if (!tb) return;
+            tb.querySelectorAll(".mat-row-chk").forEach(function (cb) {
+              cb.checked = all.checked;
+            });
+            all.indeterminate = false;
+          });
+        }
+      }
+
+      function renderMat() {
+        var tbody = document.getElementById("matBody");
+        var hint = document.getElementById("matHint");
+        if (!task) {
+          tbody.innerHTML = "";
+          hint.style.display = "block";
+          hint.textContent = "未找到任务。";
+          return;
+        }
+        var order = resolveWarehouseOrder(task);
+        var mats = order && Array.isArray(order.materials) ? order.materials : [];
+        if (!order || !mats.length) {
+          tbody.innerHTML = "";
+          hint.style.display = "block";
+          hint.textContent = task.warehouseOrderId
+            ? "未在仓库备料数据中找到该单的物料清单，请先打开「仓库备料」页面加载演示数据。"
+            : "当前任务未关联仓库订单。";
+          return;
+        }
+        hint.style.display = "none";
+        tbody.innerHTML = mats
+          .map(function (m, idx) {
+            var curPrepQty = warehouseCurrentPrepQtyDisplay(m);
+            var pst = m.pickStatus || "";
+            var defaultCallQtyNum = Number(m.reqQty);
+            var defaultCallQty = isFinite(defaultCallQtyNum) ? String(defaultCallQtyNum) : "";
+            return (
+              "<tr data-idx=\"" +
+              idx +
+              "\">" +
+              '<td class="cell-center"><input type="checkbox" class="mat-row-chk" aria-label="选择物料" /></td>' +
+              "<td>" +
+              escapeHtml(m.code || "") +
+              "</td>" +
+              "<td>" +
+              escapeHtml(m.name || "") +
+              "</td>" +
+              "<td>" +
+              escapeHtml(pst) +
+              "</td>" +
+              "<td>" +
+              escapeHtml(curPrepQty) +
+              "</td>" +
+              '<td><input type="number" class="num-input call-qty" min="0" step="any" value="' + escapeAttr(defaultCallQty) + '" placeholder="" /></td>' +
+              '<td><select class="reason-sel" aria-label="叫料原因">' +
+              reasonOptionsHtml +
+              "</select></td>" +
+              "<td>" +
+              escapeHtml(m.unit || "") +
+              "</td>" +
+              "</tr>"
+            );
+          })
+          .join("");
+        var chkAll = document.getElementById("chkAllMat");
+        if (chkAll) {
+          chkAll.checked = false;
+          chkAll.indeterminate = false;
+        }
+      }
+
+      function renderReportTable() {
+        var tbody = document.getElementById("reportBody");
+        normalizeReportRecords();
+        if (!task || !Array.isArray(task.reportRecords)) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty-tip">暂无报工记录</td></tr>';
+          return;
+        }
+        if (!task.reportRecords.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty-tip">暂无报工记录</td></tr>';
+          return;
+        }
+        var locked = task.status === "已完成";
+        tbody.innerHTML = task.reportRecords
+          .slice()
+          .reverse()
+          .map(function (r, revIdx, arr) {
+            var idx = arr.length - 1 - revIdx;
+            var editing = reportEditIndex === idx;
+            var workersText = String(r.workersText || "");
+            var workersDisplay = workersText || "-";
+            var qtyCell = editing
+              ? '<input class="report-edit-input" type="number" min="0" step="any" data-edit-idx="' + idx + '" value="' + escapeAttr(String(r.qty || 0)) + '" />'
+              : escapeHtml(String(r.qty != null ? r.qty : ""));
+            var actionCell = editing
+              ? '<div class="report-row-actions">' +
+                  '<button type="button" class="report-row-btn" data-report-act="cancel-edit" data-report-idx="' + idx + '">取消</button>' +
+                  '<button type="button" class="report-row-btn primary" data-report-act="save-edit" data-report-idx="' + idx + '">保存</button>' +
+                "</div>"
+              : '<div class="report-row-actions">' +
+                  '<button type="button" class="report-row-btn" data-report-act="edit" data-report-idx="' + idx + '"' + (locked ? " disabled" : "") + ">修改</button>" +
+                "</div>";
+            return (
+              "<tr><td>" +
+              escapeHtml(r.time || "") +
+              "</td><td>" +
+              qtyCell +
+              "</td><td>" +
+              escapeHtml(r.operator || "") +
+              '</td><td class="report-worker-cell" title="' +
+              escapeAttr(workersDisplay) +
+              '"><span class="report-worker-ellipsis">' +
+              escapeHtml(workersDisplay) +
+              "</span></td><td>" +
+              actionCell +
+              "</td></tr>"
+            );
+          })
+          .join("");
+      }
+
+      function handleReportTableAction(act, idx) {
+        if (!task || !Array.isArray(task.reportRecords) || !task.reportRecords[idx]) return;
+        if (act === "edit") {
+          if (task.status === "已完成") return;
+          reportEditIndex = idx;
+          renderReportTable();
+          return;
+        }
+        if (act === "cancel-edit") {
+          reportEditIndex = null;
+          renderReportTable();
+          return;
+        }
+        if (act === "save-edit") {
+          var input = document.querySelector('#reportBody input[data-edit-idx="' + idx + '"]');
+          if (!input) return;
+          var qty = parseFloat(String(input.value || "").trim());
+          if (!isFinite(qty) || qty < 0) {
+            alert("请输入合法的报工数量（大于等于 0）。");
+            return;
+          }
+          task.reportRecords[idx].qty = qty;
+          reportEditIndex = null;
+          persistSnapshot(allTasks, currentLine);
+          renderBasic();
+          renderReportTable();
+        }
+      }
+
+      document.getElementById("reportBody").addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-report-act]");
+        if (!btn) return;
+        var idx = Number(btn.getAttribute("data-report-idx"));
+        if (!isFinite(idx) || idx < 0) return;
+        handleReportTableAction(btn.getAttribute("data-report-act"), idx);
+      });
+
+      function renderCallTable() {
+        var tbody = document.getElementById("callBody");
+        if (!task || !Array.isArray(task.productionCallRecords) || !task.productionCallRecords.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="empty-tip">暂无叫料记录</td></tr>';
+          return;
+        }
+        tbody.innerHTML = task.productionCallRecords
+          .map(function (r) {
+            var st = r.status || "待备料";
+            return (
+              "<tr><td>" +
+              escapeHtml(r.time || "") +
+              "</td><td>" +
+              escapeHtml(r.materialName || "") +
+              "</td><td>" +
+              escapeHtml(String(r.callQty != null ? r.callQty : "")) +
+              "</td><td>" +
+              escapeHtml(r.reason || "") +
+              "</td><td>" +
+              escapeHtml(r.caller || "") +
+              "</td><td><span class=\"badge-pick " +
+              badgeClass(st) +
+              "\">" +
+              escapeHtml(st) +
+              "</span></td><td>" +
+              escapeHtml(String(r.currentPrepQty != null ? r.currentPrepQty : "")) +
+              "</td></tr>"
+            );
+          })
+          .join("");
+      }
+
+      function setTab(key) {
+        document.querySelectorAll(".tab").forEach(function (el) {
+          el.classList.toggle("is-active", el.getAttribute("data-tab") === key);
+        });
+        document.getElementById("panelMat").classList.toggle("is-active", key === "mat");
+        document.getElementById("panelReport").classList.toggle("is-active", key === "report");
+        document.getElementById("panelCall").classList.toggle("is-active", key === "call");
+        var btnCall = document.getElementById("btnProdCall");
+        if (btnCall) btnCall.style.display = key === "mat" ? "inline-flex" : "none";
+      }
+
+      document.getElementById("btnBack").href = "生产作业.html?line=" + encodeURIComponent(currentLine);
+
+      document.querySelectorAll(".tab").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          setTab(btn.getAttribute("data-tab"));
+        });
+      });
+
+      document.getElementById("btnProdCall").addEventListener("click", function () {
+        if (!task) return;
+        var rows = document.querySelectorAll("#matBody tr");
+        if (!rows.length) {
+          alert("无物料数据。");
+          return;
+        }
+        var picked = Array.prototype.filter.call(rows, function (tr) {
+          var cb = tr.querySelector(".mat-row-chk");
+          return cb && cb.checked;
+        });
+        if (!picked.length) {
+          alert("请先勾选需要叫料的物料行。");
+          return;
+        }
+        for (var i = 0; i < picked.length; i++) {
+          if (!matRowReadyForCheck(picked[i])) {
+            alert("已勾选的物料请填写叫料数量并选择叫料原因。");
+            return;
+          }
+        }
+        if (!Array.isArray(task.productionCallRecords)) task.productionCallRecords = [];
+        var lineName = currentLine;
+        var whRows = [];
+        var now = nowText();
+        picked.forEach(function (tr) {
+          var qtyInput = tr.querySelector(".call-qty");
+          var sel = tr.querySelector(".reason-sel");
+          var nameCell = tr.children[2];
+          var qtyRaw = qtyInput ? Number(qtyInput.value) : NaN;
+          var callQty = isFinite(qtyRaw) && qtyRaw >= 0 ? qtyRaw : 0;
+          var materialName = nameCell ? String(nameCell.textContent || "").trim() : "";
+          var reason = sel ? String(sel.value || "").trim() : "";
+          task.productionCallRecords.push({
+            time: now,
+            materialName: materialName,
+            callQty: callQty,
+            reason: reason,
+            caller: task.operator || OPERATOR,
+            status: "待备料",
+            currentPrepQty: callQty,
+            currentPrepInput: String(callQty)
+          });
+          whRows.push({
+            materialName: materialName,
+            callQty: callQty,
+            reason: reason,
+            caller: task.operator || OPERATOR
+          });
+          incrementCallReasonStats(mapCallReasonDropdownToBucket(reason));
+        });
+        markWarehouseOrderUrgentByCall(task);
+        appendWarehouseCallRecords(task, whRows, lineName);
+        persistSnapshot(allTasks, currentLine);
+        alert("已为所选 " + picked.length + " 条物料生成叫料记录（演示）。");
+        renderCallTable();
+      });
+
+      if (!task) {
+        document.getElementById("basicPanel").innerHTML =
+          '<h2 class="panel-title">未找到订单</h2><p style="color:#909399">请从「生产作业」列表进入，或检查链接参数 id。</p>';
+      } else {
+        setupMatTableDelegationOnce();
+        renderBasic();
+        renderMat();
+        renderReportTable();
+        renderCallTable();
+        setTab(initialTab);
+      }
+    })();
+  </script>
+</body>
+</html>

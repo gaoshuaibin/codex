@@ -1,0 +1,1264 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工人上下工</title>
+  <style>
+    :root {
+      --header: #2b7ec0;
+      --header-dark: #1f6aa3;
+      --page-bg: #e8eef4;
+      --card: #ffffff;
+      --text: #1f2d3d;
+      --sub: #5a6d7e;
+      --line: #d7e0ea;
+      --mid-bg: #eef2f7;
+      --danger: #e11d48;
+      --primary: #2b7ec0;
+    }
+    * { box-sizing: border-box; }
+    html { height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100%;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      background: var(--page-bg);
+      color: var(--text);
+      font-size: 14px;
+    }
+    .app-header {
+      flex-shrink: 0;
+      height: 48px;
+      background: linear-gradient(180deg, var(--header) 0%, var(--header-dark) 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    .app-header .back {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: transparent;
+      color: #fff;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .app-header .back:hover { background: rgba(255, 255, 255, 0.12); }
+    .app-header h1 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .btn-emp-list {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 30px;
+      padding: 0 12px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn-emp-list:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .main-grid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.15fr) minmax(240px, 1fr);
+      gap: 14px;
+      width: 100%;
+      margin: 0;
+      padding: 12px;
+      align-items: stretch;
+    }
+    @media (max-width: 1024px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--card);
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0 0 12px;
+      color: #1a3a52;
+      flex-shrink: 0;
+    }
+    .line-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #1a3a52;
+      flex-shrink: 0;
+    }
+    .info-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f3f7;
+      font-size: 13px;
+    }
+    .info-line span:first-child { color: var(--sub); flex-shrink: 0; }
+    .info-line strong { font-weight: 600; text-align: right; }
+    .footer-stat {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--sub);
+      flex-shrink: 0;
+    }
+    .footer-stat strong { color: var(--primary); font-size: 16px; }
+    .op-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+    .op-bar button {
+      flex: 1;
+      height: 40px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn-on { background: var(--primary); color: #fff; }
+    .btn-off { background: #94a3b8; color: #fff; }
+    .mid-body {
+      flex: 1;
+      min-height: 0;
+      background: var(--mid-bg);
+      border-radius: 8px;
+      border: 1px dashed #c5d0dc;
+      padding: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mid-body.empty-hint {
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+    .mid-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 12px;
+      padding-top: 4px;
+      flex-shrink: 0;
+    }
+    .btn-confirm {
+      min-width: 96px;
+      height: 36px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn-confirm:disabled { opacity: 0.45; cursor: not-allowed; }
+    .person-card {
+      position: relative;
+      width: 100%;
+      min-height: 44px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 36px 10px 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+    .person-card-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      min-width: 0;
+    }
+    .person-card .emp-no {
+      display: inline-block;
+      min-width: 54px;
+      flex-shrink: 0;
+      font-size: 12px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .person-card .name {
+      flex: 1;
+      min-width: 0;
+      font-weight: 600;
+      font-size: 14px;
+      margin: 0;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .person-card .time {
+      flex-shrink: 0;
+      max-width: 45%;
+      font-size: 12px;
+      color: var(--sub);
+      margin: 0;
+      text-align: right;
+      line-height: 1.35;
+      word-break: break-all;
+    }
+    .person-card .btn-remove {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: var(--danger);
+      color: #fff;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .right-list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-mask.show { display: flex; }
+    .modal-box {
+      width: min(520px, 100%);
+      max-height: min(78vh, 620px);
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .modal-body {
+      padding: 12px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .worker-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .worker-table th,
+    .worker-table td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .worker-table thead th {
+      background: #f3f6fa;
+      color: #334155;
+      font-weight: 600;
+    }
+    .worker-table thead th.col-check,
+    .worker-table tbody td.col-check {
+      width: 40px;
+      text-align: center;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .worker-table tbody tr.worker-row {
+      cursor: pointer;
+    }
+    .worker-table tbody tr.worker-row:hover {
+      background: #f1f7ff;
+    }
+    .worker-table input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    .wk-no {
+      color: #2b7ec0;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .wk-name {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .wk-gender {
+      color: var(--sub);
+      font-size: 12px;
+    }
+    .worker-empty {
+      display: none;
+      margin: 0;
+      padding: 20px 8px 8px;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+    .worker-empty.show { display: block; }
+    .modal-foot {
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .modal-foot button {
+      height: 34px;
+      padding: 0 16px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .modal-foot .cancel { border: 1px solid var(--line); background: #fff; }
+    .modal-foot .ok { border: none; background: var(--primary); color: #fff; }
+
+    .emp-modal-box {
+      width: min(980px, 100%);
+      max-height: min(84vh, 760px);
+    }
+    .emp-modal-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .emp-modal-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a3a52;
+    }
+    .emp-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-emp-add {
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 6px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-close-icon {
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: #64748b;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .emp-modal-body {
+      padding: 12px;
+      overflow: auto;
+      flex: 1;
+    }
+    table.emp-table {
+      width: 100%;
+      min-width: 900px;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .emp-table th,
+    .emp-table td {
+      border: 1px solid var(--line);
+      padding: 8px;
+      text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .emp-table thead th {
+      background: #f3f6fa;
+      font-weight: 600;
+      color: #334155;
+    }
+    .emp-table tbody tr:nth-child(even) {
+      background: #fafcff;
+    }
+    .emp-table tbody tr.is-new {
+      background: #eff6ff !important;
+    }
+    .emp-table input,
+    .emp-table select {
+      width: 100%;
+      height: 30px;
+      border: 1px solid #d5dce6;
+      border-radius: 4px;
+      padding: 0 8px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #fff;
+      color: #1f2d3d;
+    }
+    .emp-table input:disabled,
+    .emp-table select:disabled {
+      background: #f8fafc;
+      color: #6b7280;
+    }
+    .emp-ops {
+      display: inline-flex;
+      gap: 6px;
+    }
+    .emp-op-btn {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .emp-op-btn.primary {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+    .emp-op-btn.danger {
+      border-color: #e11d48;
+      color: #e11d48;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <button type="button" class="back" id="btnBack" title="返回" aria-label="返回">‹</button>
+    <h1>工人上下工</h1>
+    <button type="button" class="btn-emp-list" id="btnOpenEmpModal">员工列表</button>
+  </header>
+
+  <main class="main-grid">
+    <section class="panel" aria-label="产线与订单">
+      <div class="line-name" id="lineTitle">当前产线：组装A线</div>
+      <div class="info-line"><span>产品名称</span><strong id="fProdName">--</strong></div>
+      <div class="info-line"><span>产品编号</span><strong id="fProdCode">--</strong></div>
+      <div class="info-line"><span>产品规格</span><strong id="fProdSpec">--</strong></div>
+      <div class="info-line"><span>工单名称</span><strong id="fWoName">--</strong></div>
+      <div class="info-line"><span>计划产量</span><strong id="fPlanQty">3000</strong></div>
+      <div class="info-line"><span>实际产量</span><strong id="fActQty">0</strong></div>
+      <div class="footer-stat">当前已上工人数：<strong id="onDutyCount">0</strong></div>
+    </section>
+
+    <section class="panel" aria-label="上下工操作">
+      <h2 class="panel-title">上下工记录</h2>
+      <div class="op-bar">
+        <button type="button" class="btn-on" id="btnClockIn">上工</button>
+        <button type="button" class="btn-off" id="btnClockOut">下工</button>
+      </div>
+      <div class="mid-body empty-hint" id="midArea">
+        <span id="midHint">点击「上工」或「下工」选择人员，将显示在此区域</span>
+      </div>
+      <div class="mid-footer">
+        <button type="button" class="btn-confirm" id="btnMidConfirm" disabled>确认</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="已上工人员">
+      <h2 class="panel-title">当前产线已上工人员</h2>
+      <div class="right-list" id="rightList"></div>
+    </section>
+  </main>
+
+  <div class="modal-mask" id="workerModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-box">
+      <div class="modal-head" id="modalTitle">选择工人</div>
+      <div class="modal-body">
+        <table class="worker-table" aria-label="可选员工列表">
+          <thead>
+            <tr>
+              <th class="col-check">
+                <input type="checkbox" id="wkHeadCb" aria-label="全选员工" />
+              </th>
+              <th style="min-width:120px">员工编号</th>
+              <th style="min-width:140px">员工姓名</th>
+              <th style="min-width:90px">性别</th>
+            </tr>
+          </thead>
+          <tbody id="modalWorkerList"></tbody>
+        </table>
+        <p class="worker-empty" id="workerEmptyHint"></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="cancel" id="modalCancel">取消</button>
+        <button type="button" class="ok" id="modalOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="empModal" role="dialog" aria-modal="true" aria-labelledby="empModalTitle">
+    <div class="modal-box emp-modal-box">
+      <div class="emp-modal-head">
+        <h3 class="emp-modal-title" id="empModalTitle">员工信息列表</h3>
+        <div class="emp-head-actions">
+          <button type="button" class="btn-emp-add" id="btnAddEmpRow">新增员工</button>
+          <button type="button" class="btn-close-icon" id="btnCloseEmpModal" title="关闭" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="emp-modal-body" id="empModalBody">
+        <table class="emp-table">
+          <thead>
+            <tr>
+              <th style="min-width:100px">员工编号</th>
+              <th style="min-width:150px">所属产线</th>
+              <th style="min-width:120px">姓名</th>
+              <th style="min-width:90px">性别</th>
+              <th style="min-width:150px">电话号码</th>
+              <th style="min-width:130px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="empTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var STORAGE_KEY = "shift_line_workers_v2";
+      var SNAPSHOT_KEY = "production_tasks_snapshot_v1";
+      var DEFAULT_LINE = "组装A线";
+      var LEGACY_LINE = "普车组装1线";
+
+      function normalizeLineName(line) {
+        var normalized = String(line || "").trim();
+        if (!normalized) return DEFAULT_LINE;
+        return normalized === LEGACY_LINE ? DEFAULT_LINE : normalized;
+      }
+
+      function getCurrentLine() {
+        try {
+          var raw = localStorage.getItem(SNAPSHOT_KEY);
+          if (raw) {
+            var data = JSON.parse(raw);
+            if (data && data.line) {
+              return normalizeLineName(data.line);
+            }
+          }
+        } catch (e) {}
+        return DEFAULT_LINE;
+      }
+
+      var currentLine = getCurrentLine();
+      var state = {
+        employees: [],
+        onDuty: [],
+        stagedIn: [],
+        stagedOut: [],
+        modalMode: null,
+        tempPick: {},
+        empDraftRows: []
+      };
+
+      function seedEmployees() {
+        var names = ["王泽", "孙忆枫", "李强", "赵敏", "周杰", "吴倩", "郑华", "钱坤", "冯涛", "陈静", "楚云", "魏明"];
+        var genders = ["男", "女"];
+        return names.map(function (name, i) {
+          return {
+            empNo: "EMP" + String(i + 1).padStart(3, "0"),
+            line: currentLine,
+            name: name,
+            gender: genders[i % 2],
+            phone: "1380000" + String(100 + i)
+          };
+        });
+      }
+
+      function seedInitialOnDuty() {
+        state.onDuty = state.employees.slice(0, 10).map(function (e) {
+          return {
+            empNo: e.empNo,
+            name: e.name,
+            gender: e.gender,
+            line: e.line,
+            phone: e.phone,
+            time: "8:30"
+          };
+        });
+      }
+
+      function saveState() {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            line: currentLine,
+            employees: state.employees,
+            onDuty: state.onDuty
+          })
+        );
+      }
+
+      function loadState() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            var o = JSON.parse(raw);
+            if (Array.isArray(o.employees)) state.employees = o.employees;
+            if (Array.isArray(o.onDuty)) state.onDuty = o.onDuty;
+          }
+        } catch (e) {}
+        if (!state.employees.length) state.employees = seedEmployees();
+        state.employees = state.employees.map(function (e) {
+          return {
+            empNo: e.empNo || "",
+            line: normalizeLineName(e.line || currentLine),
+            name: e.name || "",
+            gender: e.gender || "男",
+            phone: e.phone || ""
+          };
+        });
+        if (!state.onDuty.length) {
+          seedInitialOnDuty();
+        } else {
+          state.onDuty = state.onDuty.map(function (p) {
+            var found = state.employees.filter(function (x) { return x.empNo === p.empNo; })[0];
+            if (found) {
+              return {
+                empNo: found.empNo,
+                name: found.name,
+                gender: found.gender,
+                line: found.line,
+                phone: found.phone,
+                time: p.time || "8:30"
+              };
+            }
+            return {
+              empNo: p.empNo || "",
+              name: p.name || "",
+              gender: p.gender || "男",
+              line: normalizeLineName(p.line || currentLine),
+              phone: p.phone || "",
+              time: p.time || "8:30"
+            };
+          });
+        }
+        saveState();
+      }
+
+      function pad2(n) { return n < 10 ? "0" + n : String(n); }
+      function nowTimeStr() {
+        var d = new Date();
+        return d.getHours() + ":" + pad2(d.getMinutes());
+      }
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function onDutyEmpNoSet(lineName) {
+        var set = {};
+        var targetLine = lineName ? normalizeLineName(lineName) : "";
+        state.onDuty.forEach(function (x) {
+          if (!lineName || normalizeLineName(x.line) === targetLine) set[x.empNo] = true;
+        });
+        return set;
+      }
+      function stagedInSet() {
+        var set = {};
+        state.stagedIn.forEach(function (x) { set[x.empNo] = true; });
+        return set;
+      }
+      function stagedOutSet() {
+        var set = {};
+        state.stagedOut.forEach(function (x) { set[x.empNo] = true; });
+        return set;
+      }
+
+      function nextEmpNo() {
+        var max = 0;
+        function pullNo(empNo) {
+          var m = /^EMP(\d+)$/.exec(String(empNo || ""));
+          if (!m) return;
+          var n = parseInt(m[1], 10);
+          if (n > max) max = n;
+        }
+        state.employees.forEach(function (e) { pullNo(e.empNo); });
+        state.empDraftRows.forEach(function (r) { pullNo(r.empNo); });
+        return "EMP" + String(max + 1).padStart(3, "0");
+      }
+
+      function openWorkerModal(mode) {
+        state.modalMode = mode;
+        state.tempPick = {};
+        var title = document.getElementById("modalTitle");
+        var list = document.getElementById("modalWorkerList");
+        var headCb = document.getElementById("wkHeadCb");
+        var emptyHint = document.getElementById("workerEmptyHint");
+        title.textContent = mode === "in" ? "选择上工人员（可多选）" : "选择下工人员（可多选）";
+
+        var onSet = onDutyEmpNoSet(currentLine);
+        var sin = stagedInSet();
+        var sout = stagedOutSet();
+        var rows = state.employees.filter(function (w) {
+          if (normalizeLineName(w.line) !== currentLine) return false;
+          if (mode === "in") return !onSet[w.empNo] && !sin[w.empNo];
+          return onSet[w.empNo] && !sout[w.empNo];
+        });
+
+        headCb.checked = false;
+        headCb.indeterminate = false;
+        headCb.disabled = !rows.length;
+
+        if (!rows.length) {
+          list.innerHTML = "";
+          emptyHint.textContent = mode === "in" ? "暂无可选人员（均已上工或在待确认列表）" : "当前无在岗人员可选";
+          emptyHint.classList.add("show");
+        } else {
+          emptyHint.classList.remove("show");
+          list.innerHTML = rows
+            .map(function (w) {
+              return (
+                '<tr class="worker-row" data-no="' + escapeHtml(w.empNo) + '">' +
+                '<td class="col-check"><input type="checkbox" class="wk-cb" /></td>' +
+                '<td><span class="wk-no">' + escapeHtml(w.empNo) + "</span></td>" +
+                '<td><span class="wk-name">' + escapeHtml(w.name) + "</span></td>" +
+                '<td><span class="wk-gender">' + escapeHtml(w.gender || "男") + "</span></td>" +
+                "</tr>"
+              );
+            })
+            .join("");
+
+          function syncHeadState() {
+            var allCb = list.querySelectorAll(".wk-cb");
+            var checked = list.querySelectorAll(".wk-cb:checked");
+            headCb.checked = allCb.length > 0 && checked.length === allCb.length;
+            headCb.indeterminate = checked.length > 0 && checked.length < allCb.length;
+          }
+
+          list.querySelectorAll(".worker-row").forEach(function (row) {
+            var empNo = row.getAttribute("data-no");
+            var cb = row.querySelector(".wk-cb");
+            row.addEventListener("click", function (e) {
+              if (e.target.classList.contains("wk-cb")) return;
+              cb.checked = !cb.checked;
+              state.tempPick[empNo] = cb.checked;
+              syncHeadState();
+            });
+            cb.addEventListener("change", function () {
+              state.tempPick[empNo] = cb.checked;
+              syncHeadState();
+            });
+          });
+
+          headCb.onchange = function () {
+            var checked = !!headCb.checked;
+            list.querySelectorAll(".worker-row").forEach(function (row) {
+              var empNo = row.getAttribute("data-no");
+              var cb = row.querySelector(".wk-cb");
+              if (!cb) return;
+              cb.checked = checked;
+              state.tempPick[empNo] = checked;
+            });
+            syncHeadState();
+          };
+        }
+        document.getElementById("workerModal").classList.add("show");
+      }
+
+      function closeWorkerModal() {
+        document.getElementById("workerModal").classList.remove("show");
+        state.modalMode = null;
+        state.tempPick = {};
+      }
+
+      function confirmWorkerModal() {
+        var mode = state.modalMode;
+        if (!mode) return;
+        var list = document.getElementById("modalWorkerList");
+        var pickedNos = [];
+        list.querySelectorAll(".worker-row").forEach(function (row) {
+          var cb = row.querySelector(".wk-cb");
+          if (cb && cb.checked) pickedNos.push(row.getAttribute("data-no"));
+        });
+        var map = {};
+        state.employees.forEach(function (w) { map[w.empNo] = w; });
+
+        pickedNos.forEach(function (empNo) {
+          var w = map[empNo];
+          if (!w) return;
+          if (mode === "in") {
+            state.stagedIn.push({
+              empNo: w.empNo,
+              name: w.name,
+              gender: w.gender,
+              line: w.line,
+              phone: w.phone
+            });
+          } else {
+            var od = state.onDuty.filter(function (x) { return x.empNo === w.empNo; })[0];
+            if (od) {
+              state.stagedOut.push({
+                empNo: od.empNo,
+                name: od.name,
+                gender: od.gender,
+                line: od.line,
+                phone: od.phone,
+                time: od.time
+              });
+              state.onDuty = state.onDuty.filter(function (x) { return x.empNo !== w.empNo; });
+            }
+          }
+        });
+        saveState();
+        closeWorkerModal();
+        renderMid();
+        renderRight();
+        updateCount();
+      }
+
+      function renderMid() {
+        var el = document.getElementById("midArea");
+        if (!state.stagedIn.length && !state.stagedOut.length) {
+          el.classList.add("empty-hint");
+          el.innerHTML = '<span id="midHint">点击「上工」或「下工」选择人员，将显示在此区域</span>';
+          document.getElementById("btnMidConfirm").disabled = true;
+          return;
+        }
+        el.classList.remove("empty-hint");
+        var html = "";
+        if (state.stagedIn.length) {
+          state.stagedIn.forEach(function (p, idx) {
+            html +=
+              '<div class="person-card">' +
+              '<button type="button" class="btn-remove" data-kind="in" data-idx="' + idx + '" title="移除">−</button>' +
+              '<div class="person-card-row">' +
+              '<span class="emp-no">' + escapeHtml(p.empNo) + "</span>" +
+              '<span class="name">' + escapeHtml(p.name) + "（" + escapeHtml(p.gender || "男") + "）</span>" +
+              '<span class="time">待确认上工</span></div></div>';
+          });
+        } else {
+          state.stagedOut.forEach(function (p, idx) {
+            html +=
+              '<div class="person-card">' +
+              '<button type="button" class="btn-remove" data-kind="out" data-idx="' + idx + '" title="移回在岗">−</button>' +
+              '<div class="person-card-row">' +
+              '<span class="emp-no">' + escapeHtml(p.empNo) + "</span>" +
+              '<span class="name">' + escapeHtml(p.name) + "（" + escapeHtml(p.gender || "男") + "）</span>" +
+              '<span class="time">原上工 ' + escapeHtml(p.time || "") + " · 待确认下工</span></div></div>";
+          });
+        }
+        el.innerHTML = html;
+        el.querySelectorAll(".btn-remove").forEach(function (btn) {
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var kind = btn.getAttribute("data-kind");
+            var idx = Number(btn.getAttribute("data-idx"));
+            if (kind === "in") {
+              state.stagedIn.splice(idx, 1);
+            } else {
+              var back = state.stagedOut.splice(idx, 1)[0];
+              if (back) state.onDuty.push(back);
+            }
+            state.onDuty.sort(function (a, b) { return a.name.localeCompare(b.name, "zh"); });
+            saveState();
+            renderMid();
+            renderRight();
+            updateCount();
+          });
+        });
+        document.getElementById("btnMidConfirm").disabled = false;
+      }
+
+      function renderRight() {
+        var el = document.getElementById("rightList");
+        var list = state.onDuty.filter(function (x) { return normalizeLineName(x.line) === currentLine; });
+        if (!list.length) {
+          el.innerHTML = '<p style="color:#94a3b8;font-size:13px;padding:8px 0">暂无在岗人员</p>';
+          return;
+        }
+        el.innerHTML = list
+          .map(function (p) {
+            return (
+              '<div class="person-card">' +
+              '<button type="button" class="btn-remove btn-right-off" data-no="' + escapeHtml(p.empNo) + '" title="下工">−</button>' +
+              '<div class="person-card-row">' +
+              '<span class="emp-no">' + escapeHtml(p.empNo) + "</span>" +
+              '<span class="name">' + escapeHtml(p.name) + "（" + escapeHtml(p.gender || "男") + "）</span>" +
+              '<span class="time">' + escapeHtml(p.time || "") + "</span></div></div>"
+            );
+          })
+          .join("");
+        el.querySelectorAll(".btn-right-off").forEach(function (btn) {
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (state.stagedIn.length) {
+              alert("请先确认或清空中间区域的上工记录，再进行下工操作。");
+              return;
+            }
+            var empNo = btn.getAttribute("data-no");
+            var od = state.onDuty.filter(function (x) { return x.empNo === empNo; })[0];
+            if (!od) return;
+            state.onDuty = state.onDuty.filter(function (x) { return x.empNo !== empNo; });
+            state.stagedOut.push(od);
+            saveState();
+            renderMid();
+            renderRight();
+            updateCount();
+          });
+        });
+      }
+
+      function updateCount() {
+        var c = state.onDuty.filter(function (x) { return normalizeLineName(x.line) === currentLine; }).length;
+        document.getElementById("onDutyCount").textContent = String(c);
+      }
+
+      function confirmMid() {
+        if (state.stagedIn.length) {
+          var t = nowTimeStr();
+          state.stagedIn.forEach(function (p) {
+            state.onDuty.push({
+              empNo: p.empNo,
+              name: p.name,
+              gender: p.gender,
+              line: p.line,
+              phone: p.phone,
+              time: t
+            });
+          });
+          state.stagedIn = [];
+          state.onDuty.sort(function (a, b) { return a.name.localeCompare(b.name, "zh"); });
+          saveState();
+          renderMid();
+          renderRight();
+          updateCount();
+          return;
+        }
+        if (state.stagedOut.length) {
+          state.stagedOut = [];
+          saveState();
+          renderMid();
+          renderRight();
+          updateCount();
+        }
+      }
+
+      function openEmpModal() {
+        state.empDraftRows = [];
+        renderEmpTable();
+        document.getElementById("empModal").classList.add("show");
+      }
+
+      function closeEmpModal() {
+        document.getElementById("empModal").classList.remove("show");
+        state.empDraftRows = [];
+      }
+
+      function renderEmpTable() {
+        var tbody = document.getElementById("empTableBody");
+        var combined = state.employees.map(function (e) {
+          return {
+            empNo: e.empNo,
+            line: e.line,
+            name: e.name,
+            gender: e.gender,
+            phone: e.phone,
+            isNew: false,
+            editing: false
+          };
+        }).concat(state.empDraftRows);
+
+        if (!combined.length) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px">暂无员工信息</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = combined.map(function (r, idx) {
+          var dis = !r.editing && !r.isNew ? " disabled" : "";
+          var ops = "";
+          if (r.editing || r.isNew) {
+            ops =
+              '<button type="button" class="emp-op-btn primary" data-op="confirm" data-idx="' + idx + '">确认</button>' +
+              '<button type="button" class="emp-op-btn danger" data-op="delete" data-idx="' + idx + '">' +
+              (r.isNew ? "取消" : "删除") +
+              "</button>";
+          } else {
+            ops =
+              '<button type="button" class="emp-op-btn" data-op="edit" data-idx="' + idx + '">编辑</button>' +
+              '<button type="button" class="emp-op-btn danger" data-op="delete" data-idx="' + idx + '">删除</button>';
+          }
+          return (
+            '<tr data-empno="' + escapeHtml(r.empNo) + '"' + (r.isNew ? ' class="is-new"' : "") + ">" +
+            '<td><input type="text" data-f="empNo" data-idx="' + idx + '" value="' + escapeHtml(r.empNo) + '" disabled /></td>' +
+            '<td><input type="text" data-f="line" data-idx="' + idx + '" value="' + escapeHtml(r.line) + '" disabled /></td>' +
+            '<td><input type="text" data-f="name" data-idx="' + idx + '" value="' + escapeHtml(r.name) + '"' + dis + " /></td>" +
+            '<td><select data-f="gender" data-idx="' + idx + '"' + dis + ">" +
+            '<option value="男"' + (r.gender === "男" ? " selected" : "") + ">男</option>" +
+            '<option value="女"' + (r.gender === "女" ? " selected" : "") + ">女</option>" +
+            "</select></td>" +
+            '<td><input type="text" data-f="phone" data-idx="' + idx + '" value="' + escapeHtml(r.phone) + '"' + dis + " /></td>" +
+            '<td><span class="emp-ops">' + ops + "</span></td>" +
+            "</tr>"
+          );
+        }).join("");
+      }
+
+      function scrollToDraftRow(empNo) {
+        var body = document.getElementById("empModalBody");
+        var row = document.querySelector('#empTableBody tr[data-empno="' + CSS.escape(empNo) + '"]');
+        if (!body || !row) return;
+        row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        var nameInput = row.querySelector('input[data-f="name"]');
+        if (nameInput) nameInput.focus();
+      }
+
+      function updateRowValue(idx, field, value) {
+        if (idx < state.employees.length) {
+          state.employees[idx][field] = value;
+        } else {
+          state.empDraftRows[idx - state.employees.length][field] = value;
+        }
+      }
+
+      function rowAt(idx) {
+        if (idx < state.employees.length) {
+          return { row: state.employees[idx], isExisting: true, draftIndex: -1 };
+        }
+        var di = idx - state.employees.length;
+        return { row: state.empDraftRows[di], isExisting: false, draftIndex: di };
+      }
+
+      function syncEmpInfoToDuty(empNo) {
+        var found = state.employees.filter(function (e) { return e.empNo === empNo; })[0];
+        if (!found) return;
+        state.onDuty = state.onDuty.map(function (p) {
+          if (p.empNo !== empNo) return p;
+          return {
+            empNo: found.empNo,
+            name: found.name,
+            gender: found.gender,
+            line: found.line,
+            phone: found.phone,
+            time: p.time
+          };
+        });
+      }
+
+      function setupEmpTableEvents() {
+        var tbody = document.getElementById("empTableBody");
+        tbody.addEventListener("input", function (e) {
+          var t = e.target;
+          if (!t || !t.dataset || !t.dataset.f) return;
+          updateRowValue(Number(t.dataset.idx), t.dataset.f, t.value);
+        });
+        tbody.addEventListener("change", function (e) {
+          var t = e.target;
+          if (!t || !t.dataset || !t.dataset.f) return;
+          updateRowValue(Number(t.dataset.idx), t.dataset.f, t.value);
+        });
+        tbody.addEventListener("click", function (e) {
+          var btn = e.target.closest("[data-op]");
+          if (!btn) return;
+          var idx = Number(btn.getAttribute("data-idx"));
+          var op = btn.getAttribute("data-op");
+          var ref = rowAt(idx);
+          if (!ref.row) return;
+
+          if (op === "edit") {
+            ref.row.editing = true;
+            renderEmpTable();
+            return;
+          }
+          if (op === "delete") {
+            if (ref.isExisting) {
+              state.employees.splice(idx, 1);
+              state.onDuty = state.onDuty.filter(function (p) { return p.empNo !== ref.row.empNo; });
+            } else {
+              state.empDraftRows.splice(ref.draftIndex, 1);
+            }
+            saveState();
+            renderEmpTable();
+            renderMid();
+            renderRight();
+            updateCount();
+            return;
+          }
+          if (op === "confirm") {
+            var name = String(ref.row.name || "").trim();
+            var phone = String(ref.row.phone || "").trim();
+            if (!name) {
+              alert("员工姓名为必填项。");
+              return;
+            }
+            if (!phone) {
+              alert("电话号码为必填项。");
+              return;
+            }
+            ref.row.name = name;
+            ref.row.phone = phone;
+            ref.row.line = currentLine;
+            ref.row.gender = ref.row.gender || "男";
+
+            if (ref.isExisting) {
+              ref.row.editing = false;
+              syncEmpInfoToDuty(ref.row.empNo);
+            } else {
+              ref.row.isNew = false;
+              ref.row.editing = false;
+              state.employees.push({
+                empNo: ref.row.empNo,
+                line: ref.row.line,
+                name: ref.row.name,
+                gender: ref.row.gender,
+                phone: ref.row.phone
+              });
+              state.empDraftRows.splice(ref.draftIndex, 1);
+            }
+            saveState();
+            renderEmpTable();
+            renderMid();
+            renderRight();
+            updateCount();
+          }
+        });
+      }
+
+      function addDraftEmpRow() {
+        var empNo = nextEmpNo();
+        state.empDraftRows.push({
+          empNo: empNo,
+          line: currentLine,
+          name: "",
+          gender: "男",
+          phone: "",
+          isNew: true,
+          editing: true
+        });
+        renderEmpTable();
+        scrollToDraftRow(empNo);
+      }
+
+      document.getElementById("lineTitle").textContent = "当前产线：" + currentLine;
+      document.getElementById("btnBack").addEventListener("click", function () {
+        var params = new URLSearchParams(window.location.search);
+        var fromPage = params.get("from");
+        if (fromPage) {
+          window.location.href = fromPage;
+          return;
+        }
+        window.location.href = "生产作业.html?line=" + encodeURIComponent(currentLine);
+      });
+      document.getElementById("btnClockIn").addEventListener("click", function () {
+        if (state.stagedOut.length) {
+          if (!confirm("中间区域有待确认下工记录，继续上工将清空该区域。是否继续？")) return;
+          state.stagedOut.forEach(function (p) { state.onDuty.push(p); });
+          state.stagedOut = [];
+          saveState();
+          renderRight();
+        }
+        state.stagedIn = [];
+        openWorkerModal("in");
+      });
+      document.getElementById("btnClockOut").addEventListener("click", function () {
+        if (state.stagedIn.length) {
+          if (!confirm("中间区域有待确认上工记录，继续下工将清空该区域。是否继续？")) return;
+          state.stagedIn = [];
+        }
+        openWorkerModal("out");
+      });
+      document.getElementById("btnMidConfirm").addEventListener("click", confirmMid);
+      document.getElementById("modalCancel").addEventListener("click", closeWorkerModal);
+      document.getElementById("modalOk").addEventListener("click", confirmWorkerModal);
+      document.getElementById("workerModal").addEventListener("click", function (e) {
+        if (e.target.id === "workerModal") closeWorkerModal();
+      });
+
+      document.getElementById("btnOpenEmpModal").addEventListener("click", openEmpModal);
+      document.getElementById("btnCloseEmpModal").addEventListener("click", closeEmpModal);
+      document.getElementById("empModal").addEventListener("click", function (e) {
+        if (e.target.id === "empModal") closeEmpModal();
+      });
+      document.getElementById("btnAddEmpRow").addEventListener("click", addDraftEmpRow);
+      setupEmpTableEvents();
+
+      loadState();
+      renderMid();
+      renderRight();
+      updateCount();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>订单备料</title>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --card-bg: #ffffff;
+      --text: #303133;
+      --text-secondary: #909399;
+      --border: #ebeef5;
+      --primary: #409eff;
+      --primary-hover: #66b1ff;
+      --radius: 4px;
+      --shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      min-height: 100dvh;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--page-bg);
+      line-height: 1.5;
+    }
+
+    .page {
+      flex: 1;
+      width: 100%;
+      max-width: none;
+      min-height: 0;
+      margin: 0;
+      padding: clamp(12px, 2vw, 20px);
+      padding-bottom: clamp(16px, 3vw, 28px);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 0 16px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+      flex-shrink: 0;
+    }
+
+    .panel-material {
+      margin-bottom: 0;
+      display: block;
+    }
+
+    .panel-material .table-wrap {
+      min-height: auto;
+    }
+
+    .panel-title {
+      margin: 0 0 14px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #303133;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px 20px;
+    }
+
+    @media (max-width: 900px) {
+      .form-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 520px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      color: #606266;
+      margin-bottom: 6px;
+    }
+
+    .field label .req {
+      color: #f56c6c;
+      margin-right: 2px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      color: var(--text);
+      background: #fff;
+    }
+
+    .field input:disabled,
+    .field select:disabled {
+      background: #f5f7fa;
+      color: #909399;
+      cursor: not-allowed;
+    }
+
+    .material-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .material-head .panel-title {
+      margin: 0;
+    }
+
+    .head-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .collapse-btn {
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 4px;
+      width: 28px;
+      height: 28px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #606266;
+      font-size: 14px;
+    }
+
+    .collapse-btn:hover {
+      background: #f5f7fa;
+    }
+
+    .panel-call {
+      margin-top: 14px;
+    }
+
+    .meta-muted {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: normal;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      margin: 0 -4px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table.data-table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    table.data-table th,
+    table.data-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    table.data-table th {
+      background: #f5f7fa;
+      font-weight: 600;
+      color: #606266;
+      white-space: nowrap;
+    }
+
+    table.data-table tbody tr:hover {
+      background: #fafafa;
+    }
+
+    .cell-center {
+      text-align: center;
+    }
+
+    .num-input {
+      width: 100%;
+      max-width: min(120px, 100%);
+      height: 30px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+    }
+
+    .num-input:disabled {
+      background: #f5f7fa;
+      color: #909399;
+    }
+
+    .badge-pick {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-pick.wait {
+      background: #fdf6ec;
+      color: #e6a23c;
+    }
+
+    .badge-pick.partial {
+      background: #ecf5ff;
+      color: #409eff;
+    }
+
+    .badge-pick.done {
+      background: #f0f9eb;
+      color: #67c23a;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .btn-sm {
+      min-height: 28px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+
+    .empty-tip {
+      text-align: center;
+      color: #909399;
+      padding: 28px !important;
+    }
+
+    tr.row-done .num-input {
+      background: #f5f7fa;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-actions">
+      <button type="button" class="btn btn-primary" id="btnBack">返回</button>
+      <button type="button" class="btn btn-primary" id="btnTopSave" disabled>保存</button>
+      <button type="button" class="btn btn-primary" id="btnTopDone" disabled>完成</button>
+    </div>
+
+    <section class="panel" aria-labelledby="basicTitle">
+      <h2 class="panel-title" id="basicTitle">基本信息</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label><span class="req">*</span>销售订单号</label>
+          <input type="text" id="fSalesOrder" readonly disabled />
+        </div>
+        <div class="field">
+          <label><span class="req">*</span>生产订单号</label>
+          <input type="text" id="fProdOrder" readonly disabled />
+        </div>
+        <div class="field">
+          <label><span class="req">*</span>图号</label>
+          <input type="text" id="fDrawing" readonly disabled />
+        </div>
+        <div class="field">
+          <label><span class="req">*</span>备料状态</label>
+          <input type="text" id="fPrepStatus" readonly disabled />
+        </div>
+        <div class="field">
+          <label><span class="req">*</span>生产状态</label>
+          <input type="text" id="fProdStatus" readonly disabled />
+        </div>
+        <div class="field">
+          <label><span class="req">*</span>产品名称</label>
+          <input type="text" id="fProduct" readonly disabled />
+        </div>
+        <div class="field">
+          <label><span class="req">*</span>数量</label>
+          <input type="text" id="fQty" readonly disabled />
+        </div>
+      </div>
+    </section>
+
+    <section class="panel panel-material">
+      <div class="material-head">
+        <h2 class="panel-title">
+          物料清单
+          <span class="meta-muted" id="materialCountLabel">物料类型总数：0</span>
+        </h2>
+        <div class="head-actions">
+          <button type="button" class="collapse-btn" id="btnToggleMaterialRows" title="收缩/展开物料清单" aria-label="收缩/展开物料清单">▾</button>
+        </div>
+      </div>
+      <div class="table-wrap" id="matTableWrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="cell-center" style="width:44px">
+                <input type="checkbox" id="checkAllMat" title="全选" aria-label="全选物料" />
+              </th>
+              <th>物料编码</th>
+              <th>物料名称</th>
+              <th>物料规格</th>
+              <th>单位</th>
+              <th>备料状态</th>
+              <th>当前库存数量</th>
+              <th>备料数量</th>
+              <th>当前备料数量</th>
+              <th style="min-width:140px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="matBody"></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel panel-call">
+      <div class="material-head">
+        <h2 class="panel-title">
+          叫料记录
+          <span class="meta-muted" id="callCountLabel">记录总数：0</span>
+        </h2>
+        <div class="head-actions">
+          <button type="button" class="collapse-btn" id="btnToggleCallRows" title="收缩/展开叫料记录" aria-label="收缩/展开叫料记录">▾</button>
+        </div>
+      </div>
+      <div class="table-wrap" id="callTableWrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="cell-center" style="width:44px">
+                <input type="checkbox" id="checkAllCall" title="全选" aria-label="全选叫料记录" />
+              </th>
+              <th>时间</th>
+              <th>叫料产线</th>
+              <th>叫料物料名称</th>
+              <th>叫料数量</th>
+              <th>叫料原因</th>
+              <th>备料状态</th>
+              <th>叫料人</th>
+              <th>当前备料数量</th>
+              <th style="min-width:140px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="callBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      var STORAGE_KEY = "warehouse_prep_orders_v4";
+      var PRODUCTION_TASK_SNAPSHOT_KEY = "production_tasks_snapshot_v1";
+      var prodSnapshotCache = null;
+
+      function loadProdSnapshot() {
+        if (prodSnapshotCache) return prodSnapshotCache;
+        try {
+          var raw = localStorage.getItem(PRODUCTION_TASK_SNAPSHOT_KEY);
+          if (!raw) {
+            prodSnapshotCache = { byWo: {}, byMo: {} };
+            return prodSnapshotCache;
+          }
+          var data = JSON.parse(raw);
+          var byWo = {};
+          var byMo = {};
+          (data.tasks || []).forEach(function (t) {
+            if (t.warehouseOrderId) byWo[t.warehouseOrderId] = t.status;
+            if (t.productionOrderNo) byMo[t.productionOrderNo] = t.status;
+          });
+          prodSnapshotCache = { byWo: byWo, byMo: byMo };
+          return prodSnapshotCache;
+        } catch (e) {
+          prodSnapshotCache = { byWo: {}, byMo: {} };
+          return prodSnapshotCache;
+        }
+      }
+
+      function fallbackProdTaskStatus(o) {
+        var m = /^wo-(\d+)$/.exec(String((o && o.id) || ""));
+        if (!m) return "—";
+        var idx = parseInt(m[1], 10) - 1;
+        if (idx < 0 || idx >= 36) return "—";
+        var pool = ["生效", "生产中", "已完成", "生效", "生产中"];
+        return pool[idx % pool.length];
+      }
+
+      function prodTaskStatusForOrder(o) {
+        var s = loadProdSnapshot();
+        var st = s.byWo[o.id];
+        if (st) return st;
+        st = s.byMo[o.prodOrderNo];
+        if (st) return st;
+        return fallbackProdTaskStatus(o);
+      }
+
+      function loadStore() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function saveStore(data) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+
+      function getQuery() {
+        var q = {};
+        location.search
+          .replace(/^\?/, "")
+          .split("&")
+          .forEach(function (pair) {
+            var p = pair.split("=");
+            if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || "");
+          });
+        return q;
+      }
+
+      var qs = getQuery();
+      var orderId = qs.id || "";
+      var mode = (qs.mode || "edit").toLowerCase();
+      var readOnly = mode === "detail" || mode === "view";
+
+      var store = loadStore();
+      var orders = store && store.orders ? store.orders : [];
+      var order = orders.filter(function (o) {
+        return String(o.id) === String(orderId);
+      })[0];
+
+      function persist() {
+        saveStore({ orders: orders });
+      }
+
+      function touchPrepProgressAfterPickAction(o) {
+        if (!o) return;
+        if (o.prepStatus === "待备料") {
+          o.prepStatus = "进行中";
+        }
+      }
+
+      function normalizePickStatus(st) {
+        if (st === "待领料") return "待备料";
+        if (st === "部分领料") return "部分备料";
+        if (st === "领料完成") return "备料完成";
+        return st || "待备料";
+      }
+
+      function syncPrepStatusFromMaterials(o) {
+        var mats = o.materials || [];
+        if (!mats.length) return;
+        var allDone = mats.every(function (m) {
+          return m.pickStatus === "备料完成";
+        });
+        if (allDone) {
+          o.prepStatus = "已完成";
+          return;
+        }
+        if (!allDone && o.prepStatus === "已完成") {
+          o.prepStatus = "进行中";
+        }
+      }
+
+      function badgeClass(st) {
+        if (st === "待备料") return "wait";
+        if (st === "部分备料") return "partial";
+        if (st === "备料完成") return "done";
+        return "wait";
+      }
+
+      function parseCurrentVal(str) {
+        if (str === "" || str === null || str === undefined) return null;
+        var n = parseFloat(String(str).trim());
+        if (isNaN(n)) return NaN;
+        return n;
+      }
+
+      function rowCompleted(m) {
+        return m.pickStatus === "备料完成";
+      }
+
+      function bindTopActions() {
+        document.getElementById("btnBack").addEventListener("click", function () {
+          location.href = "仓库备料.html";
+        });
+
+        document.getElementById("btnTopSave").addEventListener("click", function () {
+          if (readOnly || !order) return;
+          var matIds = selectedRowIds();
+          var callIds = selectedCallRowIds();
+          if (!matIds.length && !callIds.length) {
+            alert("请先勾选需要保存的物料行或叫料记录。");
+            return;
+          }
+          var didMatSave = false;
+          var didCallSave = false;
+          matIds.forEach(function (rid) {
+            var m = findMaterial(rid);
+            if (!m || rowCompleted(m)) return;
+            if (applyRowSave(m, true)) didMatSave = true;
+          });
+          callIds.forEach(function (rid) {
+            var r = findCallRecord(rid);
+            if (!r || callRowCompleted(r)) return;
+            if (applyCallRowSave(r, true)) didCallSave = true;
+          });
+          if (didMatSave) touchPrepProgressAfterPickAction(order);
+          syncPrepStatusFromMaterials(order);
+          persist();
+          renderForm();
+          renderTable();
+          renderCallTable();
+        });
+
+        document.getElementById("btnTopDone").addEventListener("click", function () {
+          if (readOnly || !order) return;
+          var matIds = selectedRowIds();
+          var callIds = selectedCallRowIds();
+          if (!matIds.length && !callIds.length) {
+            alert("请先勾选需要完成的物料行或叫料记录。");
+            return;
+          }
+          var didMatDone = false;
+          var didCallDone = false;
+          matIds.forEach(function (rid) {
+            var m = findMaterial(rid);
+            if (!m || rowCompleted(m)) return;
+            if (applyRowComplete(m)) didMatDone = true;
+          });
+          callIds.forEach(function (rid) {
+            var r = findCallRecord(rid);
+            if (!r || callRowCompleted(r)) return;
+            if (applyCallRowComplete(r)) didCallDone = true;
+          });
+          if (didMatDone) touchPrepProgressAfterPickAction(order);
+          syncPrepStatusFromMaterials(order);
+          persist();
+          renderForm();
+          renderTable();
+          renderCallTable();
+        });
+
+        var all = document.getElementById("checkAllMat");
+        all.addEventListener("change", function () {
+          document.querySelectorAll(".mat-check").forEach(function (cb) {
+            if (!cb.disabled) cb.checked = all.checked;
+          });
+          syncTopButtons();
+        });
+      }
+
+      function findMaterial(rowId) {
+        if (!order || !order.materials) return null;
+        return order.materials.filter(function (m) {
+          return m._rowId === rowId;
+        })[0];
+      }
+
+      function selectedRowIds() {
+        return Array.prototype.map
+          .call(document.querySelectorAll(".mat-check:checked"), function (c) {
+            return c.getAttribute("data-row");
+          })
+          .filter(Boolean);
+      }
+
+      function selectedCallRowIds() {
+        return Array.prototype.map
+          .call(document.querySelectorAll(".call-check:checked"), function (c) {
+            return c.getAttribute("data-row");
+          })
+          .filter(Boolean);
+      }
+
+      function syncTopButtons() {
+        var hasMat = document.querySelectorAll(".mat-check:checked").length > 0;
+        var hasCall = document.querySelectorAll(".call-check:checked").length > 0;
+        var has = hasMat || hasCall;
+        var topSave = document.getElementById("btnTopSave");
+        var topDone = document.getElementById("btnTopDone");
+        if (readOnly || !order) {
+          topSave.disabled = true;
+          topDone.disabled = true;
+          return;
+        }
+        topSave.disabled = !has;
+        topDone.disabled = !has;
+      }
+
+      function applyRowSave(m, fromBatch) {
+        var req = Number(m.reqQty);
+        var cur = parseCurrentVal(m.currentPickInput);
+        if (cur === null || isNaN(cur)) {
+          if (!fromBatch) alert("请先输入当前备料数量（须小于备料数量方可保存）。");
+          return false;
+        }
+        if (cur > req) {
+          if (!fromBatch) alert("当前备料数量不能大于备料数量。");
+          return false;
+        }
+        if (cur === req) {
+          if (!fromBatch) alert("当前备料数量已等于备料数量，请点击完成。");
+          return false;
+        }
+        m.pickStatus = "部分备料";
+        m.currentPickQty = cur;
+        return true;
+      }
+
+      function applyRowComplete(m) {
+        if (rowCompleted(m)) return false;
+        var req = Number(m.reqQty);
+        m.currentPickQty = req;
+        m.currentPickInput = String(req);
+        m.pickStatus = "备料完成";
+        return true;
+      }
+
+      function callRowCompleted(r) {
+        return r.status === "备料完成";
+      }
+
+      function findCallRecord(rowId) {
+        if (!order || !order.callRecords) return null;
+        return order.callRecords.filter(function (r) {
+          return r._rowId === rowId;
+        })[0];
+      }
+
+      function parseCallCurrentVal(str) {
+        if (str === "" || str === null || str === undefined) return null;
+        var n = parseFloat(String(str).trim());
+        if (isNaN(n)) return NaN;
+        return n;
+      }
+
+      function applyCallRowSave(r, fromBatch) {
+        var req = Number(r.callQty);
+        var cur = parseCallCurrentVal(r.currentPrepInput);
+        if (cur === null || isNaN(cur)) {
+          if (!fromBatch) alert("请先输入当前备料数量（须小于叫料数量方可保存）。");
+          return false;
+        }
+        if (cur > req) {
+          if (!fromBatch) alert("当前备料数量不能大于叫料数量。");
+          return false;
+        }
+        if (cur === req) {
+          if (!fromBatch) alert("当前备料数量已等于叫料数量，请点击完成。");
+          return false;
+        }
+        r.status = "部分备料";
+        r.currentPrepQty = cur;
+        return true;
+      }
+
+      function applyCallRowComplete(r) {
+        if (callRowCompleted(r)) return false;
+        var req = Number(r.callQty);
+        r.currentPrepQty = req;
+        r.currentPrepInput = String(req);
+        r.status = "备料完成";
+        return true;
+      }
+
+      function normalizeCallReason(reason) {
+        var text = String(reason || "").trim();
+        var allowed = {
+          "生产缺料": true,
+          "生产损坏": true,
+          "来料不良": true,
+          "其他原因": true
+        };
+        if (allowed[text]) return text;
+        if (
+          text.indexOf("库存") >= 0 ||
+          text.indexOf("缺料") >= 0 ||
+          text.indexOf("短缺") >= 0
+        ) {
+          return "生产缺料";
+        }
+        if (text.indexOf("损坏") >= 0) return "生产损坏";
+        if (text.indexOf("不良") >= 0) return "来料不良";
+        return "其他原因";
+      }
+
+      function renderForm() {
+        if (!order) return;
+        document.getElementById("fSalesOrder").value = order.salesOrderNo || "";
+        document.getElementById("fProdOrder").value = order.prodOrderNo || "";
+        document.getElementById("fDrawing").value = order.drawingNo || "";
+        document.getElementById("fPrepStatus").value = order.prepStatus || "";
+        document.getElementById("fProdStatus").value = prodTaskStatusForOrder(order);
+        document.getElementById("fProduct").value = order.productName || "";
+        document.getElementById("fQty").value =
+          order.qty !== undefined && order.qty !== null ? String(order.qty) : "";
+      }
+
+      function renderTable() {
+        var tbody = document.getElementById("matBody");
+        var countEl = document.getElementById("materialCountLabel");
+        if (!order) {
+          tbody.innerHTML =
+            '<tr><td colspan="10" class="empty-tip">未找到订单数据，请从仓库备料页面进入。</td></tr>';
+          countEl.textContent = "物料类型总数：0";
+          return;
+        }
+
+        var mats = order.materials || [];
+        countEl.textContent = "物料类型总数：" + mats.length;
+
+        if (!mats.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="10" class="empty-tip">暂无物料数据</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = "";
+        mats.forEach(function (m) {
+          if (!m._rowId) m._rowId = "r-" + Math.random().toString(36).slice(2);
+          var tr = document.createElement("tr");
+          var done = rowCompleted(m);
+          if (done) tr.classList.add("row-done");
+
+          var curInputVal = "";
+          if (done) {
+            var dq =
+              m.currentPickQty !== undefined && m.currentPickQty !== null
+                ? m.currentPickQty
+                : m.reqQty;
+            curInputVal = String(dq !== undefined && dq !== null ? dq : "");
+          } else if (
+            m.currentPickInput !== undefined &&
+            m.currentPickInput !== null
+          ) {
+            curInputVal = m.currentPickInput;
+          }
+
+          var dis = readOnly || done;
+
+          tr.innerHTML =
+            '<td class="cell-center"><input type="checkbox" class="mat-check" data-row="' +
+            m._rowId +
+            '"' +
+            (dis ? " disabled" : "") +
+            " /></td>" +
+            "<td>" +
+            escapeHtml(m.code || "") +
+            "</td>" +
+            "<td>" +
+            escapeHtml(m.name || "") +
+            "</td>" +
+            "<td>" +
+            escapeHtml(m.spec || "") +
+            "</td>" +
+            "<td>" +
+            escapeHtml(m.unit || "") +
+            "</td>" +
+            '<td><span class="badge-pick ' +
+            badgeClass(m.pickStatus) +
+            '">' +
+            escapeHtml(m.pickStatus || "") +
+            "</span></td>" +
+            "<td>" +
+            escapeHtml(String(m.stockQty !== undefined && m.stockQty !== null ? m.stockQty : "")) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(String(m.reqQty !== undefined && m.reqQty !== null ? m.reqQty : "")) +
+            "</td>" +
+            '<td><input type="number" class="num-input js-cur" data-row="' +
+            m._rowId +
+            '" step="any" min="0"' +
+            (dis ? " disabled" : "") +
+            ' placeholder="" value="' +
+            (curInputVal === "" ? "" : escapeAttr(String(curInputVal))) +
+            '" /></td>' +
+            '<td><div class="row-actions">' +
+            '<button type="button" class="btn btn-primary btn-sm js-save" data-row="' +
+            m._rowId +
+            '"' +
+            (readOnly || done ? " disabled" : "") +
+            ">保存</button>" +
+            '<button type="button" class="btn btn-primary btn-sm js-done" data-row="' +
+            m._rowId +
+            '"' +
+            (readOnly || done ? " disabled" : "") +
+            ">完成</button>" +
+            "</div></td>";
+
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll(".js-cur").forEach(function (inp) {
+          inp.addEventListener("input", function () {
+            var rid = inp.getAttribute("data-row");
+            var mat = findMaterial(rid);
+            if (!mat || rowCompleted(mat) || readOnly) return;
+            mat.currentPickInput = inp.value;
+
+          });
+        });
+
+        tbody.querySelectorAll(".js-save").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var rid = btn.getAttribute("data-row");
+            var mat = findMaterial(rid);
+            if (!mat) return;
+            if (applyRowSave(mat, false)) {
+              touchPrepProgressAfterPickAction(order);
+            }
+            syncPrepStatusFromMaterials(order);
+            persist();
+            renderForm();
+            renderTable();
+          });
+        });
+
+        tbody.querySelectorAll(".js-done").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var rid = btn.getAttribute("data-row");
+            var mat = findMaterial(rid);
+            if (!mat) return;
+            if (applyRowComplete(mat)) {
+              touchPrepProgressAfterPickAction(order);
+            }
+            syncPrepStatusFromMaterials(order);
+            persist();
+            renderForm();
+            renderTable();
+          });
+        });
+
+        tbody.querySelectorAll(".mat-check").forEach(function (cb) {
+          cb.addEventListener("change", syncTopButtons);
+        });
+
+        document.getElementById("checkAllMat").checked = false;
+        syncTopButtons();
+      }
+
+      function renderCallTable() {
+        var tbody = document.getElementById("callBody");
+        var countEl = document.getElementById("callCountLabel");
+        if (!order) {
+          tbody.innerHTML =
+            '<tr><td colspan="10" class="empty-tip">未找到订单数据，请从仓库备料页面进入。</td></tr>';
+          countEl.textContent = "记录总数：0";
+          return;
+        }
+        var list = Array.isArray(order.callRecords) ? order.callRecords : [];
+        countEl.textContent = "记录总数：" + list.length;
+        if (!list.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="10" class="empty-tip">暂无叫料记录</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = "";
+        list.forEach(function (r) {
+          if (!r._rowId) r._rowId = "c-" + Math.random().toString(36).slice(2);
+          var done = callRowCompleted(r);
+          var shouldResetZeroInput =
+            !done &&
+            String(r.currentPrepInput || "").trim() === "0" &&
+            (r.currentPrepQty === undefined ||
+              r.currentPrepQty === null ||
+              Number(r.currentPrepQty) <= 0);
+          if (r.currentPrepInput === undefined || r.currentPrepInput === null || shouldResetZeroInput) {
+            if (done) {
+              r.currentPrepInput = String(
+                r.currentPrepQty !== undefined && r.currentPrepQty !== null
+                  ? r.currentPrepQty
+                  : r.callQty || ""
+              );
+            } else {
+              r.currentPrepInput =
+                r.currentPrepQty !== undefined &&
+                r.currentPrepQty !== null &&
+                Number(r.currentPrepQty) > 0
+                  ? String(r.currentPrepQty)
+                  : "";
+            }
+          }
+          var tr = document.createElement("tr");
+          if (done) tr.classList.add("row-done");
+
+          var dis = readOnly || done;
+
+          tr.innerHTML =
+            '<td class="cell-center"><input type="checkbox" class="call-check" data-row="' +
+            r._rowId +
+            '"' +
+            (dis ? " disabled" : "") +
+            " /></td>" +
+            "<td>" + escapeHtml(r.time || "") + "</td>" +
+            "<td>" + escapeHtml(r.line || "") + "</td>" +
+            "<td>" + escapeHtml(r.materialName || "") + "</td>" +
+            "<td>" + escapeHtml(String(r.callQty !== undefined && r.callQty !== null ? r.callQty : "")) + "</td>" +
+            "<td>" + escapeHtml(r.reason || "") + "</td>" +
+            '<td><span class="badge-pick ' +
+            badgeClass(r.status) +
+            '">' +
+            escapeHtml(r.status || "") +
+            "</span></td>" +
+            "<td>" + escapeHtml(r.caller || "") + "</td>" +
+            '<td><input type="number" class="num-input js-call-cur" data-row="' +
+            r._rowId +
+            '" step="any" min="0"' +
+            (dis ? " disabled" : "") +
+            ' value="' +
+            escapeAttr(String(r.currentPrepInput || "")) +
+            '" /></td>' +
+            '<td><div class="row-actions">' +
+            '<button type="button" class="btn btn-primary btn-sm js-call-save" data-row="' +
+            r._rowId +
+            '"' +
+            (readOnly || done ? " disabled" : "") +
+            ">保存</button>" +
+            '<button type="button" class="btn btn-primary btn-sm js-call-done" data-row="' +
+            r._rowId +
+            '"' +
+            (readOnly || done ? " disabled" : "") +
+            ">完成</button>" +
+            "</div></td>";
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll(".js-call-cur").forEach(function (inp) {
+          inp.addEventListener("input", function () {
+            var rid = inp.getAttribute("data-row");
+            var rec = findCallRecord(rid);
+            if (!rec || callRowCompleted(rec) || readOnly) return;
+            rec.currentPrepInput = inp.value;
+          });
+        });
+
+        tbody.querySelectorAll(".js-call-save").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var rid = btn.getAttribute("data-row");
+            var rec = findCallRecord(rid);
+            if (!rec) return;
+            applyCallRowSave(rec, false);
+            persist();
+            renderCallTable();
+          });
+        });
+
+        tbody.querySelectorAll(".js-call-done").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var rid = btn.getAttribute("data-row");
+            var rec = findCallRecord(rid);
+            if (!rec) return;
+            applyCallRowComplete(rec);
+            persist();
+            renderCallTable();
+          });
+        });
+
+        var allCall = document.getElementById("checkAllCall");
+        allCall.checked = false;
+        allCall.onchange = function () {
+          document.querySelectorAll(".call-check").forEach(function (cb) {
+            if (!cb.disabled) cb.checked = allCall.checked;
+          });
+          syncTopButtons();
+        };
+        tbody.querySelectorAll(".call-check").forEach(function (cb) {
+          cb.addEventListener("change", syncTopButtons);
+        });
+        syncTopButtons();
+      }
+
+      function bindCollapseToggle(buttonId, wrapId) {
+        var btn = document.getElementById(buttonId);
+        var wrap = document.getElementById(wrapId);
+        if (!btn || !wrap) return;
+        btn.addEventListener("click", function () {
+          var collapsed = wrap.classList.toggle("hidden");
+          btn.textContent = collapsed ? "▸" : "▾";
+          btn.setAttribute("title", collapsed ? "展开" : "收缩");
+          btn.setAttribute("aria-label", collapsed ? "展开" : "收缩");
+        });
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function escapeAttr(s) {
+        return escapeHtml(s).replace(/`/g, "&#96;");
+      }
+
+      bindCollapseToggle("btnToggleMaterialRows", "matTableWrap");
+      bindCollapseToggle("btnToggleCallRows", "callTableWrap");
+
+      if (!order) {
+        bindTopActions();
+        renderTable();
+        renderCallTable();
+      } else {
+        order.materials.forEach(function (m) {
+          m.pickStatus = normalizePickStatus(m.pickStatus);
+          if (m.currentPickInput === undefined) {
+            if (m.currentPickQty !== undefined && m.currentPickQty !== null && !rowCompleted(m)) {
+              m.currentPickInput = String(m.currentPickQty);
+            } else {
+              m.currentPickInput = "";
+            }
+          }
+        });
+
+        syncPrepStatusFromMaterials(order);
+        if (!Array.isArray(order.callRecords)) order.callRecords = [];
+        order.callRecords.forEach(function (r) {
+          r.reason = normalizeCallReason(r.reason);
+          if (!r.status) r.status = "待备料";
+          if (r.currentPrepQty === undefined || r.currentPrepQty === null) {
+            r.currentPrepQty = callRowCompleted(r) ? Number(r.callQty) || 0 : null;
+          }
+          var done = callRowCompleted(r);
+          var shouldResetZeroInput =
+            !done &&
+            String(r.currentPrepInput || "").trim() === "0" &&
+            (r.currentPrepQty === undefined ||
+              r.currentPrepQty === null ||
+              Number(r.currentPrepQty) <= 0);
+          if (r.currentPrepInput === undefined || r.currentPrepInput === null || shouldResetZeroInput) {
+            if (done) {
+              r.currentPrepInput = String(
+                r.currentPrepQty !== undefined && r.currentPrepQty !== null
+                  ? r.currentPrepQty
+                  : Number(r.callQty) || 0
+              );
+            } else {
+              r.currentPrepInput =
+                r.currentPrepQty !== undefined &&
+                r.currentPrepQty !== null &&
+                Number(r.currentPrepQty) > 0
+                  ? String(r.currentPrepQty)
+                  : "";
+            }
+          }
+        });
+        persist();
+
+        if (readOnly) {
+          document.getElementById("btnTopSave").classList.add("hidden");
+          document.getElementById("btnTopDone").classList.add("hidden");
+          document.getElementById("checkAllMat").disabled = true;
+          document.getElementById("checkAllCall").disabled = true;
+        }
+
+        bindTopActions();
+        renderForm();
+        renderTable();
+        renderCallTable();
+      }
+    })();
+  </script>
+</body>
+</html>

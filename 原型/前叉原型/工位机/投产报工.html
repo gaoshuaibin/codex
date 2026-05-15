@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>智能科技 · 前叉生产看板 | 增强卡片统计+一键完成</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        body {
+            background: #eef2f7;
+            display: flex;
+            justify-content: center;
+            padding: 24px 16px;
+        }
+        .kanban {
+            max-width: 1600px;
+            width: 100%;
+            background: #ffffff;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.05);
+            padding: 24px 28px;
+            border: 1px solid #dce5f0;
+            border-radius: 0px;
+        }
+        .page-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .line-select-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #2a4d74;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .line-select-wrap select {
+            padding: 6px 10px;
+            border: 1.5px solid #b9cae2;
+            color: #1f4e7a;
+            background: #fff;
+            font-size: 0.85rem;
+            min-width: 130px;
+            outline: none;
+        }
+        .worker-shift-btn {
+            background: #2a5b8c;
+            border: 1px solid #1f4970;
+            color: #fff;
+            padding: 7px 14px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 0;
+        }
+        .worker-shift-btn:hover { filter: brightness(0.95); }
+
+        .cards-container {
+            display: flex;
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+        .stat-card {
+            flex: 1;
+            background: #ffffff;
+            border: 1.5px solid #d6e1ef;
+            padding: 18px 22px;
+            cursor: pointer;
+            border-radius: 0px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+        .stat-card:hover { background: #f4f9ff; border-color: #9cb5d9; }
+        .stat-card.active { background: #e5effa; border-color: #3f7bb5; box-shadow: inset 0 0 0 1px #3f7bb5, 0 2px 6px rgba(0,0,0,0.05); }
+        .card-icon { font-size: 2.2rem; line-height: 1; opacity: 0.75; }
+        .card-content { display: flex; flex-direction: column; }
+        .card-title { font-weight: 500; color: #4a6f92; font-size: 0.9rem; }
+        .card-number { font-weight: 800; color: #0f3b60; font-size: 2rem; line-height: 1.2; }
+        .card-sub-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 0.7rem;
+            color: #5b7e9e;
+            border-top: 1px dashed #d4e0ef;
+            padding-top: 6px;
+        }
+        .sub-stat-item {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .sub-stat-label {
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        .sub-stat-value {
+            font-weight: 800;
+            color: #1f4e7a;
+            font-size: 0.85rem;
+        }
+
+        .table-wrapper {
+            border: 1.5px solid #d1deef;
+            overflow-x: auto;
+            background: white;
+            margin: 0 0 20px 0;
+            position: relative;
+        }
+        .table-wrapper table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1600px;
+            font-size: 0.85rem;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 15px 12px;
+            background: #ecf3fb;
+            color: #2a4d74;
+            font-weight: 700;
+            border-bottom: 2px solid #c6d6ed;
+            white-space: nowrap;
+            position: relative;
+            vertical-align: top;
+        }
+        .filter-trigger-btn {
+            background: #e9f0f8;
+            border: 1px solid #b9cae2;
+            border-radius: 16px;
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            margin-left: 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #2a577d;
+            font-weight: 500;
+        }
+        .filter-trigger-btn:hover { background: #dae6f5; border-color: #8aacd4; }
+        .filter-trigger-btn.active-filter { background: #cfe2fc; border-color: #3f7bb5; color: #1a4c7a; }
+        .filter-panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 8px;
+            background: white;
+            border: 1.5px solid #cbdae9;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+            padding: 12px 16px;
+            min-width: 220px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .filter-panel input, .filter-panel select { width: 100%; padding: 8px 10px; border: 1.5px solid #d0deef; font-size: 0.8rem; outline: none; }
+        .filter-panel-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 5px; }
+        .filter-panel-actions button { background: #ecf3fb; border: 1px solid #b9cae2; padding: 5px 12px; font-size: 0.7rem; cursor: pointer; }
+        .filter-panel-actions button.primary { background: #2a5b8c; color: white; border-color: #2a5b8c; }
+        .header-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+        td { padding: 14px 12px; border-bottom: 1px solid #e6edf7; color: #2a405b; }
+        tr:last-child td { border-bottom: none; }
+        .nowrap-cell { white-space: nowrap; }
+
+        .status-badge { display: inline-block; padding: 5px 14px; font-size: 0.75rem; font-weight: 600; background: #f1f6fe; color: #3e6a8c; border: 1px solid #bed0ea; border-radius: 0px; }
+        .status-badge.ongoing { background: #e3efff; color: #2a5b8c; border-color: #9dbce6; }
+        .status-badge.pending { background: #fff6e0; color: #9b7b38; border-color: #f0dfb0; }
+        .status-badge.paused { background: #eef2f9; color: #5c6f87; border-color: #cbdaea; }
+        .status-badge.done { background: #e3f4ea; color: #2f6a4a; border-color: #b8dcbf; }
+
+        .priority-tag { display: inline-block; padding: 4px 12px; font-size: 0.72rem; font-weight: 700; border-radius: 0px; text-align: center; min-width: 48px; }
+        .priority-red { background: #ffeaea; color: #b13b3b; border: 1px solid #f3c5c5; }
+        .priority-yellow { background: #fef8e6; color: #987c36; border: 1px solid #f0e0ae; }
+        .priority-green { background: #e9f6ec; color: #2b7342; border: 1px solid #bddbbf; }
+
+        .action-btns { display: flex; gap: 8px; flex-wrap: nowrap; white-space: nowrap; }
+        .action-btn {
+            background: white; border: 1.5px solid #99aecb; padding: 5px 12px; font-size: 0.7rem;
+            font-weight: 600; color: #1f344d; cursor: pointer; border-radius: 0px; min-width: 52px;
+            text-align: center; line-height: 1.3; white-space: nowrap;
+        }
+        .action-btn.primary { background: #e0edfe; border-color: #8fb0df; color: #23588c; }
+        .action-btn.secondary { background: #f2f7ff; border-color: #bbceec; color: #2a577d; }
+        .action-btn.report { background: #edf4ea; border-color: #adc8a9; color: #3c6a41; }
+        .action-btn.report.disabled { background: #edf2f5; border-color: #bfcddf; color: #8b9bb0; pointer-events: none; opacity: 0.6; }
+        .action-btn:hover:not(.disabled) { filter: brightness(0.96); transform: translateY(-1px); }
+
+        .product-mtb:before { content: "⛰️ "; font-size: 0.8rem; }
+        .product-road:before { content: "🏁 "; font-size: 0.8rem; }
+        .product-ebike:before { content: "⚡ "; font-size: 0.8rem; }
+        .product-fat:before { content: "❄️ "; font-size: 0.8rem; }
+        .product-fork:before { content: "🔧 "; font-size: 0.8rem; }
+        .numeric { font-family: 'JetBrains Mono', monospace; font-weight: 500; color: #1d4468; }
+
+        .pagination { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 20px; padding: 8px 0; }
+        .pagination button { background: white; border: 1.5px solid #ccd7e8; padding: 7px 18px; font-size: 0.85rem; color: #3a5b7c; cursor: pointer; border-radius: 0px; }
+        .pagination button:hover { background: #ecf2fa; }
+        .pagination .page-numbers { display: flex; gap: 6px; }
+        .pagination .page-num { background: white; border: 1.5px solid #ccd7e8; padding: 7px 14px; font-size: 0.85rem; color: #3a5b7c; cursor: pointer; border-radius: 0px; }
+        .pagination .page-num.active { background: #d2e2fa; border-color: #92afd3; color: #1a4c7a; font-weight: 700; }
+        .pagination span { color: #4a6f8f; font-size: 0.85rem; }
+        .toast-msg { position: fixed; bottom: 24px; right: 24px; background: #2c5a2e; color: white; padding: 10px 18px; font-size: 0.85rem; border-left: 6px solid #c9e4b7; box-shadow: 0 2px 12px rgba(0,0,0,0.2); z-index: 1000; pointer-events: none; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(2px);
+        }
+        .modal-container {
+            background: white;
+            width: 750px;
+            max-width: 90vw;
+            max-height: 85vh;
+            border: 1px solid #c7d8ec;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.2);
+            padding: 0;
+            animation: fadeInScale 0.2s ease;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-header {
+            background: #ecf3fb;
+            padding: 12px 18px;
+            border-bottom: 1px solid #cbdae9;
+            font-weight: 800;
+            color: #1f4970;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px 8px 0 0;
+            flex-shrink: 0;
+        }
+        .modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #6f8dae; line-height: 1; padding: 0 8px; }
+        .modal-close:hover { color: #2a4d74; }
+        .modal-body { padding: 14px 18px; overflow-y: auto; flex: 1; }
+        
+        .detail-section { margin-bottom: 14px; border-bottom: 1px solid #e6edf7; padding-bottom: 10px; }
+        .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 16px; }
+        .detail-item { display: flex; font-size: 0.78rem; }
+        .detail-label { width: 85px; font-weight: 700; color: #2c5a7a; flex-shrink: 0; }
+        .detail-value { color: #1d3e5e; word-break: break-word; }
+        
+        .progress-section { margin-bottom: 14px; padding: 8px 12px; background: #f8fafd; border: 1px solid #e2e9f2; border-radius: 6px; }
+        .progress-title { font-weight: 700; color: #1f4970; margin-bottom: 5px; font-size: 0.8rem; }
+        .progress-bar-container { background: #e0e8f0; height: 16px; border-radius: 8px; overflow: hidden; margin: 5px 0; }
+        .progress-bar-fill { background: #2a7f4a; height: 100%; width: 0%; border-radius: 8px; display: flex; align-items: center; justify-content: flex-end; padding-right: 5px; color: white; font-size: 0.65rem; font-weight: 600; }
+        .progress-stats { display: flex; justify-content: space-between; font-size: 0.7rem; color: #4a6f8f; }
+        
+        .material-section { margin-bottom: 14px; }
+        .material-title { font-weight: 700; color: #1f4970; margin-bottom: 6px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px; border-left: 3px solid #3f7bb5; padding-left: 10px; }
+        .material-table-scroll {
+            overflow: visible;
+            border: 1px solid #d1deef;
+            border-radius: 4px;
+            background: #fff;
+        }
+        .material-table {
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+            border: none;
+            table-layout: fixed;
+        }
+        .material-table th,
+        .material-table td {
+            padding: 5px 4px;
+            text-align: left;
+            border-bottom: 1px solid #eef2f8;
+            border-right: 1px solid #d1deef;
+            white-space: normal;
+            word-break: break-word;
+            vertical-align: top;
+            line-height: 1.35;
+        }
+        .material-table th:last-child,
+        .material-table td:last-child {
+            border-right: none;
+        }
+        .material-table th {
+            background: #f0f5fc;
+            font-weight: 700;
+            border-bottom: 1px solid #cbdae9;
+        }
+        .material-table th:nth-child(1) { width: 30%; }
+        .material-table th:nth-child(2) { width: 16%; }
+        .material-table th:nth-child(3) { width: 16%; }
+        .material-table th:nth-child(4) { width: 24%; }
+        .material-table th:nth-child(5) { width: 14%; }
+        .kit-status-full { color: #2a7f4a; font-weight: 600; }
+        .kit-status-partial { color: #e6a017; font-weight: 600; }
+        
+        .report-title { font-weight: 700; color: #1f4970; margin: 10px 0 6px 0; font-size: 0.8rem; display: flex; align-items: center; gap: 8px; border-left: 3px solid #3f7bb5; padding-left: 10px; }
+        .report-table { width: 100%; min-width: 0; max-width: 100%; border-collapse: collapse; font-size: 0.72rem; table-layout: fixed; }
+        .report-table th { background: #f4f8fe; padding: 6px 5px; text-align: left; font-weight: 700; border-bottom: 1px solid #cbdae9; }
+        .report-table td { padding: 6px 5px; border-bottom: 1px solid #eef2f8; }
+        .empty-reports { text-align: center; padding: 12px; color: #8aa0bc; font-style: italic; font-size: 0.72rem; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; padding: 10px 18px 14px; border-top: 1px solid #e6edf7; flex-shrink: 0; }
+        .modal-buttons button { padding: 5px 14px; background: #f0f4fa; border: 1px solid #b1c3df; cursor: pointer; font-weight: 600; border-radius: 4px; font-size: 0.75rem; }
+        .modal-buttons button.primary { background: #2a5b8c; color: white; border-color: #1f4970; }
+        .modal-buttons button.warning { background: #f0e2c8; border-color: #d6b17e; color: #8a5a2c; }
+        
+        .error-msg { color: #bc5a3c; font-size: 0.7rem; margin-top: 5px; }
+        .success-msg { color: #2f6a4a; font-size: 0.7rem; margin-top: 5px; }
+        .badge-operator { background: #eef2fa; padding: 2px 6px; border-radius: 20px; font-size: 0.68rem; display: inline-block; }
+        .report-info-row { display: flex; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed #e2e9f3; }
+        .report-info-label { width: 85px; font-weight: 700; color: #2c5a7a; font-size: 0.78rem; }
+        .report-info-value { flex: 1; color: #1d3e5e; font-size: 0.78rem; font-weight: 500; }
+        .report-group { margin-bottom: 14px; }
+        .report-group label { display: block; font-weight: 700; margin-bottom: 5px; color: #2a5b8c; font-size: 0.78rem; }
+        .report-group input { width: 100%; padding: 8px; border: 1.5px solid #b9cae2; font-size: 0.85rem; border-radius: 6px; }
+        .report-group input:focus { outline: none; border-color: #3f7bb5; }
+        .flex-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 5px; }
+    </style>
+</head>
+<body>
+<div class="kanban">
+    <div class="page-toolbar">
+        <div class="line-select-wrap">
+            <label for="productionLineSelect">产线</label>
+            <select id="productionLineSelect">
+                <option value="组装A线">组装A线</option>
+                <option value="组装B线">组装B线</option>
+            </select>
+        </div>
+        <button class="worker-shift-btn" id="workerShiftBtn">工人上下工</button>
+    </div>
+    <div class="cards-container" id="cardContainer">
+        <div class="stat-card active" data-filter="unfinished" id="cardUnfinished">
+            <span class="card-icon">⚙️</span>
+            <div class="card-content">
+                <span class="card-title">未完成订单</span>
+                <span class="card-number" id="unfinishedCount">0</span>
+                <div class="card-sub-stats"><div class="sub-stat-item"><span class="sub-stat-label">📦 未完成数量</span><span class="sub-stat-value" id="unfinishedRemainQty">0</span></div></div>
+            </div>
+        </div>
+        <div class="stat-card" data-filter="today" id="cardToday">
+            <span class="card-icon">📆</span>
+            <div class="card-content">
+                <span class="card-title">当日订单</span>
+                <span class="card-number" id="todayCount">0</span>
+                <div class="card-sub-stats">
+                    <div class="sub-stat-item"><span class="sub-stat-label">🏭 当日生产总数</span><span class="sub-stat-value" id="todayTotalQty">0</span></div>
+                    <div class="sub-stat-item"><span class="sub-stat-label">🧾 未完成单数</span><span class="sub-stat-value" id="todayRemainOrders">0</span></div>
+                    <div class="sub-stat-item"><span class="sub-stat-label">⏳ 未完成数量</span><span class="sub-stat-value" id="todayRemainQty">0</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card" data-filter="planned" id="cardPlanned">
+            <span class="card-icon">📌</span>
+            <div class="card-content">
+                <span class="card-title">计划订单</span>
+                <span class="card-number" id="plannedCount">0</span>
+                <div class="card-sub-stats"><div class="sub-stat-item"><span class="sub-stat-label">📋 计划生产数量</span><span class="sub-stat-value" id="plannedTotalQty">0</span></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-wrapper" id="tableWrapper"></div>
+    <div class="pagination"><button id="prevPageBtn">上一页</button><div class="page-numbers" id="pageNumbers"></div><button id="nextPageBtn">下一页</button><span>共 <span id="totalRecords">0</span> 条记录</span></div>
+</div>
+
+<script>
+    (function() {
+        const todayStr = '2026-03-27';
+        const operators = ['张明', '李芳', '王海', '赵敏', '陈刚', '刘敏'];
+        
+        function getMaterialListForOrder(prodOrder, orderStatus = '') {
+            const baseMaterials = [
+                { name: '电机组件', required: 150, available: 150, unit: '个', status: 'full' },
+                { name: '控制面板', required: 150, available: 150, unit: '个', status: 'full' },
+                { name: '杯体组件', required: 150, available: 105, unit: '个', status: 'partial' },
+                { name: '底座组件', required: 150, available: 105, unit: '个', status: 'partial' },
+                { name: '电源线', required: 150, available: 135, unit: '个', status: 'partial' },
+                { name: '锁体', required: 150, available: 150, unit: '个', status: 'full' },
+                { name: '指纹模块', required: 150, available: 120, unit: '个', status: 'partial' },
+                { name: '蓝牙模块', required: 150, available: 150, unit: '个', status: 'full' }
+            ];
+            let hash = 0;
+            for (let i = 0; i < prodOrder.length; i++) hash = ((hash << 5) - hash) + prodOrder.charCodeAt(i);
+            let dynamicMaterials = baseMaterials.map(m => ({
+                ...m,
+                required: Math.floor(m.required * (0.95 + (Math.abs(hash) % 15)/100)),
+                available: Math.floor(m.available * (0.9 + (Math.abs(hash) % 25)/100))
+            }));
+            if (orderStatus === 'done') {
+                dynamicMaterials = dynamicMaterials.map(m => ({ ...m, available: m.required, status: 'full' }));
+            }
+            return dynamicMaterials;
+        }
+        
+        function calculateKitRate(materials) {
+            let totalRequired = 0, totalAvailable = 0;
+            materials.forEach(m => { totalRequired += m.required; totalAvailable += Math.min(m.available, m.required); });
+            return totalRequired > 0 ? Math.round((totalAvailable / totalRequired) * 100) : 0;
+        }
+        
+        function enhanceOrders(orders) {
+            return orders.map(order => {
+                let plannedStartDate = order.startTime ? order.startTime.split(' ')[0] : '2026-03-20';
+                let actualStartTime = '';
+                if (order.status === 'ongoing' || order.status === 'done' || order.status === 'paused') actualStartTime = order.startTime || '';
+                let plannedEndDate = plannedStartDate;
+                let daysToAdd = 5 + (order.priority === '紧急' ? 2 : (parseInt(order.priority) || 5) % 6);
+                let date = new Date(plannedStartDate);
+                date.setDate(date.getDate() + daysToAdd);
+                plannedEndDate = date.toISOString().slice(0,10);
+                let actualEndTime = '';
+                if (order.status === 'done' && order.reportRecords && order.reportRecords.length > 0) {
+                    actualEndTime = order.reportRecords[order.reportRecords.length - 1].time;
+                }
+                const productionOrderNo = order.prodOrder ? order.prodOrder.replace(/^FO-/, 'PO-') : '';
+                return { ...order, plannedStartDate, actualStartTime, plannedEndDate, actualEndTime, productionOrderNo };
+            });
+        }
+        
+        let rawUnfinished = [
+            { salesOrder: 'SO-240326-02', prodOrder: 'FO-20260326-002', model: 'FORK-AM-RL', name: '铝合金减震前叉', type: 'mtb', planned: 1200, completed: 540, startTime: '2026-03-26 09:15', status: 'ongoing', priority: '8', reportRecords: [] },
+            { salesOrder: 'SO-240327-06', prodOrder: 'FO-20260327-006', model: 'FORK-AM-29', name: '29寸气压前叉', type: 'mtb', planned: 780, completed: 390, startTime: '2026-03-27 11:20', status: 'ongoing', priority: '7', reportRecords: [] },
+            { salesOrder: 'SO-240326-99', prodOrder: 'FO-20260326-099', model: 'FORK-BOOST-110', name: 'BOOST前叉', type: 'mtb', planned: 920, completed: 412, startTime: '2026-03-26 15:20', status: 'ongoing', priority: '7', reportRecords: [] },
+            { salesOrder: 'SO-240325-04', prodOrder: 'FO-20260325-004', model: 'FORK-TRAIL-XC', name: '越野线控前叉', type: 'mtb', planned: 950, completed: 310, startTime: '2026-03-25 13:45', status: 'paused', priority: '5', reportRecords: [] },
+            { salesOrder: 'SO-240325-88', prodOrder: 'FO-20260325-088', model: 'FORK-REBA-RL', name: '智能线控前叉', type: 'mtb', planned: 760, completed: 260, startTime: '2026-03-25 09:45', status: 'paused', priority: '9', reportRecords: [] }
+        ];
+        
+        let rawToday = [
+            { salesOrder: 'SO-240327-01', prodOrder: 'FO-20260327-001', model: 'FORK-MTB-PRO', name: '山地气压前叉', type: 'mtb', planned: 850, completed: 850, startTime: '2026-03-27 08:30', status: 'done', priority: '紧急', reportRecords: [{id:1, qty:850, time:'2026-03-27 17:20', operator:'李芳'}] },
+            { salesOrder: 'SO-240327-03', prodOrder: 'FO-20260327-003', model: 'FORK-ROAD-CF', name: '公路碳纤维前叉', type: 'road', planned: 600, completed: 0, startTime: '2026-03-27 10:00', status: 'pending', priority: '6', reportRecords: [] },
+            { salesOrder: 'SO-240327-06', prodOrder: 'FO-20260327-006', model: 'FORK-AM-29', name: '29寸气压前叉', type: 'mtb', planned: 780, completed: 390, startTime: '2026-03-27 11:20', status: 'ongoing', priority: '7', reportRecords: [] },
+            { salesOrder: 'SO-240327-07', prodOrder: 'FO-20260327-007', model: 'FORK-ROAD-DISC', name: '碟刹公路前叉', type: 'road', planned: 520, completed: 0, startTime: '2026-03-27 14:15', status: 'pending', priority: '3', reportRecords: [] },
+            { salesOrder: 'SO-240327-08', prodOrder: 'FO-20260327-008', model: 'FORK-FAT-26', name: '胖胎车前叉', type: 'fat', planned: 340, completed: 340, startTime: '2026-03-27 16:40', status: 'done', priority: '2', reportRecords: [{id:1, qty:200, time:'2026-03-27 18:10', operator:'王海'},{id:2, qty:140, time:'2026-03-27 19:30', operator:'王海'}] },
+            { salesOrder: 'SO-240327-10', prodOrder: 'FO-20260327-010', model: 'FORK-EBIKE-HD2', name: '电助力重载前叉', type: 'ebike', planned: 1100, completed: 220, startTime: '2026-03-27 13:10', status: 'ongoing', priority: '8', reportRecords: [] }
+        ];
+        
+        let rawPlanned = [];
+        const forkTypes = ['mtb', 'road', 'ebike', 'fat'];
+        const typeNameMap = { mtb: '山地气压前叉', road: '公路碳纤维前叉', ebike: '电助力前叉', fat: '雪地胖胎前叉' };
+        const modelMap = { mtb: 'FORK-MTB-', road: 'FORK-RD-', ebike: 'FORK-EB-', fat: 'FORK-FT-' };
+        const priorityList = ['紧急','9','8','7','6','5','4','3','2','1'];
+        for (let i = 0; i < 15; i++) {
+            const randType = forkTypes[Math.floor(Math.random() * forkTypes.length)];
+            const randPriority = priorityList[Math.floor(Math.random() * priorityList.length)];
+            const dayOffset = Math.floor(Math.random() * 6);
+            const monthDay = 24 + dayOffset;
+            const hour = 8 + Math.floor(Math.random() * 9);
+            const minute = Math.random() > 0.6 ? '00' : '30';
+            const timeStr = `2026-03-${monthDay.toString().padStart(2,'0')} ${hour.toString().padStart(2,'0')}:${minute}`;
+            const modelSuffix = String.fromCharCode(65 + (i % 5)) + (i % 30);
+            rawPlanned.push({
+                salesOrder: `SO-2403${monthDay}-${500 + i}`,
+                prodOrder: `FO-202603${monthDay}-${700 + i}`,
+                model: `${modelMap[randType]}${modelSuffix}`,
+                name: typeNameMap[randType],
+                type: randType,
+                planned: 400 + (i * 37) % 1200,
+                completed: 0,
+                startTime: timeStr,
+                status: 'pending',
+                priority: randPriority,
+                reportRecords: []
+            });
+        }
+        
+        let rawDone = [
+            { salesOrder: 'SO-240324-11', prodOrder: 'FO-20260324-011', model: 'FORK-ROAD-ULT', name: '公路超轻前叉', type: 'road', planned: 450, completed: 450, startTime: '2026-03-24 09:00', status: 'done', priority: '5', reportRecords: [{id:1, qty:450, time:'2026-03-24 16:20', operator:'赵敏'}] },
+            { salesOrder: 'SO-240326-12', prodOrder: 'FO-20260326-012', model: 'FORK-MTB-XTR', name: 'XTR竞技前叉', type: 'mtb', planned: 880, completed: 880, startTime: '2026-03-26 14:30', status: 'done', priority: '7', reportRecords: [{id:1, qty:500, time:'2026-03-26 19:00', operator:'陈刚'},{id:2, qty:380, time:'2026-03-27 09:15', operator:'刘敏'}] },
+            { salesOrder: 'SO-240328-13', prodOrder: 'FO-20260328-013', model: 'FORK-FAT-SN', name: '雪地宽胎前叉', type: 'fat', planned: 290, completed: 290, startTime: '2026-03-28 10:15', status: 'done', priority: '3', reportRecords: [{id:1, qty:290, time:'2026-03-28 14:45', operator:'张明'}] }
+        ];
+        
+        const extraTodayFiltered = rawToday.filter(t => !rawUnfinished.some(u => u.prodOrder === t.prodOrder));
+        let allOrdersRaw = [...rawUnfinished, ...rawPlanned, ...rawDone, ...extraTodayFiltered];
+        let allOrders = enhanceOrders(allOrdersRaw);
+        
+        let nextRecordId = 100;
+        function addReportRecord(order, qty, operator) {
+            if (!order.reportRecords) order.reportRecords = [];
+            order.reportRecords.push({ id: nextRecordId++, qty: qty, time: new Date().toLocaleString('zh-CN', {hour12: false}), operator: operator });
+        }
+        
+        const priorityWeight = { '紧急':1, '9':2, '8':3, '7':4, '6':5, '5':6, '4':7, '3':8, '2':9, '1':10 };
+        function getPriorityClass(priority) {
+            if (priority === '紧急' || ['9','8','7'].includes(priority)) return 'priority-red';
+            if (['6','5','4'].includes(priority)) return 'priority-yellow';
+            return 'priority-green';
+        }
+        function getProductIconClass(type) {
+            if (type === 'mtb') return 'product-mtb';
+            if (type === 'road') return 'product-road';
+            if (type === 'ebike') return 'product-ebike';
+            if (type === 'fat') return 'product-fat';
+            return 'product-fork';
+        }
+        
+        let headerFilters = { prodOrder: '', productionOrderNo: '', model: '', status: '', priority: '' };
+        let activePanel = null;
+        function closeAllPanels() { document.querySelectorAll('.filter-panel').forEach(p => p.remove()); activePanel = null; }
+        function showPanel(columnKey, triggerBtn) { 
+            closeAllPanels();
+            const rect = triggerBtn.getBoundingClientRect();
+            const tableWrapper = document.querySelector('.table-wrapper');
+            const relativeTop = rect.bottom - tableWrapper.getBoundingClientRect().top;
+            const panel = document.createElement('div');
+            panel.className = 'filter-panel';
+            panel.style.position = 'absolute';
+            panel.style.top = `${relativeTop + 4}px`;
+            panel.style.left = `${rect.left - tableWrapper.getBoundingClientRect().left}px`;
+            if (columnKey === 'prodOrder') {
+                panel.innerHTML = `<input type="text" id="panelProdOrderInput" placeholder="输入生产订单号" value="${escapeHtml(headerFilters.prodOrder)}"><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+                tableWrapper.appendChild(panel);
+                const input = panel.querySelector('#panelProdOrderInput');
+                panel.querySelector('.confirm-btn').onclick = () => { headerFilters.prodOrder = input.value; currentPage=1; renderTable(); closeAllPanels(); };
+                panel.querySelector('.clear-btn').onclick = () => { input.value=''; headerFilters.prodOrder=''; currentPage=1; renderTable(); closeAllPanels(); };
+                input.focus();
+            } else if (columnKey === 'productionOrderNo') {
+                panel.innerHTML = `<input type="text" id="panelProductionOrderInput" placeholder="输入生产订单号" value="${escapeHtml(headerFilters.productionOrderNo)}"><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+                tableWrapper.appendChild(panel);
+                const input = panel.querySelector('#panelProductionOrderInput');
+                panel.querySelector('.confirm-btn').onclick = () => { headerFilters.productionOrderNo = input.value; currentPage=1; renderTable(); closeAllPanels(); };
+                panel.querySelector('.clear-btn').onclick = () => { input.value=''; headerFilters.productionOrderNo=''; currentPage=1; renderTable(); closeAllPanels(); };
+                input.focus();
+            } else if (columnKey === 'model') {
+                panel.innerHTML = `<input type="text" id="panelModelInput" placeholder="输入图号" value="${escapeHtml(headerFilters.model)}"><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+                tableWrapper.appendChild(panel);
+                const input = panel.querySelector('#panelModelInput');
+                panel.querySelector('.confirm-btn').onclick = () => { headerFilters.model = input.value; currentPage=1; renderTable(); closeAllPanels(); };
+                panel.querySelector('.clear-btn').onclick = () => { input.value=''; headerFilters.model=''; currentPage=1; renderTable(); closeAllPanels(); };
+                input.focus();
+            } else if (columnKey === 'status') {
+                panel.innerHTML = `<select id="panelStatusSelect"><option value="">全部状态</option><option value="ongoing" ${headerFilters.status==='ongoing'?'selected':''}>进行中</option><option value="pending" ${headerFilters.status==='pending'?'selected':''}>待投产</option><option value="paused" ${headerFilters.status==='paused'?'selected':''}>已暂停</option><option value="done" ${headerFilters.status==='done'?'selected':''}>已完成</option></select><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+                tableWrapper.appendChild(panel);
+                const select = panel.querySelector('#panelStatusSelect');
+                panel.querySelector('.confirm-btn').onclick = () => { headerFilters.status = select.value; currentPage=1; renderTable(); closeAllPanels(); };
+                panel.querySelector('.clear-btn').onclick = () => { select.value=''; headerFilters.status=''; currentPage=1; renderTable(); closeAllPanels(); };
+            } else if (columnKey === 'priority') {
+                panel.innerHTML = `<select id="panelPrioritySelect"><option value="">全部优先级</option><option value="紧急" ${headerFilters.priority==='紧急'?'selected':''}>紧急</option><option value="9" ${headerFilters.priority==='9'?'selected':''}>9</option><option value="8" ${headerFilters.priority==='8'?'selected':''}>8</option><option value="7" ${headerFilters.priority==='7'?'selected':''}>7</option><option value="6" ${headerFilters.priority==='6'?'selected':''}>6</option><option value="5" ${headerFilters.priority==='5'?'selected':''}>5</option><option value="4" ${headerFilters.priority==='4'?'selected':''}>4</option><option value="3" ${headerFilters.priority==='3'?'selected':''}>3</option><option value="2" ${headerFilters.priority==='2'?'selected':''}>2</option><option value="1" ${headerFilters.priority==='1'?'selected':''}>1</option></select><div class="filter-panel-actions"><button class="clear-btn">清空</button><button class="confirm-btn primary">确定</button></div>`;
+                tableWrapper.appendChild(panel);
+                const select = panel.querySelector('#panelPrioritySelect');
+                panel.querySelector('.confirm-btn').onclick = () => { headerFilters.priority = select.value; currentPage=1; renderTable(); closeAllPanels(); };
+                panel.querySelector('.clear-btn').onclick = () => { select.value=''; headerFilters.priority=''; currentPage=1; renderTable(); closeAllPanels(); };
+            }
+            activePanel = columnKey;
+            const closeHandler = (e) => { if(!panel.contains(e.target) && !triggerBtn.contains(e.target)) { closeAllPanels(); document.removeEventListener('click', closeHandler); } };
+            setTimeout(() => document.addEventListener('click', closeHandler), 10);
+        }
+        
+        function updateCardCounts() {
+            const unfinishedOrders = allOrders.filter(o => o.status === 'ongoing' || o.status === 'paused');
+            document.getElementById('unfinishedCount').innerText = unfinishedOrders.length;
+            document.getElementById('unfinishedRemainQty').innerText = unfinishedOrders.reduce((sum, o) => sum + (o.planned - o.completed), 0).toLocaleString();
+            const todayOrders = allOrders.filter(o => o.startTime.startsWith(todayStr));
+            document.getElementById('todayCount').innerText = todayOrders.length;
+            document.getElementById('todayTotalQty').innerText = todayOrders.reduce((sum, o) => sum + o.planned, 0).toLocaleString();
+            document.getElementById('todayRemainOrders').innerText = todayOrders.filter(o => o.completed < o.planned).length;
+            document.getElementById('todayRemainQty').innerText = todayOrders.reduce((sum, o) => sum + (o.planned - o.completed), 0).toLocaleString();
+            const plannedOrders = allOrders.filter(o => o.status === 'pending');
+            document.getElementById('plannedCount').innerText = plannedOrders.length;
+            document.getElementById('plannedTotalQty').innerText = plannedOrders.reduce((sum, o) => sum + o.planned, 0).toLocaleString();
+        }
+        
+        let currentCardFilter = 'unfinished';
+        function getFilteredOrdersByCardAndUI() {
+            let baseFiltered = [];
+            if (currentCardFilter === 'unfinished') baseFiltered = allOrders.filter(o => o.status === 'ongoing' || o.status === 'paused');
+            else if (currentCardFilter === 'today') baseFiltered = allOrders.filter(o => o.startTime.startsWith(todayStr));
+            else if (currentCardFilter === 'planned') baseFiltered = allOrders.filter(o => o.status === 'pending');
+            else baseFiltered = [...allOrders];
+            return baseFiltered.filter(order => {
+                if (headerFilters.prodOrder && !order.prodOrder.toLowerCase().includes(headerFilters.prodOrder.toLowerCase())) return false;
+                if (headerFilters.productionOrderNo && !(order.productionOrderNo || '').toLowerCase().includes(headerFilters.productionOrderNo.toLowerCase())) return false;
+                if (headerFilters.model && !order.model.toLowerCase().includes(headerFilters.model.toLowerCase())) return false;
+                if (headerFilters.status && order.status !== headerFilters.status) return false;
+                if (headerFilters.priority && order.priority !== headerFilters.priority) return false;
+                return true;
+            }).sort((a,b) => (a.startTime < b.startTime ? -1 : a.startTime > b.startTime ? 1 : priorityWeight[a.priority] - priorityWeight[b.priority]));
+        }
+        
+        function showMessage(text) { let toast = document.querySelector('.toast-msg'); if(toast) toast.remove(); let div = document.createElement('div'); div.className = 'toast-msg'; div.innerText = text; document.body.appendChild(div); setTimeout(() => div.remove(), 1800); }
+        
+        function showDetailModal(order) {
+            const existingModal = document.querySelector('.modal-overlay');
+            if (existingModal) existingModal.remove();
+            const materials = getMaterialListForOrder(order.prodOrder, order.status);
+            const kitRate = calculateKitRate(materials);
+            const progressPercent = order.planned > 0 ? Math.round((order.completed / order.planned) * 100) : 0;
+            
+            let materialsHtml = '<div class="material-table-scroll"><table class="material-table"><thead><tr><th>物料名称</th><th>需求</th><th>可用</th><th>齐套</th><th>单位</th></tr></thead><tbody>';
+            materials.forEach(m => {
+                const isFull = m.available >= m.required;
+                materialsHtml += `<tr><td>${escapeHtml(m.name)}</td><td>${m.required}</td><td>${m.available}</td><td class="${isFull?'kit-status-full':'kit-status-partial'}">${isFull?'已齐套':'部分齐套'}</td><td>${m.unit}</td></tr>`;
+            });
+            materialsHtml += '</tbody></table></div>';
+            
+            const records = order.reportRecords || [];
+            let reportsHtml = records.length===0?'<div class="empty-reports">📭 暂无报工记录</div>':'<table class="report-table"><thead><tr><th>序号</th><th>报工数量</th><th>报工时间</th><th>操作员</th></tr></thead><tbody>'+records.map((rec,idx)=>`<tr><td>${idx+1}</td><td>${rec.qty.toLocaleString()} 件</td><td>${escapeHtml(rec.time)}</td><td><span class="badge-operator">${escapeHtml(rec.operator)}</span></td></tr>`).join('')+'</tbody></table>';
+            
+            const modalDiv = document.createElement('div'); 
+            modalDiv.className = 'modal-overlay';
+            modalDiv.innerHTML = `
+                <div class="modal-container">
+                    <div class="modal-header"><span>📄 订单详情 · ${escapeHtml(order.prodOrder)}</span><button class="modal-close">&times;</button></div>
+                    <div class="modal-body">
+                        <div class="detail-section">
+                            <div class="detail-grid">
+                                <div class="detail-item"><div class="detail-label">生产订单号</div><div class="detail-value">${escapeHtml(order.prodOrder)}</div></div>
+                                <div class="detail-item"><div class="detail-label">销售订单号</div><div class="detail-value">${escapeHtml(order.salesOrder)}</div></div>
+                                <div class="detail-item"><div class="detail-label">图号/名称</div><div class="detail-value">${escapeHtml(order.model)} - ${escapeHtml(order.name)}</div></div>
+                                <div class="detail-item"><div class="detail-label">计划数量</div><div class="detail-value">${order.planned.toLocaleString()} 件</div></div>
+                                <div class="detail-item"><div class="detail-label">已完成数量</div><div class="detail-value">${order.completed.toLocaleString()} 件</div></div>
+                                <div class="detail-item"><div class="detail-label">当前状态</div><div class="detail-value">${order.status === 'ongoing' ? '进行中' : order.status === 'pending' ? '待投产' : order.status === 'paused' ? '已暂停' : '已完成'}</div></div>
+                                <div class="detail-item"><div class="detail-label">优先级</div><div class="detail-value">${escapeHtml(order.priority)}</div></div>
+                                <div class="detail-item"><div class="detail-label">预计开工</div><div class="detail-value">${escapeHtml(order.plannedStartDate)}</div></div>
+                                <div class="detail-item"><div class="detail-label">实际开工</div><div class="detail-value">${order.actualStartTime || '未开工'}</div></div>
+                                <div class="detail-item"><div class="detail-label">预计完工</div><div class="detail-value">${escapeHtml(order.plannedEndDate)}</div></div>
+                                <div class="detail-item"><div class="detail-label">实际完工</div><div class="detail-value">${order.actualEndTime || '未完工'}</div></div>
+                            </div>
+                        </div>
+                        <div class="progress-section">
+                            <div class="progress-title">📊 生产进度</div>
+                            <div class="progress-bar-container"><div class="progress-bar-fill" style="width: ${progressPercent}%;">${progressPercent}%</div></div>
+                            <div class="progress-stats"><span>已完成: ${order.completed.toLocaleString()} 件</span><span>计划总量: ${order.planned.toLocaleString()} 件</span><span>完成率: ${progressPercent}%</span></div>
+                        </div>
+                        <div class="material-section">
+                            <div class="material-title">📦 物料清单及齐套情况 · 齐套率 ${kitRate}%</div>
+                            ${materialsHtml}
+                        </div>
+                        <div class="report-title">📋 报工记录明细</div>
+                        ${reportsHtml}
+                    </div>
+                    <div class="modal-buttons"><button class="modal-close-btn">关闭</button></div>
+                </div>
+            `;
+            document.body.appendChild(modalDiv);
+            const close = () => modalDiv.remove();
+            modalDiv.querySelector('.modal-close').onclick = close;
+            modalDiv.querySelector('.modal-close-btn').onclick = close;
+            modalDiv.addEventListener('click',(e)=>{ if(e.target === modalDiv) close(); });
+        }
+        
+        // 报工模态框，增加【一键完成】按钮
+        function showReportModal(order) {
+            if (order.status !== 'ongoing') { showMessage('只有进行中的任务可以报工'); return; }
+            const existingModal = document.querySelector('.modal-overlay');
+            if (existingModal) existingModal.remove();
+            const currentOrder = order;
+            const refreshStats = () => {
+                const remaining = currentOrder.planned - currentOrder.completed;
+                const completedSpan = document.getElementById('reportCompletedValue');
+                const remainingSpan = document.getElementById('reportRemainingValue');
+                if (completedSpan) completedSpan.innerText = currentOrder.completed.toLocaleString() + ' 件';
+                if (remainingSpan) remainingSpan.innerText = remaining.toLocaleString() + ' 件';
+                const qtyInput = document.getElementById('reportQty');
+                if (qtyInput && remaining > 0) { qtyInput.max = remaining; if (parseInt(qtyInput.value) > remaining) qtyInput.value = Math.min(remaining, 50); }
+            };
+            const remaining = currentOrder.planned - currentOrder.completed;
+            const modal = document.createElement('div'); modal.className = 'modal-overlay';
+            modal.innerHTML = `<div class="modal-container" style="width:480px;"><div class="modal-header"><span>📦 报工 · ${escapeHtml(currentOrder.prodOrder)}</span><button class="modal-close">&times;</button></div><div class="modal-body"><div class="report-info-row"><div class="report-info-label">计划数量</div><div class="report-info-value">${currentOrder.planned.toLocaleString()} 件</div></div><div class="report-info-row"><div class="report-info-label">当前已完成</div><div class="report-info-value" id="reportCompletedValue">${currentOrder.completed.toLocaleString()} 件</div></div><div class="report-info-row"><div class="report-info-label">剩余待完成</div><div class="report-info-value" id="reportRemainingValue">${remaining.toLocaleString()} 件</div></div><div class="report-group"><label>📝 本次报工数量</label><input type="number" id="reportQty" min="1" max="${remaining}" value="${Math.min(remaining, 50)}" step="1"></div><div class="report-group"><label>👤 操作员</label><input type="text" id="operatorName" placeholder="请输入操作员姓名" value="${operators[0]}"></div><div id="reportError" class="error-msg"></div><div id="reportSuccessMsg" class="success-msg"></div></div><div class="modal-buttons flex-buttons"><button class="cancel-btn">关闭</button><button class="primary confirm-report">确认报工</button><button class="warning complete-order-btn">✅ 完成工单</button></div></div>`;
+            document.body.appendChild(modal);
+            const closeModalHandler = () => modal.remove();
+            modal.querySelector('.modal-close').onclick = closeModalHandler;
+            modal.querySelector('.cancel-btn').onclick = closeModalHandler;
+            const qtyInput = modal.querySelector('#reportQty');
+            const operatorInput = modal.querySelector('#operatorName');
+            const errorSpan = modal.querySelector('#reportError');
+            const successSpan = modal.querySelector('#reportSuccessMsg');
+            
+            const confirmReport = () => {
+                let qty = parseInt(qtyInput.value, 10);
+                let operator = operatorInput.value.trim();
+                errorSpan.innerText = ''; successSpan.innerText = '';
+                const currentRemaining = currentOrder.planned - currentOrder.completed;
+                if (isNaN(qty) || qty <= 0) { errorSpan.innerText = '请输入有效数量'; return; }
+                if (qty > currentRemaining) { errorSpan.innerText = `不能超过剩余数量 ${currentRemaining}`; return; }
+                if (!operator) { errorSpan.innerText = '请输入操作员姓名'; return; }
+                addReportRecord(currentOrder, qty, operator);
+                currentOrder.completed += qty;
+                updateCardCounts();
+                renderTable();
+                if (currentOrder.completed >= currentOrder.planned) {
+                    currentOrder.status = 'done';
+                    currentOrder.actualEndTime = new Date().toLocaleString('zh-CN', {hour12: false});
+                    showMessage(`✅ 报工完成！订单 ${currentOrder.prodOrder} 已完成`);
+                    closeModalHandler();
+                    updateCardCounts();
+                    renderTable();
+                } else {
+                    refreshStats();
+                    successSpan.innerText = `✓ 报工成功！本次报工 ${qty} 件，当前完成 ${currentOrder.completed}/${currentOrder.planned}`;
+                    const newRemaining = currentOrder.planned - currentOrder.completed;
+                    qtyInput.value = Math.min(newRemaining, 50);
+                    if (qtyInput.value < 1) qtyInput.value = 1;
+                    qtyInput.max = newRemaining;
+                }
+            };
+            modal.querySelector('.confirm-report').onclick = confirmReport;
+            // 一键完成工单
+            const completeOrder = () => {
+                const remainingQty = currentOrder.planned - currentOrder.completed;
+                if (remainingQty <= 0) {
+                    showMessage(`工单 ${currentOrder.prodOrder} 已经完成，无需再次操作`);
+                    closeModalHandler();
+                    return;
+                }
+                const operator = operatorInput.value.trim() || '系统';
+                addReportRecord(currentOrder, remainingQty, operator);
+                currentOrder.completed = currentOrder.planned;
+                currentOrder.status = 'done';
+                currentOrder.actualEndTime = new Date().toLocaleString('zh-CN', {hour12: false});
+                updateCardCounts();
+                renderTable();
+                showMessage(`🎉 工单 ${currentOrder.prodOrder} 已强制完成！补齐报工 ${remainingQty} 件`);
+                closeModalHandler();
+            };
+            modal.querySelector('.complete-order-btn').onclick = completeOrder;
+            modal.addEventListener('click', (e) => { if(e.target === modal) closeModalHandler(); });
+        }
+        
+        function bindTableActions() {
+            const wrapper = document.getElementById('tableWrapper');
+            if(!wrapper) return;
+            if (wrapper._listener) wrapper.removeEventListener('click', wrapper._listener);
+            const clickHandler = (e) => {
+                const btn = e.target.closest('.action-btn');
+                if(btn) {
+                    const row = btn.closest('tr');
+                    if(!row) return;
+                    // 获取生产订单号 - 第2列（索引1）
+                    const cells = row.querySelectorAll('td');
+                    if(cells.length < 2) return;
+                    const prodOrder = cells[1]?.innerText || '';
+                    if(!prodOrder) return;
+                    const order = allOrders.find(o => o.prodOrder === prodOrder);
+                    if(!order) return;
+                    const btnText = btn.innerText;
+                    if(btnText.includes('投产')) { 
+                        if(order.status === 'pending') { 
+                            order.status = 'ongoing'; 
+                            order.actualStartTime = new Date().toLocaleString('zh-CN', {hour12: false}); 
+                            order.startTime = order.actualStartTime; 
+                            showMessage(`🚀 已投产: ${order.prodOrder}`); 
+                            renderTable(); 
+                            updateCardCounts(); 
+                        } else { 
+                            showMessage('仅待投产订单可投产'); 
+                        } 
+                    }
+                    else if(btnText.includes('暂停') && order.status === 'ongoing') { 
+                        order.status = 'paused'; 
+                        showMessage(`⏸️ 已暂停: ${order.prodOrder}`); 
+                        renderTable(); 
+                        updateCardCounts(); 
+                    }
+                    else if(btnText.includes('复工') && order.status === 'paused') { 
+                        order.status = 'ongoing'; 
+                        showMessage(`▶️ 已复工: ${order.prodOrder}`); 
+                        renderTable(); 
+                        updateCardCounts(); 
+                    }
+                    else if(btnText.includes('报工') && !btn.classList.contains('disabled')) { 
+                        showReportModal(order); 
+                    }
+                    else if(btnText.includes('详情')) { 
+                        showDetailModal(order); 
+                    }
+                    return;
+                }
+                const filterBtn = e.target.closest('.filter-trigger-btn');
+                if(filterBtn && filterBtn.dataset.column) { e.stopPropagation(); showPanel(filterBtn.dataset.column, filterBtn); }
+            };
+            wrapper.addEventListener('click', clickHandler);
+            wrapper._listener = clickHandler;
+        }
+        
+        let currentPage = 1;
+        function renderTable() {
+            const orders = getFilteredOrdersByCardAndUI();
+            const totalRecords = orders.length;
+            document.getElementById('totalRecords').innerText = totalRecords;
+            const rowsPerPage = 10;
+            const totalPages = Math.ceil(totalRecords / rowsPerPage);
+            if(currentPage > totalPages) currentPage = totalPages || 1;
+            const startIdx = (currentPage - 1) * rowsPerPage;
+            const pageOrders = orders.slice(startIdx, startIdx + rowsPerPage);
+            const pageNumbersDiv = document.getElementById('pageNumbers');
+            pageNumbersDiv.innerHTML = '';
+            for(let i = 1; i <= totalPages; i++) {
+                const pageSpan = document.createElement('span');
+                pageSpan.className = `page-num ${i === currentPage ? 'active' : ''}`;
+                pageSpan.innerText = i;
+                pageSpan.onclick = (function(page) { return function() { currentPage = page; renderTable(); }; })(i);
+                pageNumbersDiv.appendChild(pageSpan);
+            }
+            document.getElementById('prevPageBtn').onclick = () => { if(currentPage > 1) { currentPage--; renderTable(); } };
+            document.getElementById('nextPageBtn').onclick = () => { if(currentPage < totalPages) { currentPage++; renderTable(); } };
+            const hasProdFilter = !!headerFilters.prodOrder, hasProductionOrderFilter = !!headerFilters.productionOrderNo, hasModelFilter = !!headerFilters.model, hasStatusFilter = !!headerFilters.status, hasPriorityFilter = !!headerFilters.priority;
+            let tableHtml = '<table><thead><tr>';
+            tableHtml += '<th>销售订单号</th><th><div class="header-title">生产工单号<span class="filter-trigger-btn '+(hasProdFilter?'active-filter':'')+'" data-column="prodOrder">🔽 筛选</span></div></th>';
+            tableHtml += '<th><div class="header-title">生产订单号<span class="filter-trigger-btn '+(hasProductionOrderFilter?'active-filter':'')+'" data-column="productionOrderNo">🔽 筛选</span></div></th>';
+            tableHtml += '<th class="nowrap-cell"><div class="header-title">图号<span class="filter-trigger-btn '+(hasModelFilter?'active-filter':'')+'" data-column="model">🔽 筛选</span></div></th>';
+            tableHtml += '<th>计划数量</th><th>已完成</th><th>预计开工日期</th><th>实际开工时间</th><th>预计完工日期</th><th>实际完工时间</th>';
+            tableHtml += '<th><div class="header-title">状态<span class="filter-trigger-btn '+(hasStatusFilter?'active-filter':'')+'" data-column="status">🔽 筛选</span></div></th>';
+            tableHtml += '<th><div class="header-title">优先级<span class="filter-trigger-btn '+(hasPriorityFilter?'active-filter':'')+'" data-column="priority">🔽 筛选</span></div></th>';
+            tableHtml += '<th class="nowrap-cell">操作</th></tr></thead><tbody>';
+            if (pageOrders.length === 0) tableHtml += '<tr><td colspan="12" style="text-align:center; padding:40px;">暂无匹配订单</td></tr>';
+            else for (const o of pageOrders) {
+                let statusClass = '', statusText = '';
+                if(o.status === 'ongoing') { statusClass='ongoing'; statusText='进行中'; }
+                else if(o.status === 'pending') { statusClass='pending'; statusText='待投产'; }
+                else if(o.status === 'paused') { statusClass='paused'; statusText='已暂停'; }
+                else if(o.status === 'done') { statusClass='done'; statusText='已完成'; }
+                const priorityClass = getPriorityClass(o.priority);
+                const iconClass = getProductIconClass(o.type);
+                let actionButtons = '';
+                if(o.status === 'done') actionButtons = '<span class="action-btn">详情</span><span class="action-btn secondary completed">已完成</span><span class="action-btn report disabled">报工</span>';
+                else if(o.status === 'pending') actionButtons = '<span class="action-btn">详情</span><span class="action-btn primary">投产</span><span class="action-btn report disabled">报工</span>';
+                else if(o.status === 'paused') actionButtons = '<span class="action-btn">详情</span><span class="action-btn secondary">复工</span><span class="action-btn report">报工</span>';
+                else actionButtons = '<span class="action-btn">详情</span><span class="action-btn secondary">暂停</span><span class="action-btn report">报工</span>';
+                tableHtml += `<tr>
+                    <td class="nowrap-cell">${escapeHtml(o.salesOrder)}</td>
+                    <td class="nowrap-cell">${escapeHtml(o.prodOrder)}</td>
+                    <td class="nowrap-cell">${escapeHtml(o.productionOrderNo)}</td>
+                    <td class="nowrap-cell"><span class="${iconClass}"></span> ${escapeHtml(o.model)}</td>
+                    <td class="numeric">${o.planned.toLocaleString()}</td>
+                    <td class="numeric">${o.completed.toLocaleString()}</td>
+                    <td>${escapeHtml(o.plannedStartDate)}</td>
+                    <td class="nowrap-cell">${o.actualStartTime || '未开工'}</td>
+                    <td>${escapeHtml(o.plannedEndDate)}</td>
+                    <td class="nowrap-cell">${o.actualEndTime || '未完工'}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td><span class="priority-tag ${priorityClass}">${escapeHtml(o.priority)}</span></td>
+                    <td class="action-btns nowrap-cell">${actionButtons}</td>
+                </tr>`;
+            }
+            tableHtml += '</tbody></table>';
+            document.getElementById('tableWrapper').innerHTML = tableHtml;
+            bindTableActions();
+            closeAllPanels();
+        }
+        
+        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m) { return {'&':'&amp;','<':'&lt;','>':'&gt;'}[m]; }); }
+        function initCards() { document.querySelectorAll('.stat-card').forEach(card => { card.addEventListener('click', function() { document.querySelectorAll('.stat-card').forEach(c=>c.classList.remove('active')); this.classList.add('active'); currentCardFilter = this.dataset.filter; currentPage=1; renderTable(); }); }); }
+        function initPageToolbar() {
+            const workerShiftBtn = document.getElementById('workerShiftBtn');
+            if (workerShiftBtn) {
+                workerShiftBtn.addEventListener('click', () => {
+                    window.location.href = '生产上下工.html?from=' + encodeURIComponent('投产报工.html');
+                });
+            }
+        }
+        
+        updateCardCounts();
+        renderTable();
+        initCards();
+        initPageToolbar();
+    })();
+</script>
+</body>
+</html>

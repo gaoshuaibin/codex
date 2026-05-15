@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>生产备料看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --card-bg: #ffffff;
+      --text: #1f2937;
+      --text-secondary: #6b7280;
+      --border: #e5e7eb;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      min-height: 100dvh;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--page-bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .dash {
+      width: 100%;
+      max-width: 100%;
+      padding: clamp(12px, 2vw, 24px);
+      padding-bottom: clamp(16px, 3vw, 40px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .dash-shell {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: clamp(16px, 2.2vw, 22px) clamp(14px, 2vw, 22px);
+    }
+
+    /* 标题栏 */
+    .dash-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    .dash-head h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .dash-head-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dash-head-tools label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .dash-head-tools select {
+      height: 36px;
+      min-width: 120px;
+      padding: 0 32px 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+      appearance: none;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .dash-head-tools select:hover {
+      border-color: #cbd5e1;
+    }
+
+    .dash-head-tools select:focus {
+      outline: none;
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    /* 卡片组：固定尺寸、左对齐 */
+    .kpi-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: flex-start;
+      align-items: stretch;
+    }
+
+    .kpi-card {
+      width: 200px;
+      height: 112px;
+      flex-shrink: 0;
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .kpi-card .kpi-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .kpi-card .kpi-value {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #111827;
+      line-height: 1.1;
+    }
+
+    .kpi-card .kpi-foot {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .kpi-card.c1 {
+      border-color: #dbeafe;
+      background: linear-gradient(135deg, #eff6ff 0%, #fff 100%);
+    }
+
+    .kpi-card.c2 {
+      border-color: #d1fae5;
+      background: linear-gradient(135deg, #ecfdf5 0%, #fff 100%);
+    }
+
+    .kpi-card.c3 {
+      border-color: #fef3c7;
+      background: linear-gradient(135deg, #fffbeb 0%, #fff 100%);
+    }
+
+    /* 图表行 */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    @media (max-width: 960px) {
+      .charts-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: #fff;
+      padding: 14px 14px 8px;
+      display: flex;
+      flex-direction: column;
+      min-height: 320px;
+    }
+
+    .chart-panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .chart-box {
+      flex: 1;
+      min-height: 260px;
+      width: 100%;
+    }
+
+    /* 表格区块 */
+    .section-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      min-height: 0;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .table-shell {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: #fff;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-fixed {
+      height: 320px;
+      overflow: auto;
+      position: relative;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table.task-table {
+      width: 100%;
+      min-width: 960px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    table.task-table .col-material {
+      word-break: break-word;
+    }
+
+    table.task-table th,
+    table.task-table td {
+      padding: 10px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    table.task-table th {
+      background: #fafafa;
+      font-weight: 600;
+      color: #6b7280;
+      white-space: nowrap;
+      font-size: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    table.task-table tbody tr:hover {
+      background: #f9fafb;
+    }
+
+    table.task-table td {
+      color: #374151;
+    }
+
+    table.simple-table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    table.simple-table th,
+    table.simple-table td {
+      padding: 10px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table.simple-table th {
+      background: #fafafa;
+      font-weight: 600;
+      color: #6b7280;
+      font-size: 12px;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    table.simple-table tbody tr:hover {
+      background: #f9fafb;
+    }
+
+    .material-cell .name {
+      font-weight: 500;
+      color: #111827;
+    }
+
+    .badge-prio {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-prio.urgent {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .badge-prio.normal {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+
+    .badge-status {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-status.pending {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+
+    .badge-status.done {
+      background: #d1fae5;
+      color: #047857;
+    }
+
+    .badge-status.progress {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .progress-cell {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .actions .link-btn {
+      display: inline-block;
+      margin-right: 10px;
+      padding: 0;
+      border: none;
+      background: none;
+      color: var(--primary);
+      font-weight: 500;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .actions .link-btn:hover:not(:disabled) {
+      text-decoration: underline;
+      color: var(--primary-hover);
+    }
+
+    .empty-row td {
+      text-align: center;
+      color: #9ca3af;
+      padding: 32px !important;
+    }
+
+    .pagination-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      background: #fafafa;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pagination button {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .pagination button:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .pagination button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .pagination button.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="dash">
+    <div class="dash-shell">
+      <header class="dash-head">
+        <h1>生产备料看板</h1>
+        <div class="dash-head-tools">
+          <label for="scopeSelect">数据范围</label>
+          <select id="scopeSelect" title="切换看板统计范围" aria-label="数据范围">
+            <option value="today" selected>今日</option>
+            <option value="week">本周</option>
+            <option value="month">本月</option>
+          </select>
+        </div>
+      </header>
+
+      <section class="kpi-row" aria-label="汇总指标">
+        <div class="kpi-card c1">
+          <span class="kpi-label">备料订单总数</span>
+          <span class="kpi-value" id="kpiOrders">0</span>
+          <span class="kpi-foot">当前范围内统计</span>
+        </div>
+        <div class="kpi-card c2">
+          <span class="kpi-label">齐套订单总数</span>
+          <span class="kpi-value" id="kpiComplete">0</span>
+          <span class="kpi-foot">备料状态为已完成</span>
+        </div>
+        <div class="kpi-card c3">
+          <span class="kpi-label">叫料次数</span>
+          <span class="kpi-value" id="kpiCalls">0</span>
+          <span class="kpi-foot">物料呼叫累计</span>
+        </div>
+      </section>
+    </div>
+
+    <div class="dash-shell section-block">
+      <div class="section-head">
+        <h2>备料任务清单</h2>
+      </div>
+      <div class="table-shell">
+        <div class="table-fixed">
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th>销售订单号</th>
+                <th>生产订单号</th>
+                <th>图号</th>
+                <th class="col-material">产品名称</th>
+                <th>数量</th>
+                <th>优先级</th>
+                <th>备料状态</th>
+                <th>进度</th>
+                <th style="min-width: 160px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="taskBody"></tbody>
+          </table>
+        </div>
+        <footer class="pagination-bar">
+          <span id="taskPageInfo">共 0 条</span>
+          <div class="pagination" id="taskPagination"></div>
+        </footer>
+      </div>
+    </div>
+
+    <div class="dash-shell section-block">
+      <div class="section-head">
+        <h2>叫料记录</h2>
+      </div>
+      <div class="table-shell">
+        <div class="table-fixed">
+          <table class="simple-table">
+            <thead>
+              <tr>
+                <th>叫料时间</th>
+                <th>产线</th>
+                <th>叫料物料</th>
+                <th>订单号</th>
+                <th>图号</th>
+              </tr>
+            </thead>
+            <tbody id="callBody"></tbody>
+          </table>
+        </div>
+        <footer class="pagination-bar">
+          <span id="callPageInfo">共 0 条</span>
+          <div class="pagination" id="callPagination"></div>
+        </footer>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-panel">
+        <div class="chart-panel-title">叫料原因分布</div>
+        <div id="chartDonut" class="chart-box" role="img" aria-label="叫料原因分布环形图"></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-panel-title">生产线叫料频率</div>
+        <div id="chartBar" class="chart-box" role="img" aria-label="生产线叫料柱状图"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var STORAGE_KEY = "warehouse_prep_orders_v4";
+      var TASK_PAGE_SIZE = 8;
+      var CALL_PAGE_SIZE = 8;
+
+      function loadStore() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function saveStore(data) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+
+      function matProgress(o) {
+        var mats = o.materials || [];
+        var n = mats.length;
+        if (!n) return { text: "0/0", done: 0, total: 0 };
+        var done = mats.filter(function (m) {
+          return m.pickStatus === "领料完成" || m.pickStatus === "备料完成";
+        }).length;
+        return { text: done + "/" + n, done: done, total: n };
+      }
+
+      function refreshPrepStatusFromMaterials(o) {
+        var mats = o.materials || [];
+        if (!mats.length) return;
+        var allDone = mats.every(function (m) {
+          return m.pickStatus === "领料完成" || m.pickStatus === "备料完成";
+        });
+        if (allDone) {
+          o.prepStatus = "已完成";
+          return;
+        }
+        if (!allDone && o.prepStatus === "已完成") {
+          o.prepStatus = "进行中";
+        }
+      }
+
+      function padWhId(n) {
+        var s = String(n);
+        while (s.length < 3) s = "0" + s;
+        return s;
+      }
+
+      function buildAlignedWarehouseOrders36() {
+        var out = [];
+        var pickRot = ["待领料", "部分领料", "领料完成"];
+        var i;
+        for (i = 0; i < 36; i++) {
+          var num = i + 1;
+          var wid = "wo-" + padWhId(num);
+          var planQty = 30 + (i % 6) * 10;
+          var mats = [];
+          var j;
+          for (j = 0; j < 3; j++) {
+            var ps = pickRot[(i + j) % 3];
+            var req = 5 + j * 4 + (i % 8);
+            var cq = null;
+            var ci = "";
+            if (ps === "领料完成") {
+              cq = req;
+            } else if (ps === "部分领料") {
+              cq = Math.max(1, Math.floor(req / 2));
+              ci = String(cq);
+            }
+            mats.push({
+              code: "M-" + padWhId(num) + "-" + (j + 1),
+              name: "物料-" + (j + 1),
+              spec: "SPEC-" + num + "-" + (j + 1),
+              unit: ["PCS", "SET", "M"][j % 3],
+              pickStatus: ps,
+              stockQty: 100 + ((i * 17 + j * 11) % 500),
+              reqQty: req,
+              currentPickQty: cq,
+              currentPickInput: ci,
+            });
+          }
+          out.push({
+            id: wid,
+            salesOrderNo: "SO202604" + padWhId(100 + i),
+            prodOrderNo: "MO202604" + padWhId(200 + i),
+            drawingNo: "TH-" + (3100 + (i % 14)),
+            productName: "零件-" + ((i % 9) + 1),
+            qty: planQty,
+            prio: i % 7 === 0 ? "紧急" : "一般",
+            prepStatus: ["待备料", "进行中", "已完成"][i % 3],
+            materials: mats,
+          });
+        }
+        return out;
+      }
+
+      var DEFAULT_ORDERS = buildAlignedWarehouseOrders36();
+
+      function ensureOrders() {
+        var st = loadStore();
+        if (st && st.orders && st.orders.length) {
+          st.orders.forEach(function (o) {
+            refreshPrepStatusFromMaterials(o);
+          });
+          saveStore(st);
+          return st.orders;
+        }
+        var fresh = JSON.parse(JSON.stringify(DEFAULT_ORDERS));
+        fresh.forEach(function (o) {
+          refreshPrepStatusFromMaterials(o);
+        });
+        saveStore({ orders: fresh });
+        return fresh;
+      }
+
+      var allOrders = ensureOrders();
+
+      function prioClass(p) {
+        return p === "紧急" ? "urgent" : "normal";
+      }
+
+      function prepStatusClass(s) {
+        if (s === "待备料") return "pending";
+        if (s === "进行中") return "progress";
+        if (s === "已完成") return "done";
+        return "pending";
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function pickUrl(id, mode) {
+        return "订单备料.html?id=" + encodeURIComponent(id) + "&mode=" + encodeURIComponent(mode);
+      }
+
+      /* ---------- 范围系数（演示：切换范围时缩放汇总与图表） ---------- */
+      function scopeMultiplier(scope) {
+        if (scope === "week") return 1.35;
+        if (scope === "month") return 1.85;
+        return 1;
+      }
+
+      function countCompleteSetOrders() {
+        return allOrders.filter(function (o) {
+          return o.prepStatus === "已完成";
+        }).length;
+      }
+
+      function estimateCallCount(scope) {
+        var base = allOrders.reduce(function (acc, o) {
+          var mats = o.materials || [];
+          return acc + mats.filter(function (m) {
+            return m.pickStatus !== "领料完成" && m.pickStatus !== "备料完成";
+          }).length;
+        }, 0);
+        var lines = ["A01", "A02", "A03", "A04", "A05", "B01", "B02"];
+        var hash = allOrders.length * 7 + base;
+        var pseudo = (hash % 41) + Math.floor(lines.length * 2.2);
+        return Math.max(12, Math.round((pseudo + base * 0.15) * scopeMultiplier(scope)));
+      }
+
+      function refreshKpis(scope) {
+        var mult = scopeMultiplier(scope);
+        var totalOrders = allOrders.length;
+        var complete = countCompleteSetOrders();
+        var scaledTotal = Math.max(1, Math.round(totalOrders * mult));
+        var scaledComplete = Math.min(scaledTotal, Math.max(0, Math.round(complete * mult)));
+        document.getElementById("kpiOrders").textContent = String(scaledTotal);
+        document.getElementById("kpiComplete").textContent = String(scaledComplete);
+        document.getElementById("kpiCalls").textContent = String(estimateCallCount(scope));
+      }
+
+      /* ---------- ECharts ---------- */
+      var CALL_REASON_STATS_KEY = "call_material_reason_distribution_v1";
+      var REASON_LABELS = ["短缺不足", "生产损坏", "来料不良", "其他原因"];
+      var REASON_COLORS = {
+        短缺不足: "#2563eb",
+        生产损坏: "#f97316",
+        来料不良: "#ef4444",
+        其他原因: "#9ca3af",
+      };
+
+      var chartDonut;
+      var chartBar;
+
+      function loadCallReasonCounts() {
+        var counts = { 短缺不足: 0, 生产损坏: 0, 来料不良: 0, 其他原因: 0 };
+        try {
+          var raw = localStorage.getItem(CALL_REASON_STATS_KEY);
+          if (!raw) return counts;
+          var parsed = JSON.parse(raw);
+          var src = parsed.counts || parsed;
+          REASON_LABELS.forEach(function (k) {
+            var v = Number(src[k]);
+            if (Number.isFinite(v) && v >= 0) counts[k] = v;
+          });
+        } catch (e) {}
+        return counts;
+      }
+
+      /** 无提交记录时使用与参考图相近的演示占比 */
+      function demoReasonCounts(scope) {
+        var mult = scopeMultiplier(scope);
+        return {
+          短缺不足: Math.round(14 * mult),
+          生产损坏: Math.round(11 * mult),
+          来料不良: Math.round(6 * mult),
+          其他原因: Math.round(3 * mult),
+        };
+      }
+
+      function buildDonutSeries(scope) {
+        var stored = loadCallReasonCounts();
+        var totalStored = REASON_LABELS.reduce(function (s, k) {
+          return s + stored[k];
+        }, 0);
+        var base = totalStored > 0 ? stored : demoReasonCounts(scope);
+        var mult = scopeMultiplier(scope);
+        var data = REASON_LABELS.map(function (name) {
+          var v = Math.max(0, Math.round(base[name] * (totalStored > 0 ? mult : 1)));
+          return {
+            name: name,
+            value: v,
+            itemStyle: { color: REASON_COLORS[name] },
+          };
+        });
+        var sum = data.reduce(function (s, x) {
+          return s + x.value;
+        }, 0);
+        if (sum === 0) {
+          var d2 = demoReasonCounts(scope);
+          data = REASON_LABELS.map(function (name) {
+            return {
+              name: name,
+              value: d2[name],
+              itemStyle: { color: REASON_COLORS[name] },
+            };
+          });
+        }
+        return data;
+      }
+
+      function barCategories() {
+        return ["A01", "A02", "A03", "A04", "A05", "B01", "B02"];
+      }
+
+      function buildBarSeries(scope) {
+        var cats = barCategories();
+        var mult = scopeMultiplier(scope);
+        var data = cats.map(function (_, i) {
+          return Math.round((8 + ((i * 13 + allOrders.length) % 17)) * mult);
+        });
+        return { categories: cats, data: data };
+      }
+
+      function renderCharts(scope) {
+        var donutData = buildDonutSeries(scope);
+        var bs = buildBarSeries(scope);
+
+        if (!chartDonut) {
+          chartDonut = echarts.init(document.getElementById("chartDonut"));
+        }
+        if (!chartBar) {
+          chartBar = echarts.init(document.getElementById("chartBar"));
+        }
+
+        chartDonut.setOption(
+          {
+            tooltip: {
+              trigger: "item",
+              formatter: function (p) {
+                return p.marker + p.name + "：" + p.value + "（" + p.percent + "%）";
+              },
+            },
+            legend: {
+              orient: "horizontal",
+              bottom: 8,
+              left: "center",
+              itemWidth: 10,
+              itemHeight: 10,
+              textStyle: { color: "#6b7280", fontSize: 11 },
+              data: REASON_LABELS,
+            },
+            series: [
+              {
+                name: "叫料原因",
+                type: "pie",
+                radius: ["42%", "68%"],
+                center: ["50%", "46%"],
+                avoidLabelOverlap: true,
+                itemStyle: {
+                  borderRadius: 4,
+                  borderColor: "#fff",
+                  borderWidth: 2,
+                },
+                label: {
+                  formatter: "{b}\n{d}%",
+                  color: "#374151",
+                  fontSize: 11,
+                },
+                labelLine: { length: 12, length2: 8 },
+                data: donutData,
+              },
+            ],
+          },
+          true
+        );
+
+        chartBar.setOption(
+          {
+            grid: { left: 44, right: 16, top: 28, bottom: 36 },
+            tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+            xAxis: {
+              type: "category",
+              data: bs.categories,
+              axisLine: { lineStyle: { color: "#e5e7eb" } },
+              axisLabel: { color: "#6b7280", fontSize: 11 },
+            },
+            yAxis: {
+              type: "value",
+              minInterval: 1,
+              axisLabel: { color: "#6b7280" },
+              splitLine: { lineStyle: { color: "#f3f4f6" } },
+            },
+            series: [
+              {
+                name: "叫料次数",
+                type: "bar",
+                barMaxWidth: 36,
+                itemStyle: {
+                  color: "#2563eb",
+                  borderRadius: [4, 4, 0, 0],
+                },
+                data: bs.data,
+              },
+            ],
+          },
+          true
+        );
+      }
+
+      window.addEventListener(
+        "resize",
+        function () {
+          if (chartDonut) chartDonut.resize();
+          if (chartBar) chartBar.resize();
+        },
+        { passive: true }
+      );
+
+      /* ---------- 备料任务表分页 ---------- */
+      var taskState = { page: 1 };
+
+      function taskTotalPages() {
+        return Math.max(1, Math.ceil(allOrders.length / TASK_PAGE_SIZE));
+      }
+
+      function renderTaskTable() {
+        var tbody = document.getElementById("taskBody");
+        var tp = taskTotalPages();
+        if (taskState.page > tp) taskState.page = tp;
+        var start = (taskState.page - 1) * TASK_PAGE_SIZE;
+        var rows = allOrders.slice(start, start + TASK_PAGE_SIZE);
+        tbody.innerHTML = "";
+
+        if (!rows.length) {
+          var tr0 = document.createElement("tr");
+          tr0.className = "empty-row";
+          tr0.innerHTML = '<td colspan="9">暂无备料任务</td>';
+          tbody.appendChild(tr0);
+          return;
+        }
+
+        rows.forEach(function (t) {
+          refreshPrepStatusFromMaterials(t);
+          var prog = matProgress(t);
+          var actionsHtml = "";
+          if (t.prepStatus === "待备料") {
+            actionsHtml +=
+              '<button type="button" class="link-btn js-start" data-id="' +
+              escapeHtml(t.id) +
+              '">开始</button>';
+          } else {
+            actionsHtml +=
+              '<button type="button" class="link-btn js-edit" data-id="' +
+              escapeHtml(t.id) +
+              '">编辑</button>';
+          }
+          actionsHtml +=
+            '<button type="button" class="link-btn js-detail" data-id="' +
+            escapeHtml(t.id) +
+            '">详情</button>';
+
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" +
+            escapeHtml(t.salesOrderNo || "") +
+            "</td>" +
+            "<td>" +
+            escapeHtml(t.prodOrderNo || "") +
+            "</td>" +
+            "<td>" +
+            escapeHtml(t.drawingNo || "") +
+            "</td>" +
+            '<td class="material-cell col-material"><span class="name">' +
+            escapeHtml(t.productName || "") +
+            "</span></td>" +
+            "<td>" +
+            escapeHtml(String(t.qty !== undefined && t.qty !== null ? t.qty : "")) +
+            "</td>" +
+            '<td><span class="badge-prio ' +
+            prioClass(t.prio) +
+            '">' +
+            escapeHtml(t.prio || "") +
+            "</span></td>" +
+            '<td><span class="badge-status ' +
+            prepStatusClass(t.prepStatus) +
+            '">' +
+            escapeHtml(t.prepStatus || "") +
+            "</span></td>" +
+            '<td class="progress-cell">' +
+            escapeHtml(prog.text) +
+            "</td>" +
+            '<td class="actions">' +
+            actionsHtml +
+            "</td>";
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll(".js-start").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            window.location.href = pickUrl(btn.getAttribute("data-id"), "start");
+          });
+        });
+        tbody.querySelectorAll(".js-edit").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            window.location.href = pickUrl(btn.getAttribute("data-id"), "edit");
+          });
+        });
+        tbody.querySelectorAll(".js-detail").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            window.location.href = pickUrl(btn.getAttribute("data-id"), "detail");
+          });
+        });
+      }
+
+      function renderTaskPagination() {
+        var total = allOrders.length;
+        var tp = taskTotalPages();
+        var start = total === 0 ? 0 : (taskState.page - 1) * TASK_PAGE_SIZE + 1;
+        var end = Math.min(total, taskState.page * TASK_PAGE_SIZE);
+        document.getElementById("taskPageInfo").textContent =
+          "共 " + total + " 条 · 显示 " + start + "–" + end;
+
+        var pag = document.getElementById("taskPagination");
+        pag.innerHTML = "";
+
+        function addBtn(label, page, disabled, active) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.textContent = label;
+          b.disabled = !!disabled;
+          if (active) b.classList.add("active");
+          if (!disabled && page !== null) {
+            b.addEventListener("click", function () {
+              taskState.page = page;
+              renderTaskTable();
+              renderTaskPagination();
+            });
+          }
+          pag.appendChild(b);
+        }
+
+        addBtn("上一页", taskState.page - 1, taskState.page <= 1, false);
+        var p;
+        for (p = 1; p <= tp; p++) {
+          addBtn(String(p), p, false, p === taskState.page);
+        }
+        addBtn("下一页", taskState.page + 1, taskState.page >= tp, false);
+      }
+
+      /* ---------- 叫料记录（演示数据） ---------- */
+      var lines = ["A01", "A02", "A03", "A04", "A05", "B01", "B02"];
+      var callRecords = [];
+
+      function pad2(n) {
+        return n < 10 ? "0" + n : String(n);
+      }
+
+      function buildCallRecords() {
+        var out = [];
+        var i;
+        for (i = 0; i < 48; i++) {
+          var h = 8 + (i % 11);
+          var m = (i * 7) % 60;
+          var line = lines[i % lines.length];
+          var ord = allOrders[i % allOrders.length];
+          out.push({
+            time: "2026-04-18 " + pad2(h) + ":" + pad2(m),
+            line: line,
+            material: "物料-" + ((i % 5) + 1) + " / SPEC-" + (100 + i),
+            orderNo: ord ? ord.prodOrderNo : "MO202604000",
+            drawingNo: ord ? ord.drawingNo : "TH-3100",
+          });
+        }
+        return out;
+      }
+
+      callRecords = buildCallRecords();
+
+      var callState = { page: 1 };
+
+      function callTotalPages() {
+        return Math.max(1, Math.ceil(callRecords.length / CALL_PAGE_SIZE));
+      }
+
+      function renderCallTable() {
+        var tbody = document.getElementById("callBody");
+        var tp = callTotalPages();
+        if (callState.page > tp) callState.page = tp;
+        var start = (callState.page - 1) * CALL_PAGE_SIZE;
+        var rows = callRecords.slice(start, start + CALL_PAGE_SIZE);
+        tbody.innerHTML = "";
+        if (!rows.length) {
+          var tr0 = document.createElement("tr");
+          tr0.innerHTML = '<td colspan="5" style="text-align:center;color:#9ca3af;padding:32px">暂无记录</td>';
+          tbody.appendChild(tr0);
+          return;
+        }
+        rows.forEach(function (r) {
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" +
+            escapeHtml(r.time) +
+            "</td><td>" +
+            escapeHtml(r.line) +
+            "</td><td>" +
+            escapeHtml(r.material) +
+            "</td><td>" +
+            escapeHtml(r.orderNo) +
+            "</td><td>" +
+            escapeHtml(r.drawingNo) +
+            "</td>";
+          tbody.appendChild(tr);
+        });
+      }
+
+      function renderCallPagination() {
+        var total = callRecords.length;
+        var tp = callTotalPages();
+        var start = total === 0 ? 0 : (callState.page - 1) * CALL_PAGE_SIZE + 1;
+        var end = Math.min(total, callState.page * CALL_PAGE_SIZE);
+        document.getElementById("callPageInfo").textContent =
+          "共 " + total + " 条 · 显示 " + start + "–" + end;
+
+        var pag = document.getElementById("callPagination");
+        pag.innerHTML = "";
+
+        function addBtn(label, page, disabled, active) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.textContent = label;
+          b.disabled = !!disabled;
+          if (active) b.classList.add("active");
+          if (!disabled && page !== null) {
+            b.addEventListener("click", function () {
+              callState.page = page;
+              renderCallTable();
+              renderCallPagination();
+            });
+          }
+          pag.appendChild(b);
+        }
+
+        addBtn("上一页", callState.page - 1, callState.page <= 1, false);
+        var p;
+        for (p = 1; p <= tp; p++) {
+          addBtn(String(p), p, false, p === callState.page);
+        }
+        addBtn("下一页", callState.page + 1, callState.page >= tp, false);
+      }
+
+      function onScopeChange() {
+        var scope = document.getElementById("scopeSelect").value;
+        refreshKpis(scope);
+        renderCharts(scope);
+      }
+
+      document.getElementById("scopeSelect").addEventListener("change", onScopeChange);
+
+      refreshKpis("today");
+      renderCharts("today");
+      renderTaskTable();
+      renderTaskPagination();
+      renderCallTable();
+      renderCallPagination();
+    })();
+  </script>
+</body>
+</html>

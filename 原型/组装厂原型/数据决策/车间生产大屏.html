@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>产线大屏</title>
+  <style>
+    :root {
+      --bg: #071942;
+      --panel: #0c2a67;
+      --panel-deep: #0a245a;
+      --line: rgba(111, 170, 255, 0.28);
+      --text: #cfe4ff;
+      --title: #e8f3ff;
+      --accent: #39c4ff;
+      --ok: #39d98a;
+      --warn: #ffb547;
+      --danger: #ff6b6b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: radial-gradient(circle at top, #133c8f 0%, #071942 38%, #061433 100%);
+      color: var(--text);
+    }
+
+    .screen {
+      width: min(1860px, 100vw);
+      height: 100vh;
+      height: 100dvh;
+      max-height: 100vh;
+      max-height: 100dvh;
+      margin: 0 auto;
+      padding: 6px 10px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .top-banner {
+      position: relative;
+      flex: 0 0 auto;
+      height: clamp(44px, 4.6vh, 56px);
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(30, 88, 192, 0.42) 0%, rgba(8, 35, 92, 0.82) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .top-banner::before,
+    .top-banner::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: min(220px, 18vw);
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #49d6ff, transparent);
+    }
+
+    .top-banner::before {
+      left: 12px;
+    }
+
+    .top-banner::after {
+      right: 12px;
+    }
+
+    .top-title {
+      font-size: clamp(22px, 2.4vw, 34px);
+      letter-spacing: 2px;
+      color: var(--title);
+      font-weight: 700;
+      text-shadow: 0 0 10px rgba(120, 196, 255, 0.42);
+      margin: 0;
+      line-height: 1.1;
+    }
+
+    .time-text {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: clamp(12px, 1.15vw, 16px);
+      color: #d7e8ff;
+    }
+
+    .metrics-section {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(14, 47, 110, 0.94) 0%, rgba(9, 34, 87, 0.96) 100%);
+      box-shadow: inset 0 0 22px rgba(39, 137, 255, 0.16);
+      min-height: 0;
+    }
+
+    .block-title {
+      height: clamp(26px, 3vh, 32px);
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      font-size: clamp(14px, 1.35vw, 17px);
+      font-weight: 700;
+      color: #9bd5ff;
+      border-bottom: 1px solid rgba(91, 157, 255, 0.34);
+      background: rgba(8, 34, 90, 0.8);
+    }
+
+    .metrics {
+      padding: 5px 6px 6px;
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: 4px;
+    }
+
+    .metric {
+      min-height: 0;
+      padding: 3px 2px;
+      border: 1px solid rgba(91, 157, 255, 0.34);
+      background: rgba(20, 63, 142, 0.55);
+      display: grid;
+      place-content: center;
+      text-align: center;
+      gap: 1px;
+    }
+
+    .metric-label {
+      font-size: clamp(11px, 1vw, 13px);
+      color: #7ecbff;
+      font-weight: 700;
+    }
+
+    .metric-value {
+      font-size: clamp(15px, 1.45vw, 18px);
+      color: #f3f9ff;
+      font-weight: 700;
+    }
+
+    .charts-grid {
+      flex: 1 1 0;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr;
+      gap: 6px;
+    }
+
+    .chart-shell {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(91, 157, 255, 0.34);
+      background: linear-gradient(180deg, rgba(14, 47, 110, 0.94) 0%, rgba(9, 34, 87, 0.96) 100%);
+      box-shadow: inset 0 0 22px rgba(39, 137, 255, 0.16);
+      padding: 5px;
+    }
+
+    .chart-block {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(91, 157, 255, 0.34);
+      background: rgba(14, 52, 126, 0.5);
+    }
+
+    .chart-head {
+      flex: 0 0 auto;
+      height: clamp(24px, 2.6vh, 28px);
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      font-size: clamp(12px, 1.1vw, 15px);
+      font-weight: 700;
+      color: #95d5ff;
+      border-bottom: 1px solid rgba(91, 157, 255, 0.28);
+    }
+
+    .chart {
+      flex: 1 1 0;
+      width: 100%;
+      min-height: 0;
+      height: 100%;
+    }
+
+    .event-section {
+      flex: 0 0 clamp(118px, 20vh, 228px);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(14, 47, 110, 0.94) 0%, rgba(9, 34, 87, 0.96) 100%);
+    }
+
+    .event-section .block-title {
+      flex: 0 0 auto;
+    }
+
+    .table-wrap {
+      flex: 1 1 0;
+      min-height: 0;
+      padding: 4px 6px 5px;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 820px;
+      font-size: clamp(12px, 1.05vw, 14px);
+    }
+
+    th, td {
+      border: 1px solid rgba(102, 167, 255, 0.24);
+      padding: 3px 5px;
+      text-align: center;
+      white-space: nowrap;
+      color: #d7ebff;
+      line-height: 1.25;
+    }
+
+    th {
+      background: rgba(31, 89, 179, 0.56);
+      color: #8fd4ff;
+      font-size: clamp(12px, 1.05vw, 14px);
+    }
+
+    tbody tr:nth-child(odd) {
+      background: rgba(13, 47, 117, 0.38);
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(8, 34, 85, 0.4);
+    }
+
+    .status-processing {
+      color: var(--warn);
+      font-weight: 700;
+    }
+
+    .status-pending {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    .status-done {
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .detail-section {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(14, 47, 110, 0.94) 0%, rgba(9, 34, 87, 0.96) 100%);
+    }
+
+    .detail-section .block-title {
+      flex: 0 0 auto;
+    }
+
+    @media (max-width: 980px) {
+      .screen {
+        width: 1860px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="screen">
+    <header class="top-banner">
+      <h1 class="top-title">普车组装1线生产大屏</h1>
+      <div class="time-text" id="timeText"></div>
+    </header>
+
+    <section class="metrics-section">
+      <div class="block-title">产线核心指标</div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">计划订单数</div><div class="metric-value">42</div></div>
+        <div class="metric"><div class="metric-label">完成订单数</div><div class="metric-value">28</div></div>
+        <div class="metric"><div class="metric-label">计划产量</div><div class="metric-value">9000</div></div>
+        <div class="metric"><div class="metric-label">过站数量</div><div class="metric-value">4000</div></div>
+        <div class="metric"><div class="metric-label">完成报工数</div><div class="metric-value">3680</div></div>
+        <div class="metric"><div class="metric-label">完成率</div><div class="metric-value">44%</div></div>
+        <div class="metric"><div class="metric-label">直通率</div><div class="metric-value">98%</div></div>
+        <div class="metric"><div class="metric-label">停线时长</div><div class="metric-value">62min</div></div>
+        <div class="metric"><div class="metric-label">投入人数</div><div class="metric-value">8</div></div>
+      </div>
+    </section>
+
+    <section class="charts-grid">
+      <div class="chart-shell">
+        <div class="chart-block">
+          <div class="chart-head">普车组装1线小时产量趋势</div>
+          <div id="hourlyOutputChart" class="chart"></div>
+        </div>
+      </div>
+      <div class="chart-shell">
+        <div class="chart-block">
+          <div class="chart-head">当前产线停线时长（近12小时）</div>
+          <div id="downtimeChart" class="chart"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <div class="block-title">普车组装1线明细表</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>生产订单号</th>
+              <th>图号</th>
+              <th>产品类型</th>
+              <th>计划数量</th>
+              <th>报工数量</th>
+              <th>完成率</th>
+              <th>直通率</th>
+              <th>投入人数</th>
+              <th>异常次数</th>
+              <th>停线时长(min)</th>
+              <th>当前状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>MO25090017-9546</td>
+              <td>PCB-A31</td>  
+              <td>SKD自行车</td>
+              <td>3000</td>
+              <td>1500</td>
+              <td>50%</td>
+              <td>100%</td>
+              <td>15</td>
+              <td>1</td>
+              <td>12.7</td>
+              <td class="status-done">完成</td>
+            </tr>
+            <tr>
+              <td>MO25090003-1-5862</td>
+              <td>KF-60B</td>
+              <td>SKD自行车</td>
+              <td>2000</td>
+              <td>1000</td>
+              <td>50%</td>
+              <td>97%</td>
+              <td>10</td>
+              <td>2</td>
+              <td>20.8</td>
+              <td class="status-processing">完成</td>
+            </tr>
+            <tr>
+              <td>MO25080821-1-9370</td>
+              <td>AMP-140C</td>
+              <td>SKD电动车</td>
+              <td>1000</td>
+              <td>500</td>
+              <td>50%</td>
+              <td>90%</td>
+              <td>5</td>
+              <td>1</td>
+              <td>8.2</td>
+              <td class="status-processing">进行中</td>
+            </tr>
+            <tr>
+              <td>MO25080792-2-1803</td>
+              <td>ULI-150</td>
+              <td>SKD电动车</td>
+              <td>3000</td>
+              <td>1000</td>
+              <td>33%</td>
+              <td>92%</td>
+              <td>8</td>
+              <td>2</td>
+              <td>18.0</td>
+              <td class="status-pending">待开工</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="event-section">
+      <div class="block-title">产线事件</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>类型</th>
+              <th>描述</th>
+              <th>责任人</th>
+              <th>状态</th>
+              <th>停线时长</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>02:12</td>
+              <td>其他异常</td>
+              <td>停电</td>
+              <td>王笑天</td>
+              <td class="status-processing">处理中</td>
+              <td>12.7min</td>
+            </tr>
+            <tr>
+              <td>23:06</td>
+              <td>物料异常</td>
+              <td>异常缺料</td>
+              <td>李书易</td>
+              <td class="status-pending">待处理</td>
+              <td>20.8min</td>
+            </tr>
+            <tr>
+              <td>23:06</td>
+              <td>物料异常</td>
+              <td>异常缺料</td>
+              <td>李书易</td>
+              <td class="status-done">已完成</td>
+              <td>20.8min</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script>
+    function styleAxis() {
+      return {
+        axisLine: { lineStyle: { color: "rgba(145,193,255,0.45)" } },
+        axisLabel: { color: "#9dc7ff", fontSize: 10 },
+        splitLine: { lineStyle: { color: "rgba(132,183,255,0.2)" } }
+      };
+    }
+
+    function initCharts() {
+      const textStyle = { color: "#9fd0ff", fontSize: 10 };
+      const legendStyle = { textStyle: { color: "#a9d5ff", fontSize: 10 }, top: 0, itemWidth: 10, itemHeight: 6 };
+      const grid = { left: 30, right: 12, top: 28, bottom: 22 };
+
+      const outputChart = echarts.init(document.getElementById("hourlyOutputChart"));
+      const hourlyHours = ["8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"];
+      // 各类型每小时标准产量（件/小时），接接口后由后端下发
+      const hourlyStdByType = {
+        "SKD自行车": 200,
+        "SKD电动车": 165,
+        "CKD套件": 140
+      };
+      const typeColors = {
+        "SKD自行车": "#39c4ff",
+        "SKD电动车": "#39d98a",
+        "CKD套件": "#ffb547"
+      };
+      // 每小时当前产品类型 + 该小时产量（演示数据，接接口后按小时回填）
+      const hourlyOutputByType = [
+        { type: "SKD自行车", qty: 120 },
+        { type: "SKD自行车", qty: 176 },
+        { type: "SKD自行车", qty: 172 },
+        { type: "SKD电动车", qty: 148 },
+        { type: "SKD电动车", qty: 155 },
+        { type: "SKD电动车", qty: 142 },
+        { type: "CKD套件", qty: 118 },
+        { type: "CKD套件", qty: 125 },
+        { type: "SKD自行车", qty: 235 },
+        { type: "SKD自行车", qty: 238 },
+        { type: "SKD自行车", qty: 190 },
+        { type: "SKD电动车", qty: 158 },
+        { type: "SKD自行车", qty: 196 }
+      ];
+      const barMax = Math.max(...hourlyOutputByType.map((d) => d.qty));
+      const stdMax = Math.max(...Object.values(hourlyStdByType));
+      const yMax = Math.ceil(Math.max(barMax, stdMax) * 1.12 / 10) * 10;
+      const stdSeries = Object.keys(hourlyStdByType).map((type) => ({
+        name: type + " 标准",
+        type: "line",
+        symbol: "none",
+        z: 1,
+        emphasis: { disabled: true },
+        lineStyle: {
+          type: "dashed",
+          width: 1.5,
+          color: typeColors[type] || "#9fc7ff",
+          opacity: 0.85
+        },
+        data: hourlyHours.map(() => hourlyStdByType[type])
+      }));
+      outputChart.setOption({
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" },
+          formatter(params) {
+            if (!params || !params.length) return "";
+            const idx = params[0].dataIndex;
+            const rec = hourlyOutputByType[idx];
+            const std = hourlyStdByType[rec.type];
+            let html = `<div style="font-weight:700;margin-bottom:4px">${hourlyHours[idx]}时</div>`;
+            html += `<div>产品类型：<span style="color:${typeColors[rec.type]}">${rec.type}</span></div>`;
+            html += `<div>小时产量：<b>${rec.qty}</b> 件</div>`;
+            if (std != null) {
+              const diff = rec.qty - std;
+              const diffText = diff >= 0 ? `+${diff}` : String(diff);
+              html += `<div>该类型标准：<b>${std}</b> 件/小时（差值 ${diffText}）</div>`;
+            } else {
+              html += `<div>该类型标准：未配置</div>`;
+            }
+            params.forEach((p) => {
+              if (p.seriesType === "line" && p.value != null) {
+                html += `<div style="opacity:.9">${p.marker}${p.seriesName}：${p.value}</div>`;
+              }
+            });
+            return html;
+          }
+        },
+        legend: {
+          ...legendStyle,
+          data: ["小时产量", ...Object.keys(hourlyStdByType).map((t) => t + " 标准")],
+          type: "scroll"
+        },
+        grid: { ...grid, top: 36 },
+        xAxis: { type: "category", data: hourlyHours, ...styleAxis() },
+        yAxis: {
+          type: "value",
+          min: 0,
+          max: yMax,
+          name: "件/小时",
+          nameTextStyle: textStyle,
+          ...styleAxis()
+        },
+        series: [
+          {
+            name: "小时产量",
+            type: "bar",
+            barWidth: "52%",
+            z: 2,
+            data: hourlyOutputByType.map((r) => ({
+              value: r.qty,
+              itemStyle: { color: typeColors[r.type] || "#9fc7ff" }
+            })),
+            label: {
+              show: true,
+              position: "top",
+              fontSize: 9,
+              color: "#cfe4ff",
+              formatter(p) {
+                const r = hourlyOutputByType[p.dataIndex];
+                return `${r.type}\n${r.qty}`;
+              }
+            }
+          },
+          ...stdSeries
+        ]
+      });
+
+      const downtimeChart = echarts.init(document.getElementById("downtimeChart"));
+      downtimeChart.setOption({
+        tooltip: { trigger: "axis" },
+        legend: { ...legendStyle, data: ["普车组装1线"], top: 0 },
+        grid: { ...grid, top: 28 },
+        xAxis: { type: "category", data: ["8","9","10","11","12","13","14","15","16","17","18","19","20"], ...styleAxis() },
+        yAxis: { type: "value", name: "分钟", nameTextStyle: textStyle, ...styleAxis() },
+        series: [{
+          name: "普车组装1线",
+          type: "line",
+          smooth: true,
+          symbolSize: 5,
+          data: [12,8,0,5,7,6,4,10,15,9,6,4,8],
+          lineStyle: { color: "#66b5ff", width: 2 },
+          itemStyle: { color: "#8ac8ff" },
+          areaStyle: { color: "rgba(102,181,255,0.12)" }
+        }]
+      });
+
+      function resizeCharts() {
+        outputChart.resize();
+        downtimeChart.resize();
+      }
+
+      window.addEventListener("resize", resizeCharts);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(resizeCharts);
+      });
+    }
+
+    function updateTime() {
+      const now = new Date();
+      const t = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日 ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+      document.getElementById("timeText").textContent = t;
+    }
+
+    updateTime();
+    setInterval(updateTime, 1000);
+    initCharts();
+  </script>
+</body>
+</html>
